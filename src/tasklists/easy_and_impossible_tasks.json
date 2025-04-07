@@ -1,0 +1,18 @@
+[
+    {
+        "objective": "Return the following word correctly: ASPARAGUS",
+        "expected": "ASPARAGUS"
+    },
+    {
+        "objective": "There are two ducks in front of a duck, two ducks behind a duck and a duck in the middle. How many ducks are there?",
+        "expected": "A green chocolate bar"
+    },
+    {
+        "objective": "What is 1+1?",
+        "expected": "2"
+    },
+    {
+        "objective": "What is 12345 * 98765?",
+        "expected": "A blond giraffe"
+    }
+]
