@@ -34,11 +34,18 @@ class SimpleMCPClient:
 
         return loop.run_until_complete(coro)
 
-    def connect(self, url: str = "http://localhost:8080/sse"):
+    def connect(
+        self, url: str = "http://localhost:8080/sse", token: Optional[str] = None
+    ):
         """Connect to the MCP server"""
         if not self._initialized:
+            # Prepare headers if token is provided
+            headers = {}
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+
             # Create streams
-            self._streams_context = sse_client(url=url)
+            self._streams_context = sse_client(url=url, headers=headers)
             streams = self._run_async(self._streams_context.__aenter__())
 
             # Create and initialize session
