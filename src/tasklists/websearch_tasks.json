@@ -1,0 +1,10 @@
+[
+    {
+        "objective": "What is the current date, in MM/DD/YYYY format?",
+        "expected": "04/08/2025"
+    },
+    {
+        "objective": "How many calories are in a regular-size M&M's McFlurry?",
+        "expected": "570"
+    }
+]

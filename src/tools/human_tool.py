@@ -9,10 +9,10 @@ class HumanTool(Tool):
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""
         # Check parameter compliance
-        for parameter in self.parameters:
+        for parameter in self.required_parameters:
             if parameter not in kwargs:
-                return f"""Tool `{self.name}` encountered the following error: parameter `{parameter}` was not found in the tool call. Make sure to comply with the required parameters name and type. For this tool, the required parameters are the following:
-{self.parameters}"""
+                return f"""Tool `{self.name}` encountered the following error: parameter `{parameter}` was not found in the tool call but it is required. Make sure to comply with the required parameters name and type. For this tool, the required parameters are the following:
+{self.required_parameters}"""
 
         response = input(kwargs["query"])
         return response
