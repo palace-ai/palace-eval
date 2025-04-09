@@ -13,8 +13,10 @@ class EvaluationV2:
         self,
         judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for GPTJRCModel,
         verbose: bool = True,
+        task_amount_limit: int = None,
     ):
         self.verbose = verbose
+        self.task_amount_limit = task_amount_limit
 
         # initialize judge model
         if judge_inference == "local":
@@ -50,11 +52,19 @@ class EvaluationV2:
     {correct_tasks}/{len(self.tasks)} ({correct_tasks / len(self.tasks) * 100:.0f}%)[/] tasks completely successfully.
     """)
 
-    def evaluate(self, agent: Agent, environment: Environment, tasklist: str):
+    def evaluate(
+        self,
+        agent: Agent,
+        environment: Environment,
+        tasklist: str,
+    ):
         report: Dict[str, bool] = {}
 
-        with open(f"tasklists/{tasklist}.json") as f:
+        with open(f"../tasklists/{tasklist}.json") as f:
             self.tasks = json.load(f)
+
+        if self.task_amount_limit is not None:
+            self.tasks = self.tasks[: self.task_amount_limit]
 
         for i, task in enumerate(self.tasks):
             print(f"""
@@ -101,7 +111,9 @@ class EvaluationV2:
             if correct:
                 print("    [bold green]:white_check_mark: Correct")
             else:
-                print("    [bold red]:cross_mark: Incorrent")
+                print(
+                    f"    [bold red]:cross_mark: Incorrect[/] (it was {task['expected']})"
+                )
 
         return report
 
@@ -121,7 +133,7 @@ class Evaluation:
         self.paradigms = paradigms
         self.environments = environments
         self.tasklist = tasklist
-        with open(f"tasklists/{tasklist}.json") as f:
+        with open(f"../tasklists/{tasklist}.json") as f:
             self.tasks = json.load(f)
         self.verbose = verbose
 
@@ -191,7 +203,7 @@ Expected response: {task["expected"]}""",
                         if correct:
                             print("    [bold green]:white_check_mark: Correct")
                         else:
-                            print("    [bold red]:cross_mark: Incorrent")
+                            print("    [bold red]:cross_mark: Incorrect")
                     #                     print(
                     #                         f"""{"\033[1;92m✅" if correct else "\033[1;91m❌"} Task {i + 1}:
                     # Objective: \033[22m{task["objective"]}\033[1m

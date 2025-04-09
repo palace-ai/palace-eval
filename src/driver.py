@@ -13,7 +13,8 @@ evaluation = Evaluation(
     ],
     paradigms=[paradigm() for paradigm in paradigms],
     environments=[env() for env in envs],
-    tasklist="code_tasks",
-    verbose=True,
+    tasklist="gaia_tasks",
+    verbose=False,
+    # task_amount_limit=5,
 )
 evaluation.evaluate_all()
