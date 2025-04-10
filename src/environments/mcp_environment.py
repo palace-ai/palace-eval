@@ -1,6 +1,6 @@
 from typing import List
 
-from mcp_utils.simple_mcp_client import SimpleMCPClient
+from mcp_utils.mcp_client import MCPClient
 from tools import RemoteTool, FinalAnswerTool, Tool
 
 from . import Environment
@@ -23,7 +23,7 @@ class MCPEnvironment(Environment):
         self.url = __class__.MCP_SERVERS[mcp_server]["url"]
         self.token = __class__.MCP_SERVERS[mcp_server]["token"]
 
-        self.mcp_client = SimpleMCPClient()
+        self.mcp_client = MCPClient()
 
     @property
     def name(self) -> str:
@@ -55,7 +55,7 @@ class MCPEnvironment(Environment):
                         parameters=tool_parameters,
                         required_parameters=required_parameters,
                         server_url=self.url,
-                        server_token=self.token
+                        server_token=self.token,
                     )
                 )
 

@@ -73,7 +73,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
         for i in range(max_iterations):
             if verbose:
                 print("-" * 40)
-                print(f"\033[1m\nSTEP {i + 1}:")
+                print(f"\033[1m\nSTEP {i + 1}:\033[0m")
 
             generated_text, tool_calls = self.step()
 

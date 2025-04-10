@@ -5,6 +5,9 @@ import nest_asyncio
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
+from utils.SingletonMetaclass import SingletonMetaclass
+
+
 # enable nested asyncio if running in jupyter notebook
 try:
     from IPython import get_ipython
@@ -15,7 +18,7 @@ except Exception:
     pass  # not running in jupyter notebook
 
 
-class SimpleMCPClient:
+class MCPClient(metaclass=SingletonMetaclass):
     def __init__(self):
         self.session: Optional[ClientSession] = None
         self._streams_context = None

@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from mcp_utils.simple_mcp_client import SimpleMCPClient
+from mcp_utils.mcp_client import MCPClient
 
 from . import Tool
 
@@ -15,8 +15,7 @@ class RemoteTool(Tool):
         self._required_parameters = required_parameters
         self._server_url = server_url
         self._server_token = server_token
-
-        self._mcp_client = SimpleMCPClient()
+        self._mcp_client = MCPClient()
 
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""
