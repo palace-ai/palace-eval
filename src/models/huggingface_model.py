@@ -32,6 +32,7 @@ class HuggingfaceModel(Model):
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_id, trust_remote_code=True
             )
+        self.initialized = True
 
     def generate(self, messages: List[Dict[str, str]], **_) -> str:
         if not self.initialized:
