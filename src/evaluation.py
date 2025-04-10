@@ -112,7 +112,7 @@ class EvaluationV2:
                 print("    [bold green]:white_check_mark: Correct")
             else:
                 print(
-                    f"    [bold red]:cross_mark: Incorrect[/] (it was {task['expected']})"
+                    f"    [bold red]:cross_mark: Incorrect[/] (it was [sky_blue2]{task['expected']}[/])"
                 )
 
         return report

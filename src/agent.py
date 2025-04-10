@@ -90,7 +90,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
                             for tool_call in tool_calls
                         ]
                         + [
-                            "(If you expected additional tool responses, double check that your tool call syntax is correct.)"
+                            f"(If you expected additional tool responses, double check that your tool call syntax is correct.{' Also I remind you that when you are ready to give your definitive answer, you have to call the Final Answer Tool.' if len(tool_calls) == 0 else ''})"
                         ]
                     ),
                 }

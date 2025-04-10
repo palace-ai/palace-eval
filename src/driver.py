@@ -1,20 +1,19 @@
 import environments
-from evaluation import Evaluation
+from evaluation import EvaluationV2
 from models import GPTJRCModel, HuggingfaceModel
 from paradigms import SimpleReActParadigm
 
 paradigms = [SimpleReActParadigm]
-envs = [environments.MCPEnvironment]
+envs = [environments.MCPEnvironment(mcp_server="aloha")]
 
-evaluation = Evaluation(
+evaluation = EvaluationV2(verbose=True)
+
+evaluation.evaluate_all(
     models=[
         GPTJRCModel(),
         # HuggingfaceModel("/mnt/storage2/hf_models/Llama-3.1-8B-Instruct")
     ],
     paradigms=[paradigm() for paradigm in paradigms],
-    environments=[env() for env in envs],
+    environments=envs,
     tasklist="gaia_tasks",
-    verbose=False,
-    # task_amount_limit=5,
 )
-evaluation.evaluate_all()

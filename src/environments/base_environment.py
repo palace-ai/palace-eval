@@ -6,11 +6,7 @@ from tools import Tool
 
 class Environment(ABC):
     """Base Environment class.
-
-    Attributes:
-        ASYNC (bool): By default, environments are not asynchronous. If an environments is required to be asynchronous (e.g. to load tools externally), override this class attribute and set it to True. Defaults to False."""
-
-    # ASYNC: bool = False
+    """
 
     @property
     @abstractmethod
@@ -42,7 +38,9 @@ Available tools in this environment that you can use: {
     {i + 1}. {tool.name}
     {tool.description}
     Tool parameters:
-        {tool.parameters}'''
+        {tool.parameters}
+    Required parameters:
+        {tool.required_parameters}'''
                     for i, tool in enumerate(self.tools)
                 ]
             )
