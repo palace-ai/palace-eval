@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from mcp_utils.mcp_client import MCPClient
+from mcp_utils.mcp_client import MCPClientV3
 
 from . import Tool
 
@@ -15,7 +15,7 @@ class RemoteTool(Tool):
         self._required_parameters = required_parameters
         self._server_url = server_url
         self._server_token = server_token
-        self._mcp_client = MCPClient()
+        # self._mcp_client = MCPClientV3()
 
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""
@@ -24,9 +24,11 @@ class RemoteTool(Tool):
             if parameter not in kwargs:
                 return f"""Tool `{self.name}` encountered the following error: parameter `{parameter}` was not found in the tool call but it is required. Make sure to comply with the required parameters name and type. For this tool, the required parameters are the following:
 {self.required_parameters}"""
-
-        self._mcp_client.connect(url=self._server_url, token=self._server_token)
-        response = self._mcp_client.call_tool(self._name, kwargs)
+            
+        with MCPClientV3().connection(url=self._server_url, token=self._server_token) as mcp_client:
+            response = mcp_client.call_tool(self._name, kwargs)
+        # self._mcp_client.connect(url=self._server_url, token=self._server_token)
+        # response = self._mcp_client.call_tool(self._name, kwargs)
         return response.content[0].text
 
     @property

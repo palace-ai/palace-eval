@@ -9,7 +9,7 @@ from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Mount, Route
-from tools import PythonInterpreterTool
+from tools import WebSearchTool, FetchTool
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 SERVER_NAME = "MCPServer"
 mcp_server = Server(SERVER_NAME)
 agent_environment: environments.Environment = environments.CustomEnvironment(
-    [PythonInterpreterTool()]
+    [WebSearchTool(), FetchTool()]
 )
 
 

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from openai import OpenAI, RateLimitError
 
@@ -28,11 +28,12 @@ class GPTJRCModel(Model):
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."
         ),
     )
-    def generate(self, messages: List[Dict[str, str]], **_) -> str:
+    def generate(self, messages: List[Dict[str, str]], temperature: Optional[float]=0.0, **_) -> str:
         chat_completion = self.client.chat.completions.create(
             model=self.model_id,
             messages=messages,
             stream=False,
-            temperature=0.7,
+            temperature=temperature,
+            top_p=0.0001
         )
         return chat_completion.choices[0].message.content

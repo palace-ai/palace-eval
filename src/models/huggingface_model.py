@@ -1,4 +1,5 @@
 from typing import Dict, List
+import os
 
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
@@ -7,7 +8,11 @@ from . import Model
 
 
 class HuggingfaceModel(Model):
+    LOCAL_HF_HUB_CACHE = "/mnt/storage2/hf_models"
+    os.environ["HF_HUB_CACHE"] = LOCAL_HF_HUB_CACHE
+    
     def __init__(self, model_id: str, tensor_parallel_size: int = 1, **kwargs):
+
         self.model_id = model_id
         self.tensor_parallel_size = tensor_parallel_size
         self.kwargs = kwargs
@@ -44,7 +49,7 @@ class HuggingfaceModel(Model):
             add_generation_prompt=True,
         )
         sampling_params = SamplingParams(
-            temperature=0.7,
+            temperature=0.0,
             top_p=1.0,
             max_tokens=2048,
             n=1,

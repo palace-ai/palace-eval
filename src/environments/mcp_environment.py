@@ -1,10 +1,10 @@
 from typing import List
 
-from mcp_utils.mcp_client import MCPClient
+from mcp_utils.mcp_client import MCPClientV3
 from tools import RemoteTool, FinalAnswerTool, Tool
 
 from . import Environment
-from typing import Optional
+
 
 class MCPEnvironment(Environment):
 
@@ -18,17 +18,17 @@ class MCPEnvironment(Environment):
             "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbklkIjoiNjdmNTFmZDU1ODQ0ZTExMjIwZjVlMzc4Iiwic3ViIjoiNjdmM2FmMjZiMjg3OWJiNjFiYTU1NTU2IiwiY2xhaW1zIjpbIk1DUF9QUk9YWV9BQ0NFU1MiXSwiZXhwaXJhdGlvbkRhdGUiOiJXZWQsIDMxIERlYyAyMDI1IDAwOjAwOjAwIEdNVCIsImlhdCI6MTc0NDExNzcxN30.DvTUESGeyGeLVgWb9Sr0YKyPbNlAzf1oMEmfkWHPx9Q"
         }
     }
-    def __init__(self, mcp_server: Optional[str]="local"):
+    def __init__(self, mcp_server: str):
         self._tools = None
         self.url = __class__.MCP_SERVERS[mcp_server]["url"]
         self.token = __class__.MCP_SERVERS[mcp_server]["token"]
 
-        self.mcp_client = MCPClient()
+        # self.mcp_client = MCPClientV3()
 
     @property
     def name(self) -> str:
         """Return the name of the environment."""
-        return "MCP Environment"
+        return f"MCP Environment @ {self.url}"
 
     @property
     def description(self) -> str:
@@ -38,16 +38,17 @@ class MCPEnvironment(Environment):
     @property
     def tools(self) -> List[Tool]:
         if self._tools is None:  # load tools the first time it's called
-            self.mcp_client.connect(url=self.url, token=self.token)
-            mcp_tools = (self.mcp_client.get_tools()).tools
-            tools = [FinalAnswerTool()]  # FinalAnswerTool should always be present
+            with MCPClientV3().connection(url=self.url, token=self.token) as mcp_client:
+                mcp_tools = (mcp_client.list_tools()).tools
+            # self.mcp_client.connect(url=self.url, token=self.token)
+            # mcp_tools = (self.mcp_client.list_tools()).tools
+            tools = []
             for mcp_tool in mcp_tools:
                 tool_parameters = {
                     k: v["description"]
                     for k, v in mcp_tool.inputSchema["properties"].items()
                 }
                 required_parameters = mcp_tool.inputSchema["required"]
-                print(tool_parameters)
                 tools.append(
                     RemoteTool(
                         name=mcp_tool.name,
@@ -58,6 +59,10 @@ class MCPEnvironment(Environment):
                         server_token=self.token,
                     )
                 )
+            
+            # FinalAnswerTool should always be present. If it's not, add it
+            if not any([tool.name == FinalAnswerTool().name for tool in tools]):
+                tools.append(FinalAnswerTool())
 
             self._tools = tools
 

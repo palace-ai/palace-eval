@@ -1,6 +1,6 @@
 import json
 from typing import Dict, List
-
+import pandas as pd
 from agent import Agent
 from environments import Environment
 from models import GPTJRCModel, HuggingfaceModel, Model
@@ -35,8 +35,10 @@ class EvaluationV2:
         models: List[Model],
         paradigms: List[Paradigm],
         environments: List[Environment],
-        tasklist: str,
-    ):  # the name of the tasklist file (without .json extension))
+        tasklist: str, # the name of the tasklist file (without .json extension))
+    ):  
+        results = []
+
         for model in models:
             for paradigm in paradigms:
                 agent = Agent(model, paradigm)
@@ -51,6 +53,16 @@ class EvaluationV2:
                     print(f"""\n[bold]Evaluation report:
     {correct_tasks}/{len(self.tasks)} ({correct_tasks / len(self.tasks) * 100:.0f}%)[/] tasks completely successfully.
     """)
+                    # place value (correct_tasks / len(self.tasks)) into overall_report in "accuracy" column at the correct row 
+                    results.append({
+                        "model": model.name,
+                        "paradigm": paradigm.name,
+                        "environment": environment.name,
+                        "tasklist": tasklist,
+                        "accuracy": correct_tasks / len(self.tasks)
+                    })
+                    
+        return pd.DataFrame(results)
 
     def evaluate(
         self,
@@ -80,11 +92,11 @@ class EvaluationV2:
             # check if run completed successfully
             if result is None:
                 print(
-                    "\t[bold red]:cross_mark: The agent didn't provide a response. This means either it didn't call the Final Answer tool correctly, or it reached maximum iterations before providing a final answer."
+                    "    [bold red]:cross_mark: The agent didn't provide a response. This means either it didn't call the Final Answer tool correctly, or it reached maximum iterations before providing a final answer."
                 )
                 continue
             else:
-                print(f"\t[bold]Agent response:[/] {result}")
+                print(f"    [bold]Agent response:[/] {result}")
 
             # run judge model to determine semantic correctness
             conversation = [
