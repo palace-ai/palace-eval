@@ -17,11 +17,12 @@ class Agent:
         self,
         model: Model,
         paradigm: Paradigm,
-        verbose: bool = True,
         _temperature: float = 0.0,
+        verbose: bool = True,
     ):
         self.model: Model = model
         self.paradigm: Paradigm = paradigm
+        self._temperature: float = _temperature
         self.verbose = verbose
 
         self.tools: Dict[str, Tool] = {}
@@ -46,7 +47,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
 
     # TODO add modules, such as the memory module
     def step(self) -> str:
-        generated_text = self.model.generate(self.conversation)
+        generated_text = self.model.generate(self.conversation, self._temperature)
         if self.verbose:
             print(f"\033[1mGenerated text:\033[0m\n{generated_text}\n")
 

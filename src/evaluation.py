@@ -15,11 +15,13 @@ from paradigms import Paradigm
 class Evaluation:
     def __init__(
         self,
+        name: str = "eval",
         judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for GPTJRCModel,
         verbose: bool = True,
         task_amount_limit: int = None,
         runs_per_configuration: int = 1,
     ):
+        self.name = name
         self.verbose = verbose
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
@@ -49,7 +51,9 @@ class Evaluation:
         for model in models:
             for paradigm in paradigms:
                 for _temperature in _temperatures:
-                    agent = Agent(model, paradigm, verbose=self.verbose)
+                    agent = Agent(
+                        model, paradigm, _temperature=_temperature, verbose=self.verbose
+                    )
                     for environment in environments:
                         for run in range(self.runs_per_configuration):
                             print(f"""\n[bold]Evaluating (run [sky_blue2]{run}/{self.runs_per_configuration}[/])
@@ -91,8 +95,8 @@ class Evaluation:
                             results.append(run_results)
 
                             # append results to jsonl file
-                            os.makedirs("results/", exist_ok=True)
-                            with open("results/results.jsonl", "a") as f:
+                            os.makedirs("../results/", exist_ok=True)
+                            with open(f"../results/{self.name}.jsonl", "a") as f:
                                 run_json = json.dumps(run_results)
                                 f.write(run_json + "\n")
 

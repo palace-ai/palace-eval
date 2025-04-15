@@ -9,7 +9,7 @@ envs = [
     environments.MCPEnvironment(mcp_server="aloha"),
 ]
 
-evaluation = Evaluation(verbose=True, task_amount_limit=30, runs_per_configuration=5)
+evaluation = Evaluation(verbose=False, task_amount_limit=30, runs_per_configuration=5)
 
 results = evaluation.evaluate_all(
     models=[
