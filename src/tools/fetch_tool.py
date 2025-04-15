@@ -1,7 +1,9 @@
 from typing import Dict, List
-from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+
 import pymupdf
 import requests
+from bs4 import BeautifulSoup
 
 from . import Tool
 
@@ -34,10 +36,46 @@ class FetchTool(Tool):
         except Exception as e:
             return {"url": url, "error": str(e)}
 
-    def _fetch_pdf_content(url: str, limit_length: int = None):
-        if url.split(".")[-1].lower() != "pdf":
-            raise ValueError(f"url must be point to a pdf file, found {url}")
+    def _is_pdf_url(url):
+        """
+        Check if a URL points to a PDF file by:
+        1. Checking the file extension
+        2. Checking the Content-Type header
+        3. (Optionally) Checking the file magic number
 
+        Args:
+            url (str): The URL to check
+
+        Returns:
+            bool: True if URL points to PDF, False otherwise
+        """
+        try:
+            # Parse URL and check path
+            parsed = urlparse(url)
+            if parsed.path.lower().endswith(".pdf"):
+                return True
+
+            # Make HEAD request to check Content-Type
+            response = requests.head(url, allow_redirects=True, timeout=5)
+            content_type = response.headers.get("Content-Type", "").lower()
+
+            # Check for PDF content types
+            if "pdf" in content_type:
+                return True
+
+            # If Content-Type is ambiguous, check the first bytes for PDF magic number
+            if content_type in ["application/octet-stream", "binary/octet-stream"]:
+                # Make a GET request for just the first few bytes
+                headers = {"Range": "bytes=0-4"}
+                response = requests.get(url, headers=headers, stream=True, timeout=5)
+                return response.content.startswith(b"%PDF-")
+
+            return False
+
+        except (requests.RequestException, ValueError):
+            return False
+
+    def _fetch_pdf_content(url: str, limit_length: int = None):
         try:
             response = requests.get(url)
             response.raise_for_status()
@@ -73,10 +111,10 @@ class FetchTool(Tool):
         if limit_length is not None:
             limit_length = int(limit_length)
 
-        if url.split(".")[-1].lower() != "pdf":
-            fetch_output = __class__._fetch_page_content(url, limit_length=limit_length)
-        else:  # adding direct pdf extraction capability
+        if __class__._is_pdf_url(url):  # adding direct pdf extraction capability
             fetch_output = __class__._fetch_pdf_content(url, limit_length=limit_length)
+        else:
+            fetch_output = __class__._fetch_page_content(url, limit_length=limit_length)
 
         if "error" in fetch_output:
             return f"Fetching url {url} returned the following error: {fetch_output['error']}"

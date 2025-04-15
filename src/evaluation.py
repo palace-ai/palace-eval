@@ -4,12 +4,11 @@ import time
 from typing import Dict, List
 
 import pandas as pd
-from rich import print
-
 from agent import Agent
 from environments import Environment
 from models import GPTJRCModel, HuggingfaceModel, Model
 from paradigms import Paradigm
+from rich import print
 
 
 class Evaluation:
@@ -56,7 +55,7 @@ class Evaluation:
                     )
                     for environment in environments:
                         for run in range(self.runs_per_configuration):
-                            print(f"""\n[bold]Evaluating (run [sky_blue2]{run}/{self.runs_per_configuration}[/])
+                            print(f"""\n[bold]Evaluating (run [sky_blue2]{run + 1}/{self.runs_per_configuration}[/])
             :robot: agent [sky_blue2]( {model.name} × {paradigm.name} )[/]
             :package: on enviromnent [sky_blue2]{environment.name}[/]
             :scroll: on tasklist [sky_blue2]{tasklist}[/]
