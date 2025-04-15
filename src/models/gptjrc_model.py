@@ -2,7 +2,12 @@ from typing import Dict, List, Optional
 
 from openai import OpenAI, RateLimitError
 
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from . import Model
 
@@ -22,18 +27,23 @@ class GPTJRCModel(Model):
 
     @retry(
         stop=stop_after_attempt(5),  # Max 5 attempts
-        wait=wait_exponential(multiplier=10, max=60),  # Exponential backoff (10s -> 20s -> 40s -> 60s)
-        retry=retry_if_exception_type(RateLimitError,),  # Retry only on RateLimitError
+        wait=wait_exponential(
+            multiplier=10, max=60
+        ),  # Exponential backoff (10s -> 20s -> 40s -> 60s)
+        retry=retry_if_exception_type(
+            RateLimitError,
+        ),  # Retry only on RateLimitError
         before_sleep=lambda retry_state: print(
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."
         ),
     )
-    def generate(self, messages: List[Dict[str, str]], temperature: Optional[float]=0.0, **_) -> str:
+    def generate(
+        self, messages: List[Dict[str, str]], temperature: Optional[float] = 0.0, **_
+    ) -> str:
         chat_completion = self.client.chat.completions.create(
             model=self.model_id,
             messages=messages,
             stream=False,
             temperature=temperature,
-            top_p=0.0001
         )
         return chat_completion.choices[0].message.content

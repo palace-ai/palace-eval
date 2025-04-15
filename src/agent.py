@@ -13,9 +13,16 @@ from tools import Tool
 class Agent:
     """Standard implementation of the agentic loop, based on ReAct."""
 
-    def __init__(self, model: Model, paradigm: Paradigm):
+    def __init__(
+        self,
+        model: Model,
+        paradigm: Paradigm,
+        verbose: bool = True,
+        _temperature: float = 0.0,
+    ):
         self.model: Model = model
         self.paradigm: Paradigm = paradigm
+        self.verbose = verbose
 
         self.tools: Dict[str, Tool] = {}
         self.conversation: List[Dict[str, str]] = []
@@ -37,70 +44,66 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
 
         return response
 
-    # TODO add memory
+    # TODO add modules, such as the memory module
     def step(self) -> str:
         generated_text = self.model.generate(self.conversation)
+        if self.verbose:
+            print(f"\033[1mGenerated text:\033[0m\n{generated_text}\n")
+
         tool_calls = self._extract_tool_calls(generated_text)
         for tool_call in tool_calls:
             response = self._call_tool(tool_call["name"], **tool_call["parameters"])
             tool_call["response"] = response
+
         return generated_text, tool_calls
 
     def run(
         self,
         environment: Environment,
         task: str,
-        max_iterations: int = 10,
-        verbose: bool = True,
+        max_steps: int = 10,
     ) -> str:
         self.tools: Dict[str, Tool] = {tool.name: tool for tool in environment.tools}
         self.conversation: List[Dict[str, str]] = []
 
+        system_prompt = self.paradigm.paradigm_prompt + environment.environment_prompt
         self.conversation.append(
             {
                 "role": "system",
-                "content": self.paradigm.paradigm_prompt
-                + environment.environment_prompt,
+                "content": system_prompt,
             }
         )
         self.conversation.append({"role": "user", "content": task})
         final_answer = None
 
-        if verbose:
-            print(f"\033[1mSystem prompt:\033[0m\n{self.conversation[0]['content']}\n")
-            print(f"\033[1mTask:\033[0m\n{self.conversation[1]['content']}\n")
+        if self.verbose:
+            print(f"\033[1mSystem prompt:\033[0m\n{system_prompt}\n")
+            print(f"\033[1mTask:\033[0m\n{task}\n")
 
-        for i in range(max_iterations):
-            if verbose:
+        for i in range(max_steps):
+            if self.verbose:
                 print("-" * 40)
                 print(f"\033[1m\nSTEP {i + 1}:\033[0m")
 
+            # run the agent step
             generated_text, tool_calls = self.step()
 
             # append the last generated text
             self.conversation.append({"role": "assistant", "content": generated_text})
 
             # append the last tool responses
-            self.conversation.append(
-                {
-                    "role": "user",
-                    "content": "\n".join(
-                        [
-                            f"Your call to {tool_call['name']} returned the following response: {tool_call['response']}"
-                            for tool_call in tool_calls
-                        ]
-                        + [
-                            f"(If you expected additional tool responses, double check that your tool call syntax is correct.{' Also I remind you that when you are ready to give your definitive answer, you have to call the Final Answer Tool.' if len(tool_calls) == 0 else ''})"
-                        ]
-                    ),
-                }
+            tool_responses = "\n".join(
+                [
+                    f"Your call to {tool_call['name']} returned the following response: {tool_call['response']}"
+                    for tool_call in tool_calls
+                ]
+                + [
+                    f"(If you expected additional tool responses, double check that your tool call syntax is correct.{' Also I remind you that when you are ready to give your definitive answer, you have to call the Final Answer Tool.' if len(tool_calls) == 0 else ''})"
+                ]
             )
-
-            if verbose:
-                print(f"\033[1mGenerated text:\033[0m\n{generated_text}\n")
-                print(
-                    f"\033[1mTool calls and responses:\033[0m\n{self.conversation[-1]['content']}\n"
-                )
+            self.conversation.append({"role": "user", "content": tool_responses})
+            if self.verbose:
+                print(f"\033[1mTool calls and responses:\033[0m\n{tool_responses}\n")
 
             # break if model has called the final answer tool
             for tool_call in tool_calls:

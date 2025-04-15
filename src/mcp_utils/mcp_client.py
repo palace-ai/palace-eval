@@ -75,8 +75,7 @@ class MCPClient(metaclass=SingletonMetaclass):
         return self._run_async(self.session.call_tool(tool_name, parameters))
 
     def disconnect(self):
-        """Clean up resources.
-        """
+        """Clean up resources."""
         if not self._connected:
             return
 
@@ -108,9 +107,7 @@ class MCPClientV2(metaclass=SingletonMetaclass):
         if self._loop is None or not self._loop.is_running():
             self._loop = asyncio.new_event_loop()
             self._thread = threading.Thread(
-                target=self._run_background_loop,
-                args=(self._loop,),
-                daemon=True
+                target=self._run_background_loop, args=(self._loop,), daemon=True
             )
             self._thread.start()
 
@@ -137,24 +134,24 @@ class MCPClientV2(metaclass=SingletonMetaclass):
         async def _main():
             """Main async context manager routine."""
             headers = {"Authorization": f"Bearer {token}"} if token else {}
-            
+
             # Enter SSE client context
             streams_ctx = sse_client(url=url, headers=headers)
             streams = await streams_ctx.__aenter__()
-            
+
             # Enter ClientSession context
             session_ctx = ClientSession(*streams)
             session = await session_ctx.__aenter__()
             await session.initialize()
-            
+
             # Update state
             self.session = session
             self._connected = True
             self._connect_event.set()
-            
+
             # Wait for disconnect signal
             await self._wait_for_disconnect()
-            
+
             # Exit contexts
             await session_ctx.__aexit__(None, None, None)
             await streams_ctx.__aexit__(None, None, None)
@@ -187,10 +184,10 @@ class MCPClientV2(metaclass=SingletonMetaclass):
         """Clean up resources."""
         if not self._connected:
             return
-        
+
         # Signal the async task to exit
         self._disconnect_event.set()
-        
+
         # Wait for disconnect to complete
         self._main_task.result()  # Wait for the async task to finish
         self._main_task = None
@@ -199,6 +196,7 @@ class MCPClientV2(metaclass=SingletonMetaclass):
 
 class MCPClientV3(metaclass=SingletonMetaclass):
     """Single class interface with simplified API"""
+
     def __init__(self):
         self.session: Optional[ClientSession] = None
         self._async = AsyncThread()
@@ -210,7 +208,7 @@ class MCPClientV3(metaclass=SingletonMetaclass):
     def connection(self, url: str, token: Optional[str] = None):
         """
         Context manager for connection lifecycle.
-        
+
         Usage:
             with MCPClientV3().connection("http://localhost:8080/sse") as mcp_client:
                 mcp_client.list_tools()
@@ -230,19 +228,19 @@ class MCPClientV3(metaclass=SingletonMetaclass):
 
         async def _main():
             headers = {"Authorization": f"Bearer {token}"} if token else {}
-            
+
             self._streams_context = sse_client(url=url, headers=headers)
             streams = await self._streams_context.__aenter__()
-            
+
             self._session_context = ClientSession(*streams)
             self.session = await self._session_context.__aenter__()
             await self.session.initialize()
-            
+
             self._async.signal_ready()
-            
+
             while not self._async.should_stop():
                 await asyncio.sleep(0.1)
-            
+
             await self._session_context.__aexit__(None, None, None)
             await self._streams_context.__aexit__(None, None, None)
 
@@ -258,9 +256,7 @@ class MCPClientV3(metaclass=SingletonMetaclass):
     def call_tool(self, tool_name: str, parameters: Dict[str, str]):
         if not self._connected:
             raise RuntimeError("Not connected")
-        return self._async.run_async(
-            self.session.call_tool(tool_name, parameters)
-        )
+        return self._async.run_async(self.session.call_tool(tool_name, parameters))
 
     def disconnect(self):
         if not self._connected:
@@ -269,7 +265,7 @@ class MCPClientV3(metaclass=SingletonMetaclass):
         self._async.signal_stop()
         self._async.wait_for_disconnect(5)
         self._async.wait_for_task()
-        
+
         # Reset state without stopping loop
         self._async.reset()
         self.session = None

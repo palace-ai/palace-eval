@@ -1,12 +1,15 @@
 import environments
-from evaluation import EvaluationV2
+from evaluation import Evaluation
 from models import GPTJRCModel, HuggingfaceModel
 from paradigms import SimpleReActParadigm
 
 paradigms = [SimpleReActParadigm]
-envs = [environments.MCPEnvironment(mcp_server="local"), environments.MCPEnvironment(mcp_server="aloha")]
+envs = [
+    environments.MCPEnvironment(mcp_server="local"),
+    environments.MCPEnvironment(mcp_server="aloha"),
+]
 
-evaluation = EvaluationV2(verbose=False, task_amount_limit=10)
+evaluation = Evaluation(verbose=True, task_amount_limit=30, runs_per_configuration=5)
 
 results = evaluation.evaluate_all(
     models=[
@@ -16,5 +19,6 @@ results = evaluation.evaluate_all(
     paradigms=[paradigm() for paradigm in paradigms],
     environments=envs,
     tasklist="gaia_tasks",
+    _temperatures=[0.0, 0.7],  # [0.0, 0.7],
 )
 print(results)

@@ -2,14 +2,13 @@ import asyncio
 import threading
 from typing import Coroutine, Any
 
+
 class AsyncThread:
     """Handles all async/threading operations"""
+
     def __init__(self):
         self.loop = asyncio.new_event_loop()
-        self._thread = threading.Thread(
-            target=self._run_loop,
-            daemon=True
-        )
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._main_task = None
         self._stop_event = threading.Event()
         self._disconnect_done = threading.Event()
@@ -30,7 +29,19 @@ class AsyncThread:
         self._main_task = None
 
     def run_async(self, coro: Coroutine) -> Any:
-        return asyncio.run_coroutine_threadsafe(coro, self.loop).result()
+        async def wrap_with_timeout(coro: Coroutine, timeout: int) -> Coroutine:
+            try:
+                return await asyncio.wait_for(coro, timeout)
+            except asyncio.TimeoutError:
+                print("Timeout occurred")
+                return None
+            except Exception as e:
+                print(f"Internal error occurred: {e}")
+                return None
+
+        return asyncio.run_coroutine_threadsafe(
+            wrap_with_timeout(coro, timeout=30), self.loop
+        ).result()
 
     def start_main_task(self, coro: Coroutine):
         async def wrapped_coro():
