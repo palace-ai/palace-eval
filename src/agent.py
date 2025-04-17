@@ -95,7 +95,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
             # append the last tool responses
             tool_responses = "\n".join(
                 [
-                    f"Your call to {tool_call['name']} returned the following response: {tool_call['response']}"
+                    f"Your call to {tool_call['name']} returned the following response:\n{tool_call['response']}"
                     for tool_call in tool_calls
                 ]
                 + [

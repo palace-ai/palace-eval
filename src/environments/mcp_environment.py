@@ -1,29 +1,26 @@
 from typing import List
 
-from mcp_utils.mcp_client import MCPClientV3
-from tools import RemoteTool, FinalAnswerTool, Tool
+from mcp_utils.mcp_client import MCPClientV4
+from tools import FinalAnswerTool, MCPTool, Tool
 
 from . import Environment
 
 
 class MCPEnvironment(Environment):
-
     MCP_SERVERS = {
-        "local": {
-            "url": "http://localhost:8080/sse", 
-            "token": None
-        }, 
+        "local": {"url": "http://localhost:8080/sse", "token": None},
         "aloha": {
-            "url": "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/jrc-gpt/sse", 
-            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbklkIjoiNjdmNTFmZDU1ODQ0ZTExMjIwZjVlMzc4Iiwic3ViIjoiNjdmM2FmMjZiMjg3OWJiNjFiYTU1NTU2IiwiY2xhaW1zIjpbIk1DUF9QUk9YWV9BQ0NFU1MiXSwiZXhwaXJhdGlvbkRhdGUiOiJXZWQsIDMxIERlYyAyMDI1IDAwOjAwOjAwIEdNVCIsImlhdCI6MTc0NDExNzcxN30.DvTUESGeyGeLVgWb9Sr0YKyPbNlAzf1oMEmfkWHPx9Q"
-        }
+            "url": "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/jrc-gpt/sse",
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbklkIjoiNjdmNTFmZDU1ODQ0ZTExMjIwZjVlMzc4Iiwic3ViIjoiNjdmM2FmMjZiMjg3OWJiNjFiYTU1NTU2IiwiY2xhaW1zIjpbIk1DUF9QUk9YWV9BQ0NFU1MiXSwiZXhwaXJhdGlvbkRhdGUiOiJXZWQsIDMxIERlYyAyMDI1IDAwOjAwOjAwIEdNVCIsImlhdCI6MTc0NDExNzcxN30.DvTUESGeyGeLVgWb9Sr0YKyPbNlAzf1oMEmfkWHPx9Q",
+        },
     }
+
     def __init__(self, mcp_server: str):
         self._tools = None
         self.url = __class__.MCP_SERVERS[mcp_server]["url"]
         self.token = __class__.MCP_SERVERS[mcp_server]["token"]
 
-        # self.mcp_client = MCPClientV3()
+        # self.mcp_client = MCPClientV4()
 
     @property
     def name(self) -> str:
@@ -38,7 +35,7 @@ class MCPEnvironment(Environment):
     @property
     def tools(self) -> List[Tool]:
         if self._tools is None:  # load tools the first time it's called
-            with MCPClientV3().connection(url=self.url, token=self.token) as mcp_client:
+            with MCPClientV4().connection(url=self.url, token=self.token) as mcp_client:
                 mcp_tools = (mcp_client.list_tools()).tools
             # self.mcp_client.connect(url=self.url, token=self.token)
             # mcp_tools = (self.mcp_client.list_tools()).tools
@@ -50,7 +47,7 @@ class MCPEnvironment(Environment):
                 }
                 required_parameters = mcp_tool.inputSchema["required"]
                 tools.append(
-                    RemoteTool(
+                    MCPTool(
                         name=mcp_tool.name,
                         description=mcp_tool.description,
                         parameters=tool_parameters,
@@ -59,7 +56,7 @@ class MCPEnvironment(Environment):
                         server_token=self.token,
                     )
                 )
-            
+
             # FinalAnswerTool should always be present. If it's not, add it
             if not any([tool.name == FinalAnswerTool().name for tool in tools]):
                 tools.append(FinalAnswerTool())

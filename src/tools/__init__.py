@@ -5,5 +5,5 @@ from tools.final_answer_tool import FinalAnswerTool
 from tools.human_tool import HumanTool
 from tools.letter_count_tool import LetterCountTool
 from tools.python_interpreter_tool import PythonInterpreterTool
-from tools.remote_tool import RemoteTool
+from tools.mcp_tool import MCPTool
 from tools.web_search_tool import WebSearchTool

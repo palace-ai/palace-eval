@@ -1,11 +1,11 @@
 from typing import Dict, List, Optional
 
-from mcp_utils.mcp_client import MCPClientV3
+from mcp_utils.mcp_client import MCPClientV4
 
 from . import Tool
 
 
-class RemoteTool(Tool):
+class MCPTool(Tool):
     def __init__(
         self,
         name: str,
@@ -30,7 +30,7 @@ class RemoteTool(Tool):
                 return f"""Tool `{self.name}` encountered the following error: parameter `{parameter}` was not found in the tool call but it is required. Make sure to comply with the required parameters name and type. For this tool, the required parameters are the following:
 {self.required_parameters}"""
 
-        with MCPClientV3().connection(
+        with MCPClientV4().connection(
             url=self._server_url, token=self._server_token
         ) as mcp_client:
             response = mcp_client.call_tool(self._name, kwargs)

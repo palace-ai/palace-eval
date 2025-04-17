@@ -6,10 +6,12 @@ from paradigms import SimpleReActParadigm
 paradigms = [SimpleReActParadigm]
 envs = [
     environments.MCPEnvironment(mcp_server="local"),
-    environments.MCPEnvironment(mcp_server="aloha"),
+    # environments.MCPEnvironment(mcp_server="aloha"),
 ]
 
-evaluation = Evaluation(verbose=False, task_amount_limit=30, runs_per_configuration=5)
+evaluation = Evaluation(
+    name="eval2", verbose=False, task_amount_limit=20, runs_per_configuration=5
+)
 
 results = evaluation.evaluate_all(
     models=[
@@ -19,6 +21,6 @@ results = evaluation.evaluate_all(
     paradigms=[paradigm() for paradigm in paradigms],
     environments=envs,
     tasklist="gaia_tasks",
-    _temperatures=[0.0, 0.7],  # [0.0, 0.7],
+    _temperatures=[1.0, 0.7, 0.0],  # [0.0, 0.7],
 )
 print(results)

@@ -1,15 +1,14 @@
 import asyncio
-from typing import Dict, Optional
 import threading
 from contextlib import contextmanager
+from typing import Dict, Optional
 
 import nest_asyncio
+from anyio import BrokenResourceError
 from mcp import ClientSession
 from mcp.client.sse import sse_client
-
-from utils.metaclasses import SingletonMetaclass
 from utils.async_thread import AsyncThread
-
+from utils.metaclasses import SingletonMetaclass
 
 # enable nested asyncio if running in jupyter notebook
 try:
@@ -272,3 +271,118 @@ class MCPClientV3(metaclass=SingletonMetaclass):
         self._streams_context = None
         self._session_context = None
         self._connected = False
+
+
+class MCPClientV4(metaclass=SingletonMetaclass):
+    """Single class interface with simplified API"""
+
+    def __init__(self):
+        self.session: Optional[ClientSession] = None
+        self._async = AsyncThread()
+        self._streams_context = None
+        self._session_context = None
+        self._connected = False
+
+    @contextmanager
+    def connection(self, url: str, token: Optional[str] = None):
+        """
+        Context manager for connection lifecycle.
+
+        Usage:
+            with MCPClientV4().connection("http://localhost:8080/sse") as mcp_client:
+                mcp_client.list_tools()
+        """
+        try:
+            self.connect(url, token)
+            yield self
+        finally:
+            self.disconnect()
+
+    def connect(self, url: str, token: Optional[str] = None):
+        if self._connected:
+            raise RuntimeError("Already connected")
+
+        if self._async.loop.is_closed():
+            self._async = AsyncThread()
+
+        async def _main():
+            headers = {"Authorization": f"Bearer {token}"} if token else {}
+
+            try:
+                self._streams_context = sse_client(url=url, headers=headers)
+                streams = await self._streams_context.__aenter__()
+
+                self._session_context = ClientSession(*streams)
+                self.session = await self._session_context.__aenter__()
+                await self.session.initialize()
+
+                self._async.signal_ready()
+
+                while not self._async.should_stop():
+                    await asyncio.sleep(0.1)
+
+            finally:
+                await self._cleanup_resources()
+
+            # await self._session_context.__aexit__(None, None, None)
+            # await self._streams_context.__aexit__(None, None, None)
+
+        self._async.start_main_task(_main())
+        self._async.wait_until_ready(5)
+        self._connected = True
+
+    async def _cleanup_resources(self):
+        """Safely clean up all resources, ignoring expected errors"""
+        # Clean up session first
+        if self._session_context is not None:
+            try:
+                await self._session_context.__aexit__(None, None, None)
+            except BrokenResourceError:
+                pass
+            except Exception as e:
+                print(f"Unexpected error during cleanup: {repr(e)}")
+            finally:
+                self._session_context = None
+                self.session = None
+
+        # Then clean up streams
+        if self._streams_context is not None:
+            try:
+                await self._streams_context.__aexit__(None, None, None)
+            except BrokenResourceError:
+                pass
+            except Exception as e:
+                print(f"Unexpected error during cleanup: {repr(e)}")
+            finally:
+                self._streams_context = None
+
+    def list_tools(self):
+        if not self._connected:
+            raise RuntimeError("Not connected")
+        return self._async.run_async(self.session.list_tools())
+
+    def call_tool(self, tool_name: str, parameters: Dict[str, str]):
+        if not self._connected:
+            raise RuntimeError("Not connected")
+        return self._async.run_async(self.session.call_tool(tool_name, parameters))
+
+    def disconnect(self):
+        if not self._connected:
+            return
+
+        self._async.signal_stop()
+        try:
+            self._async.wait_for_disconnect(5)
+            self._async.wait_for_task()
+        except Exception as e:
+            print(f"Warning during disconnect: {repr(e)}")
+        finally:
+            self._force_reset_state()
+
+    def _force_reset_state(self):
+        """Completely reset the state regardless of previous errors"""
+        self.session = None
+        self._streams_context = None
+        self._session_context = None
+        self._connected = False
+        self._async.reset()
