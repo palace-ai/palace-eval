@@ -2,6 +2,7 @@ from typing import List
 
 from mcp_utils.mcp_client import MCPClientV4
 from tools import FinalAnswerTool, MCPTool, Tool
+from utils.secrets import ALOHA_TOKEN
 
 from . import Environment
 
@@ -11,7 +12,7 @@ class MCPEnvironment(Environment):
         "local": {"url": "http://localhost:8080/sse", "token": None},
         "aloha": {
             "url": "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/jrc-gpt/sse",
-            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbklkIjoiNjdmNTFmZDU1ODQ0ZTExMjIwZjVlMzc4Iiwic3ViIjoiNjdmM2FmMjZiMjg3OWJiNjFiYTU1NTU2IiwiY2xhaW1zIjpbIk1DUF9QUk9YWV9BQ0NFU1MiXSwiZXhwaXJhdGlvbkRhdGUiOiJXZWQsIDMxIERlYyAyMDI1IDAwOjAwOjAwIEdNVCIsImlhdCI6MTc0NDExNzcxN30.DvTUESGeyGeLVgWb9Sr0YKyPbNlAzf1oMEmfkWHPx9Q",
+            "token": ALOHA_TOKEN,
         },
     }
 

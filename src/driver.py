@@ -10,7 +10,7 @@ envs = [
 ]
 
 evaluation = Evaluation(
-    name="eval2", verbose=False, task_amount_limit=20, runs_per_configuration=5
+    name="eval_simpleqa", verbose=True, task_amount_limit=20, runs_per_configuration=5
 )
 
 results = evaluation.evaluate_all(
@@ -20,7 +20,7 @@ results = evaluation.evaluate_all(
     ],
     paradigms=[paradigm() for paradigm in paradigms],
     environments=envs,
-    tasklist="gaia_tasks",
+    tasklist="SimpleQA",
     _temperatures=[1.0, 0.7, 0.0],  # [0.0, 0.7],
 )
 print(results)
