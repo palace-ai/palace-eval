@@ -1,0 +1,2 @@
+from agents_eval.paradigms.base_paradigm import Paradigm
+from agents_eval.paradigms.simple_react_paradigm import SimpleReActParadigm

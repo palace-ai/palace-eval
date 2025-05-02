@@ -1,6 +1,8 @@
 **/__pycache__/
 **/___*
+**/*.egg-info/
 .tokens.env
+build/
 data/*
 !data/.gitkeep
 results/*

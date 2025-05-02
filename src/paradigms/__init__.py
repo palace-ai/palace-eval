@@ -1,2 +1,0 @@
-from paradigms.base_paradigm import Paradigm
-from paradigms.simple_react_paradigm import SimpleReActParadigm

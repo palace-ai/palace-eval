@@ -1,0 +1,47 @@
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agents-eval"
+version = "0.1"
+description = "Create agents or use existing ones as-a-tool. Evaluate them on different tasks and different environments. Use the provided base set of tools, define new ones, or use remote ones through MCP."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Massimiliano ALTIERI", email = "massimiliano.altieri@ec.europa.eu" },
+]
+# license = { text = "TBD" }  # TODO: Choose before public release
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "anyio==4.8.0",
+    "beautifulsoup4==4.13.4",
+    "datasets==3.5.0",
+    "huggingface_hub==0.29.1",
+    "ipython==8.12.3",
+    "mcp==1.6.0",
+    "nest_asyncio==1.6.0",
+    "openai==1.76.0",
+    "pandas==2.2.3",
+    "pydantic==2.11.3",
+    "pymupdf==1.25.5",
+    "python-dotenv==1.1.0",
+    "rich==14.0.0",
+    "starlette==0.46.2",
+    "tenacity==9.1.2",
+    "transformers==4.49.0",
+    "uvicorn==0.34.2",
+    "vllm==0.7.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/m-altieri/agents-eval"  # Currently private
+Documentation = "https://github.com/m-altieri/agents-eval#readme"  # Currently private
+
+[project.scripts]
+agents-eval = "agents_eval.cli.eval:main"
