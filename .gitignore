@@ -3,6 +3,7 @@
 **/*.egg-info/
 .tokens.env
 build/
-data/*
-!data/.gitkeep
 results/*
+!results/.gitkeep
+tasklists/*
+!tasklists/.gitkeep
