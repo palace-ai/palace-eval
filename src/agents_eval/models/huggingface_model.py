@@ -5,11 +5,11 @@ from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 
 from agents_eval.models import Model
+from agents_eval.utils.paths import MODELS_DIR
 
 
 class HuggingfaceModel(Model):
-    LOCAL_HF_HUB_CACHE = "/mnt/storage2/hf_models"
-    os.environ["HF_HUB_CACHE"] = LOCAL_HF_HUB_CACHE
+    os.environ["HF_HUB_CACHE"] = str(MODELS_DIR)
 
     def __init__(self, model_id: str, tensor_parallel_size: int = 1, **kwargs):
         self.model_id = model_id
@@ -28,7 +28,7 @@ class HuggingfaceModel(Model):
             self.model = LLM(
                 model=self.model_id,
                 tensor_parallel_size=self.tensor_parallel_size,
-                max_model_len=4096,
+                max_model_len=32768,
                 tokenizer_mode="auto",
                 enable_prefix_caching=True,
                 **self.kwargs,
@@ -51,7 +51,7 @@ class HuggingfaceModel(Model):
         )
         sampling_params = SamplingParams(
             temperature=temperature,
-            max_tokens=2048,
+            max_tokens=16384,
             n=1,
             stop="###STOP###",
         )

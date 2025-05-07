@@ -1,0 +1,7 @@
+{
+    "name": "AssistantBench",
+    "id": "AssistantBench/AssistantBench",
+    "config": null,
+    "split": "validation",
+    "category": "QA"
+}

@@ -6,6 +6,7 @@ from agents_eval.environments import Environment
 from agents_eval.models import Model
 from agents_eval.paradigms import Paradigm
 from agents_eval.tools import Tool
+from agents_eval.utils.printing import print
 
 
 class Agent:
@@ -17,25 +18,35 @@ class Agent:
         paradigm: Paradigm,
         _temperature: float = 0.0,
         verbose: bool = True,
+        _native_function_calling: bool = False,
     ):
         self.model: Model = model
         self.paradigm: Paradigm = paradigm
         self._temperature: float = _temperature
         self.verbose = verbose
 
-        self.tools: Dict[str, Tool] = {}
+        # self.tools: Dict[str, Tool] = {}
+        self.tools: List[Tool] = []
         self.conversation: List[Dict[str, str]] = []
 
+        self._native_function_calling = _native_function_calling
+
     def _call_tool(self, name: str, **parameters: Dict[str, any]) -> str:
-        if name not in self.tools:
+        # if name not in self.tools:
+        matching_tools = [tool for tool in self.tools if tool.name == name]
+        if len(matching_tools) == 0:
             return f"""The tool `{name}` that you have tried to call does not exist.
 Make sure to only use explicitly provided tools."""
-
-        tool = self.tools[name]
+        elif len(matching_tools) > 1:
+            return f"""[bold bright_white on_red] The tool `{name}` that you have tried to call is ambiguous because there are multiple tools with the same name.
+This should never happen. [/]"""
+        else:
+            # tool = self.tools[name]
+            tool = matching_tools[0]
         try:
             response = tool.execute(**parameters)
         except Exception as e:
-            print(f"\033[31mException while calling tool `{name}`:\n{e}")
+            print(f"[red]Exception while calling tool `{name}`:\n{e} [/]")
             # TODO handling tool exceptions should probably be done by the tool class or some other class
             return f"""An exception was raised while calling tool `{name}`.
 I'm not sure what was the cause, but you can try moving forward with the task anyway.
@@ -43,11 +54,23 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
 
         return response
 
-    # TODO add modules, such as the memory module
     def step(self) -> str:
-        generated_text = self.model.generate(self.conversation, self._temperature)
+        if self._native_function_calling:
+            generated_text, generated_tool_calls = self.model.generate_with_tools(
+                messages=self.conversation,
+                tools=self.tools,
+                temperature=self._temperature,
+            )
+            print(
+                "*** DEBUG *** The model generated these direct tool calls:",
+                generated_tool_calls,
+            )
+        else:
+            generated_text = self.model.generate(
+                messages=self.conversation, temperature=self._temperature
+            )
         if self.verbose:
-            print(f"\033[1mGenerated text:\033[0m\n{generated_text}\n")
+            print(f"[bold]Generated text: [/] \n{generated_text}\n")
 
         tool_calls = self._extract_tool_calls(generated_text)
         for tool_call in tool_calls:
@@ -62,10 +85,19 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
         task: str,
         max_steps: int = 10,
     ) -> str:
-        self.tools: Dict[str, Tool] = {tool.name: tool for tool in environment.tools}
+        # self.tools: Dict[str, Tool] = {tool.name: tool for tool in environment.tools}
+        self.tools = environment.tools
         self.conversation: List[Dict[str, str]] = []
 
-        system_prompt = self.paradigm.paradigm_prompt + environment.environment_prompt
+        system_prompt = (
+            self.paradigm.paradigm_prompt
+            if not self._native_function_calling
+            else self.paradigm._paradigm_prompt_without_tools
+        ) + (
+            environment.environment_prompt
+            if not self._native_function_calling
+            else environment._environment_prompt_without_tools
+        )
         self.conversation.append(
             {
                 "role": "system",
@@ -76,13 +108,13 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
         final_answer = None
 
         if self.verbose:
-            print(f"\033[1mSystem prompt:\033[0m\n{system_prompt}\n")
-            print(f"\033[1mTask:\033[0m\n{task}\n")
+            print(f"[bold]System prompt: [/] \n{system_prompt}\n")
+            print(f"[bold]Task: [/] \n{task}\n")
 
         for i in range(max_steps):
             if self.verbose:
                 print("-" * 40)
-                print(f"\033[1m\nSTEP {i + 1}:\033[0m")
+                print(f"[bold]\nSTEP {i + 1}: [/]")
 
             # run the agent step
             generated_text, tool_calls = self.step()
@@ -102,7 +134,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
             )
             self.conversation.append({"role": "user", "content": tool_responses})
             if self.verbose:
-                print(f"\033[1mTool calls and responses:\033[0m\n{tool_responses}\n")
+                print(f"[bold]Tool calls and responses: [/] \n{tool_responses}\n")
 
             # break if model has called the final answer tool
             for tool_call in tool_calls:
@@ -128,7 +160,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
                 tool_call = json.loads(match)
             except json.JSONDecodeError:
                 # Skip invalid JSON
-                print(f"\033[1;33mFound a malformed tool call:\n{match}\033[0m")
+                print(f"[bold yellow]Found a malformed tool call:\n{match} [/]")
                 continue
 
             if (
@@ -139,7 +171,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
                 tool_calls.append(tool_call)
             else:
                 # Skip invalid tool call
-                print(f"\033[1;33mFound an invalid tool call:\n{match}\033[0m")
+                print(f"[bold yellow]Found an invalid tool call:\n{match} [/]")
                 continue
 
         return tool_calls

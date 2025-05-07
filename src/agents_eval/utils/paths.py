@@ -1,3 +1,4 @@
 from pathlib import Path
 
-ROOT = Path(__file__).parents[3]
+PROJECT_ROOT = Path(__file__).parents[3]
+MODELS_DIR = Path("/mnt/storage2/hf_models")

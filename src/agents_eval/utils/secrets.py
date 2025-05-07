@@ -2,9 +2,9 @@ import os
 
 from dotenv import load_dotenv
 
-from agents_eval.utils.paths import ROOT
+from agents_eval.utils.paths import PROJECT_ROOT
 
-load_dotenv(ROOT / ".tokens.env")
+load_dotenv(PROJECT_ROOT / ".tokens.env")
 
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 GPTJRC_TOKEN = os.getenv("GPTJRC_TOKEN")

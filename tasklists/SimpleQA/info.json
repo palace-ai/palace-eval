@@ -1,0 +1,7 @@
+{
+    "name": "SimpleQA",
+    "id": "basicv8vc/SimpleQA",
+    "config": null,
+    "split": "test",
+    "category": "QA"
+}

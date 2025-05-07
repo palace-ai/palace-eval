@@ -1,0 +1,7 @@
+{
+    "name": "Fever",
+    "id": "fever/fever",
+    "config": "v1.0",
+    "split": "labelled_dev",
+    "category": "Claim Verification"
+}

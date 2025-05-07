@@ -1,0 +1,7 @@
+{
+    "name": "GAIA",
+    "id": "gaia-benchmark/GAIA",
+    "config": "2023_all",
+    "split": "validation",
+    "category": "QA"
+}

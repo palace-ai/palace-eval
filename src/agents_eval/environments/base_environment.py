@@ -45,3 +45,10 @@ Available tools in this environment that you can use: {
             )
         }
 """
+
+    @property
+    def _environment_prompt_without_tools(self) -> str:
+        return f"""This is a detailed overview of the environment that you will be working in while solving the provided task:
+Environment name: {self.name}
+Environment description: {self.description}
+"""

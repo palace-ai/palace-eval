@@ -10,7 +10,7 @@ from agents_eval.agent import Agent
 from agents_eval.environments import Environment
 from agents_eval.models import GPTJRCModel, HuggingfaceModel, Model
 from agents_eval.paradigms import Paradigm
-from agents_eval.utils.paths import ROOT
+from agents_eval.utils.paths import PROJECT_ROOT
 
 
 class Evaluation:
@@ -82,25 +82,28 @@ class Evaluation:
                                 ]
                             )
                             print(f"""\n[bold]Evaluation report:
-            {correct_tasks}/{len(self.tasks)} ({correct_tasks / len(self.tasks) * 100:.0f}%)[/] tasks completely successfully.
+            {correct_tasks}/{len(report)} ({correct_tasks / len(report) * 100:.0f}%)[/] tasks completely successfully.
             """)
-                            # place value (correct_tasks / len(self.tasks)) into overall_report in "accuracy" column at the correct row
+
+                            # place value (correct_tasks / len(report)) into overall_report in "accuracy" column at the correct row
                             run_results = {
                                 "model": model.name,
                                 "paradigm": paradigm.name,
                                 "environment": environment.name,
                                 "tasklist": tasklist,
                                 "_temperature": _temperature,
-                                "accuracy": correct_tasks / len(self.tasks),
+                                "accuracy": correct_tasks / len(report),
                                 "total_time": total_time,
                                 "detailed_report": report,
                             }
                             results.append(run_results)
 
                             # append results to jsonl file
-                            os.makedirs("../results/", exist_ok=True)
+                            os.makedirs(PROJECT_ROOT / "results/", exist_ok=True)
                             with open(
-                                f"../results/{self.name}.jsonl", "a", encoding="utf-8"
+                                PROJECT_ROOT / "results" / f"{self.name}.jsonl",
+                                "a",
+                                encoding="utf-8",
                             ) as f:
                                 run_json = json.dumps(run_results, ensure_ascii=False)
                                 f.write(run_json + "\n")
@@ -115,21 +118,30 @@ class Evaluation:
     ):
         report: Dict[str, bool] = {}
 
-        with open(ROOT / "tasklists" / tasklist / "tasks.json") as f:
-            self.tasks = json.load(f)
+        # load tasklist and metadata
+        with open(PROJECT_ROOT / "tasklists" / tasklist / "tasks.json") as f:
+            tasks = json.load(f)
+        with open(PROJECT_ROOT / "tasklists" / tasklist / "info.json") as f:
+            tasklist_info = json.load(f)
 
+        # filter out tasks that are not text-based
         if self.text_tasks_only:
-            # filter out tasks that are not text-based
-            self.tasks = [
+            tasks = [
                 task
-                for task in self.tasks
+                for task in tasks
                 if task["attachment"] is None or task["attachment"] == ""
             ]
 
+        # limit the number of tasks to evaluate
         if self.task_amount_limit is not None:
-            self.tasks = self.tasks[: self.task_amount_limit]
+            tasks = tasks[: self.task_amount_limit]
 
-        for i, task in enumerate(self.tasks):
+        for i, task in enumerate(tasks):
+            # preprocess task according to category
+            task["objective"] = (
+                __class__._task_prompt(tasklist_info["category"]) + task["objective"]
+            )
+
             start_time = time.time()
             print(f"""
 [bold]:memo: Task {i + 1}
@@ -187,3 +199,12 @@ class Evaluation:
             }
 
         return report
+
+    def _task_prompt(category: str) -> str:
+        """Return the task prompt for the given category."""
+        if category == "QA":
+            return ""
+        elif category == "Claim Verification":
+            return "Is the following claim true or false? (Reply with 'True', 'False', or 'Not Enough Info') \n"
+        else:
+            raise ValueError(f"Unknown category: {category}")

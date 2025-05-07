@@ -1,3 +1,4 @@
+import json
 from typing import Dict, List, Optional
 
 from openai import OpenAI, RateLimitError
@@ -9,6 +10,7 @@ from tenacity import (
 )
 
 from agents_eval.models import Model
+from agents_eval.tools import Tool
 from agents_eval.utils.secrets import GPTJRC_TOKEN
 
 
@@ -37,7 +39,10 @@ class GPTJRCModel(Model):
         ),
     )
     def generate(
-        self, messages: List[Dict[str, str]], temperature: Optional[float] = 0.0, **_
+        self,
+        messages: List[Dict[str, str]],
+        temperature: Optional[float] = 0.0,
+        **_,
     ) -> str:
         chat_completion = self.client.chat.completions.create(
             model=self.model_id,
@@ -46,3 +51,44 @@ class GPTJRCModel(Model):
             temperature=temperature,
         )
         return chat_completion.choices[0].message.content
+
+    def generate_with_tools(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Tool],
+        temperature: Optional[float] = 0.0,
+        **_,
+    ) -> str:
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            p_name: {"type": "string", "description": p_desc}
+                            for p_name, p_desc in tool.parameters.items()
+                        },
+                        "required": tool.required_parameters,
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                },
+            }
+            for tool in tools
+        ]
+        print("Requesting chat completion with tools:")
+        print(json.dumps(tools, indent=2))
+        chat_completion = self.client.chat.completions.create(
+            model=self.model_id,
+            messages=messages,
+            stream=False,
+            temperature=temperature,
+            tools=tools,
+        )
+        return (
+            chat_completion.choices[0].message.content,
+            chat_completion.choices[0].message.tool_calls,
+        )

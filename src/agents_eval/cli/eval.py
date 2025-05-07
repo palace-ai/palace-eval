@@ -1,4 +1,4 @@
-import questionary  # Uses arrow keys + Enter by default
+import questionary
 from agents_eval.environments import (
     AssistantEnvironment,
     IsolatedEnvironment,
@@ -9,7 +9,6 @@ from agents_eval.environments import (
 from agents_eval.evaluation import Evaluation
 from agents_eval.models import GPTJRCModel, HuggingfaceModel
 from agents_eval.paradigms import SimpleReActParadigm
-from rich.prompt import Prompt
 
 
 def main():
@@ -105,6 +104,8 @@ def main():
     )
 
     results = evaluation.evaluate_all(
+        # BUG local models follow a different naming convention. try to abstract the exact name of a model. maybe use a dict
+        # for instance the same model is called Llama-3.1-8B-Instruct locally but llama-3.3-70b-instruct for GPT@JRC
         models=[
             HuggingfaceModel(f"/mnt/storage2/hf_models/{model}")
             if local_mode

@@ -6,11 +6,10 @@ from typing import Dict, Optional
 from datasets import load_dataset
 from huggingface_hub import hf_hub_download, login
 
+from agents_eval.utils.paths import PROJECT_ROOT
 from agents_eval.utils.secrets import HUGGINGFACE_TOKEN
 
 login(token=HUGGINGFACE_TOKEN)
-
-_TASKLISTS_PATH = "../../tasklists"
 
 
 def download_tasklist(
@@ -20,32 +19,53 @@ def download_tasklist(
     split: str,
     column_names: Dict[str, str],
     attachment_path: Optional[str] = None,
+    category: Optional[str] = None,
+    label_mapping: Optional[Dict[str, str]] = None,
 ) -> None:
     dataset = load_dataset(id, config, split=split, download_mode="force_redownload")
     df_dataset = dataset.to_pandas()
 
-    # Convert dataset-specific task format to my own task format
     tasks = []
     for i, row in df_dataset.iterrows():
-        tasks.append(
-            {
-                "id": f"{name}_{row[column_names['id']] if column_names['id'] is not None else i}",
-                "objective": row[column_names["objective"]],
-                "expected": row[column_names["expected"]],
-                "difficulty": f"{name}_{row[column_names['difficulty']]}"
-                if column_names["difficulty"] is not None
-                else "",
-                "attachment": row[column_names["attachment"]]
-                if column_names["attachment"] is not None
-                else "",
-            }
-        )
+        # Convert dataset-specific task format to my own task format
+        task = {
+            "id": f"{name}_{row[column_names['id']] if column_names['id'] is not None else i}",
+            "objective": row[column_names["objective"]],
+            "expected": row[column_names["expected"]],
+            "difficulty": f"{name}_{row[column_names['difficulty']]}"
+            if column_names["difficulty"] is not None
+            else "",
+            "attachment": row[column_names["attachment"]]
+            if column_names["attachment"] is not None
+            else "",
+        }
+        # Add task to list if it doesn't already exist
+        if task["id"] not in [t["id"] for t in tasks]:
+            tasks.append(task)
 
-    # Save tasklist to file
-    output_path = os.path.join(_TASKLISTS_PATH, name)
+    # Map labels if label_mapping is provided
+    if label_mapping is not None:
+        for task in tasks:
+            task["expected"] = label_mapping[task["expected"]]
+
+    # Save tasklist tasks and tasklist metadata to file
+    output_path = PROJECT_ROOT / "tasklists" / name
     os.makedirs(output_path, exist_ok=True)
-    with open(f"{output_path}/tasks.json", "w", encoding="utf-8") as f:
+    with open(output_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
+    with open(output_path / "info.json", "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "name": name,
+                "id": id,
+                "config": config,
+                "split": split,
+                "category": category,
+            },
+            f,
+            ensure_ascii=False,
+            indent=4,
+        )
 
     # Download and save task files (attachments)
     if column_names["attachment"] is not None:
@@ -91,7 +111,6 @@ if __name__ == "__main__":
             "id": "gaia-benchmark/GAIA",
             "config": "2023_all",
             "split": "validation",
-            "attachment_path": "2023/validation",
             "column_names": {
                 "id": "task_id",
                 "objective": "Question",
@@ -99,13 +118,14 @@ if __name__ == "__main__":
                 "difficulty": "Level",
                 "attachment": "file_name",
             },
+            "attachment_path": "2023/validation",
+            "category": "QA",
         },
         {
             "name": "SimpleQA",
             "id": "basicv8vc/SimpleQA",
             "config": None,
             "split": "test",
-            "attachment_path": None,
             "column_names": {
                 "id": None,
                 "objective": "problem",
@@ -113,19 +133,42 @@ if __name__ == "__main__":
                 "difficulty": None,
                 "attachment": None,
             },
+            "attachment_path": None,
+            "category": "QA",
         },
         {
             "name": "AssistantBench",
             "id": "AssistantBench/AssistantBench",
             "config": None,
             "split": "validation",
-            "attachment_path": None,
             "column_names": {
                 "id": "id",
                 "objective": "task",
                 "expected": "answer",
                 "difficulty": "difficulty",
                 "attachment": None,
+            },
+            "attachment_path": None,
+            "category": "QA",
+        },
+        {
+            "name": "Fever",
+            "id": "fever/fever",
+            "config": "v1.0",
+            "split": "labelled_dev",
+            "column_names": {  # maps what i want -> what is in the dataset
+                "id": "id",
+                "objective": "claim",
+                "expected": "label",
+                "difficulty": None,
+                "attachment": None,
+            },
+            "attachment_path": None,
+            "category": "Claim Verification",
+            "label_mapping": {  # maps what is in the dataset -> what i want
+                "SUPPORTS": "True",
+                "REFUTES": "False",
+                "NOT ENOUGH INFO": "Not Enough Info",
             },
         },
     ]
