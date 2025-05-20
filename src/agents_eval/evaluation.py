@@ -1,3 +1,4 @@
+import itertools
 import json
 import os
 import time
@@ -46,67 +47,63 @@ class Evaluation:
         models: List[Model],
         paradigms: List[Paradigm],
         environments: List[Environment],
-        tasklist: str,
+        tasklists: List[str],
         _temperatures: List[float] = [0.0],
     ):
         results = []
 
-        for model in models:
-            for paradigm in paradigms:
-                for _temperature in _temperatures:
-                    agent = Agent(
-                        model, paradigm, _temperature=_temperature, verbose=self.verbose
-                    )
-                    for environment in environments:
-                        for run in range(self.runs_per_configuration):
-                            print(f"""\n[bold]Evaluating (run [sky_blue2]{run + 1}/{self.runs_per_configuration}[/])
-            :robot: agent [sky_blue2]( {model.name} × {paradigm.name} )[/]
-            :package: on enviromnent [sky_blue2]{environment.name}[/]
-            :scroll: on tasklist [sky_blue2]{tasklist}[/]
-            on _temperature [sky_blue2]{_temperature}[/]""")
+        grid = list(
+            itertools.product(models, paradigms, environments, tasklists, _temperatures)
+        )
+        for model, paradigm, environment, tasklist, _temperature in grid:
+            for run in range(self.runs_per_configuration):
+                print(f"""
+[bold]Evaluating (run [sky_blue2]{run + 1}/{self.runs_per_configuration}[/])
+:robot: agent [sky_blue2]( {model.name} × {paradigm.name} )[/]
+:package: on enviromnent [sky_blue2]{environment.name}[/]
+:scroll: on tasklist [sky_blue2]{tasklist}[/]
+on _temperature [sky_blue2]{_temperature}[/]""")
 
-                            report = self.evaluate(agent, environment, tasklist)
-                            print(report)
+                agent = Agent(
+                    model, paradigm, _temperature=_temperature, verbose=self.verbose
+                )
 
-                            # aggregate relevant information from individual tasklist
-                            correct_tasks = sum(
-                                [
-                                    task_report["is_correct"]
-                                    for _, task_report in report.items()
-                                ]
-                            )
-                            total_time = sum(
-                                [
-                                    task_report["elapsed_time"]
-                                    for _, task_report in report.items()
-                                ]
-                            )
-                            print(f"""\n[bold]Evaluation report:
-            {correct_tasks}/{len(report)} ({correct_tasks / len(report) * 100:.0f}%)[/] tasks completely successfully.
-            """)
+                report = self.evaluate(agent, environment, tasklist)
 
-                            # place value (correct_tasks / len(report)) into overall_report in "accuracy" column at the correct row
-                            run_results = {
-                                "model": model.name,
-                                "paradigm": paradigm.name,
-                                "environment": environment.name,
-                                "tasklist": tasklist,
-                                "_temperature": _temperature,
-                                "accuracy": correct_tasks / len(report),
-                                "total_time": total_time,
-                                "detailed_report": report,
-                            }
-                            results.append(run_results)
+                # aggregate relevant information from individual tasklist
+                correct_tasks = sum(
+                    [task_report["is_correct"] for _, task_report in report.items()]
+                )
+                total_time = sum(
+                    [task_report["elapsed_time"] for _, task_report in report.items()]
+                )
+                print(f"""
+[bold]Evaluation report:
+{correct_tasks}/{len(report)} ({correct_tasks / len(report) * 100:.0f}%)[/] tasks completely successfully.
+""")
 
-                            # append results to jsonl file
-                            os.makedirs(PROJECT_ROOT / "results/", exist_ok=True)
-                            with open(
-                                PROJECT_ROOT / "results" / f"{self.name}.jsonl",
-                                "a",
-                                encoding="utf-8",
-                            ) as f:
-                                run_json = json.dumps(run_results, ensure_ascii=False)
-                                f.write(run_json + "\n")
+                # place value (correct_tasks / len(report)) into overall_report in "accuracy" column at the correct row
+                run_results = {
+                    "model": model.name,
+                    "paradigm": paradigm.name,
+                    "environment": environment.name,
+                    "tasklist": tasklist,
+                    "_temperature": _temperature,
+                    "accuracy": correct_tasks / len(report),
+                    "total_time": total_time,
+                    "detailed_report": report,
+                }
+                results.append(run_results)
+
+                # append results to jsonl file
+                os.makedirs(PROJECT_ROOT / "results/", exist_ok=True)
+                with open(
+                    PROJECT_ROOT / "results" / f"{self.name}.jsonl",
+                    "a",
+                    encoding="utf-8",
+                ) as f:
+                    run_json = json.dumps(run_results, ensure_ascii=False)
+                    f.write(run_json + "\n")
 
         return pd.DataFrame(results)
 
