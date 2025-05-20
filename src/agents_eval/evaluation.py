@@ -139,7 +139,8 @@ class Evaluation:
         for i, task in enumerate(tasks):
             # preprocess task according to category
             task["objective"] = (
-                __class__._task_prompt(tasklist_info["category"]) + task["objective"]
+                __class__._task_prompt_prefix(tasklist_info["category"])
+                + task["objective"]
             )
 
             start_time = time.time()
@@ -200,11 +201,11 @@ class Evaluation:
 
         return report
 
-    def _task_prompt(category: str) -> str:
-        """Return the task prompt for the given category."""
+    def _task_prompt_prefix(category: str) -> str:
+        """Return the task prompt prefix for the given category."""
         if category == "QA":
             return ""
         elif category == "Claim Verification":
-            return "Is the following claim true or false? (Reply with 'True', 'False', or 'Not Enough Info') \n"
+            return "Is the following claim true, false, or we can't say for certain? (Reply with 'True', 'False', or 'Not Enough Info') \n"
         else:
             raise ValueError(f"Unknown category: {category}")

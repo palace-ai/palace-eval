@@ -1,2 +1,5 @@
 from agents_eval.paradigms.base_paradigm import Paradigm
-from agents_eval.paradigms.simple_react_paradigm import SimpleReActParadigm
+from agents_eval.paradigms.react_paradigm import ReActParadigm
+from agents_eval.paradigms.act_paradigm import ActParadigm
+from agents_eval.paradigms.plan_and_execute_paradigm import PlanAndExecuteParadigm
+from agents_eval.paradigms.reflection_paradigm import ReflectionParadigm

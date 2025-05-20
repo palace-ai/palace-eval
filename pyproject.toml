@@ -41,8 +41,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/m-altieri/agents-eval"  # Currently private
-Documentation = "https://github.com/m-altieri/agents-eval#readme"  # Currently private
+Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval"
+Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval"
 
 [project.scripts]
 agents-eval = "agents_eval.cli.eval:main"

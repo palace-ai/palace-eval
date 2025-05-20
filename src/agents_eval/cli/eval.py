@@ -8,7 +8,12 @@ from agents_eval.environments import (
 )
 from agents_eval.evaluation import Evaluation
 from agents_eval.models import GPTJRCModel, HuggingfaceModel
-from agents_eval.paradigms import SimpleReActParadigm
+from agents_eval.paradigms import (
+    ActParadigm,
+    PlanAndExecuteParadigm,
+    ReActParadigm,
+    ReflectionParadigm,
+)
 
 
 def main():
@@ -24,11 +29,20 @@ def main():
         "It will evaluate the performance of different models and paradigms on various environments."
     )
     print("Please make sure you have the required dependencies installed.")
-    print("You can find the documentation at <...>")
-    print("If you have any questions, please contact us at <...>")
+    print(
+        "You can find the documentation at https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval."
+    )
+    print(
+        "If you have any questions, please contact us at massimiliano.altieri@ec.europa.eu."
+    )
     print("")
 
-    _PARADIGMS = [SimpleReActParadigm()]
+    _PARADIGMS = [
+        ActParadigm(),
+        ReActParadigm(),
+        PlanAndExecuteParadigm(),
+        ReflectionParadigm(),
+    ]
     _MODELS = [
         "llama-3.3-70b-instruct",
         "mistral-small-3-24b",
@@ -43,11 +57,12 @@ def main():
         MCPEnvironment(mcp_server="local"),
         MCPEnvironment(mcp_server="aloha"),
     ]
-    _TASKLISTS = ["AssistantBench", "GAIA", "SimpleQA"]
+    _TASKLISTS = ["AssistantBench", "Fever", "GAIA", "HLE", "HotpotQA", "SimpleQA"]
 
     paradigm = questionary.select(
         "Select Reasoning Paradigm:",
         choices=[p.name for p in _PARADIGMS],
+        default=ReActParadigm().name,
     ).ask()
     paradigm = next(p for p in _PARADIGMS if p.name == paradigm)
 

@@ -11,7 +11,7 @@ from agents_eval.utils.paths import MODELS_DIR
 class HuggingfaceModel(Model):
     os.environ["HF_HUB_CACHE"] = str(MODELS_DIR)
 
-    def __init__(self, model_id: str, tensor_parallel_size: int = 1, **kwargs):
+    def __init__(self, model_id: str, tensor_parallel_size: int = 2, **kwargs):
         self.model_id = model_id
         self.tensor_parallel_size = tensor_parallel_size
         self.kwargs = kwargs
@@ -28,7 +28,7 @@ class HuggingfaceModel(Model):
             self.model = LLM(
                 model=self.model_id,
                 tensor_parallel_size=self.tensor_parallel_size,
-                max_model_len=32768,
+                max_model_len=4096,  # 32768
                 tokenizer_mode="auto",
                 enable_prefix_caching=True,
                 **self.kwargs,

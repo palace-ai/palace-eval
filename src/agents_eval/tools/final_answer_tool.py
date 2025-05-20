@@ -29,5 +29,5 @@ class FinalAnswerTool(Tool):
     def parameters(self) -> Dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {
-            "final_answer": "Your final answer for the given task.",
+            "final_answer": "Your final answer for the given task. You can call this tool only once, so make sure to be absolutely sure of your final answer before calling it.",
         }
