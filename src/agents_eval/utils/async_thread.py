@@ -1,6 +1,7 @@
 import asyncio
+import concurrent.futures
 import threading
-from typing import Coroutine, Any
+from typing import Any, Coroutine
 
 
 class AsyncThread:
@@ -40,7 +41,7 @@ class AsyncThread:
                 return None
 
         return asyncio.run_coroutine_threadsafe(
-            wrap_with_timeout(coro, timeout=30), self.loop
+            wrap_with_timeout(coro, timeout=120), self.loop
         ).result()
 
     def start_main_task(self, coro: Coroutine):
@@ -61,9 +62,16 @@ class AsyncThread:
     def should_stop(self) -> bool:
         return self._stop_event.is_set()
 
-    def wait_for_task(self):
-        if self._main_task:
-            self._main_task.result()
+    def wait_for_task(self, timeout: float = 5):
+        """Block until the main task finishes, or until timeout (seconds)."""
+        if not self._main_task:
+            return
+        try:
+            self._main_task.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            print("Warning: main task did not finish in time")
+        # if self._main_task:
+        #     self._main_task.result()
 
     def wait_until_ready(self, timeout: float = 5):
         self._ready_event.wait(timeout)

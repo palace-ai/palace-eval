@@ -1,4 +1,9 @@
+import itertools
+import sys
+
 import questionary
+
+from agents_eval.agents import LocalAgent, RemoteAgent
 from agents_eval.environments import (
     AssistantEnvironment,
     IsolatedEnvironment,
@@ -7,34 +12,39 @@ from agents_eval.environments import (
     MCPEnvironment,
 )
 from agents_eval.evaluation import Evaluation
-from agents_eval.models import GPTJRCModel, HuggingfaceModel
+from agents_eval.mcp_utils.mcp_client import MCPClient
+from agents_eval.models import HuggingfaceModel, OpenAICompatibleModel
 from agents_eval.paradigms import (
     ActParadigm,
     PlanAndExecuteParadigm,
     ReActParadigm,
     ReflectionParadigm,
 )
+from agents_eval.utils.printing import print
+
+_DEFAULT_REMOTE_AGENTS_URL = (
+    "https://react-agent-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/sse"
+)
 
 
 def main():
     print("""
-          
 --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>-- ┏━━━━━━━━━━━▲━━━━━━━━━━━┓ --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--
 --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--           ▗           ▜   --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--
 --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--   ▀▌▛▌█▌▛▌▜▘▛▘▄▖█▌▌▌▀▌▐   --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--
 --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--   █▌▙▌▙▖▌▌▐▖▄▌  ▙▖▚▘█▌▐▖  --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--
 --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--     ▄▌                    --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--
 --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>-- ┗━━━━━━━━━━━▼━━━━━━━━━━━┛ --<>--<>--<>--<>--<>--<>--<>--<>--<>--<>--
-
-╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│  Welcome to the Agents Evaluation CLI!                                                                       │
-│  This is a simple evaluation script for the Agents Evaluation framework.                                     │
-│  It will evaluate the performance of different models and paradigms on various environments.                 │
-│  Please make sure you have the required dependencies installed.                                              │
-│  You can find the documentation at https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.  │
-│  If you have any questions, please contact us at massimiliano.altieri@ec.europa.eu.                          │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 """)
+    print(
+        """This is a simple evaluation script for the Agents Evaluation framework.
+It will evaluate the performance of different models and paradigms on various environments.
+Please make sure you have the required dependencies installed.
+You can find the documentation at https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.
+If you have any questions, please contact us at massimiliano.altieri@ec.europa.eu.""",
+        box=True,
+        box_title="Welcome to the Agents Evaluation CLI!",
+    )
 
     _PARADIGMS = [
         ActParadigm(),
@@ -43,10 +53,11 @@ def main():
         ReflectionParadigm(),
     ]
     _MODELS = [
-        "llama-3.3-70b-instruct",
-        "mistral-small-3-24b",
+        "meta-llama/Llama-3.3-70B-Instruct",
+        "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+        "Qwen/Qwen3-32B",
         "gpt-4o",
-        "qwen-coder-2.5-instruct",
+        "Qwen/Qwen2.5-Coder-32B-Instruct",
     ]
     _ENVIRONMENTS = [
         AssistantEnvironment(),
@@ -58,52 +69,80 @@ def main():
     ]
     _TASKLISTS = ["AssistantBench", "Fever", "GAIA", "HLE", "HotpotQA", "SimpleQA"]
 
-    default_paradigms = [ReActParadigm().name]
-    paradigm = questionary.checkbox(
-        "Select Reasoning Paradigm:",
+    local_or_remote = questionary.checkbox(
+        "What agent types would you like to test?",
         choices=[
-            questionary.Choice(p.name, checked=p.name in default_paradigms)
-            for p in _PARADIGMS
+            questionary.Choice("Remote", checked=True),
+            questionary.Choice("Local", checked=True),
         ],
-        # default=ReActParadigm().name,
     ).ask()
-    paradigms = [p for p in _PARADIGMS if p.name in paradigm]
-    if len(paradigms) == 0:
-        raise ValueError("No paradigms selected")
+    if len(local_or_remote) == 0:
+        print("You have selected nothing to test. Have a nice day :)")
+        return
 
-    models = questionary.checkbox(
-        "Select Model:",
-        choices=_MODELS,
-        # default="llama-3.3-70b-instruct",
-    ).ask()
-    if len(models) == 0:
-        raise ValueError("No models selected")
+    if "Remote" in local_or_remote:
+        remote_agents_url = questionary.text(
+            "Remote Agents URL:", default=_DEFAULT_REMOTE_AGENTS_URL
+        ).ask()
+        with MCPClient().connection(remote_agents_url) as mcp_client:
+            available_remote_agents = [
+                tool.name for tool in mcp_client.list_tools().tools
+            ]
 
-    local_mode = questionary.select(
-        "Local Mode:",
-        choices=["True", "False"],
-        default="False",
-    ).ask()
-    local_mode = True if local_mode == "True" else False
+        remote_agents = questionary.checkbox(
+            "Select Remote Agents:", choices=available_remote_agents
+        ).ask()
+    else:
+        remote_agents = []
 
-    # use questionary to select one or multiple environments to evaluate (checkboxes)
-    environments = questionary.checkbox(
-        "Select Environments:",
-        choices=[e.name for e in _ENVIRONMENTS],
-    ).ask()
-    environments = [e for e in _ENVIRONMENTS if e.name in environments]
-    if len(environments) == 0:
-        raise ValueError("No environments selected")
+    if "Local" in local_or_remote:
+        default_paradigms = [ReActParadigm().name]
+        paradigm = questionary.checkbox(
+            "Select Reasoning Paradigms to test for local agents:",
+            choices=[
+                questionary.Choice(p.name, checked=p.name in default_paradigms)
+                for p in _PARADIGMS
+            ],
+        ).ask()
+        paradigms = [p for p in _PARADIGMS if p.name in paradigm]
+        if len(paradigms) == 0:
+            raise ValueError("No paradigms selected")
+
+        models = questionary.checkbox(
+            "Select Models to test for local agents:",
+            choices=_MODELS,
+        ).ask()
+        if len(models) == 0:
+            raise ValueError("No models selected")
+
+        local_mode = questionary.select(
+            "Where do you want to run the LLMs for local agents?",
+            choices=["Locally (make sure you have enough GPU memory)", "GPT@JRC"],
+            default="GPT@JRC",
+        ).ask()
+        local_mode = local_mode != "GPT@JRC"
+
+        environments = questionary.checkbox(
+            "Select Environments to test for local agents:",
+            choices=[e.name for e in _ENVIRONMENTS],
+        ).ask()
+        environments = [e for e in _ENVIRONMENTS if e.name in environments]
+        if len(environments) == 0:
+            raise ValueError("No environments selected")
+    else:
+        models = []
+        paradigms = []
+        environments = []
 
     tasklists = questionary.checkbox(
-        "Select Tasklist:",
+        "Select Tasklists to use as benchmarks:",
         choices=_TASKLISTS,
     ).ask()
     if len(tasklists) == 0:
         raise ValueError("No tasklists selected")
 
     verbose = questionary.select(
-        "Verbose Mode:",
+        "Verbose Mode?",
         choices=["True", "False"],
         default="False",
     ).ask()
@@ -111,15 +150,17 @@ def main():
 
     task_amount_limit = questionary.select(
         "Limit the number of tasks:",
-        choices=["5", "10", "20", "50"],
-        default="20",
+        choices=["5", "20", "50", "100", "Unlimited"],
+        default="5",
     ).ask()
-    task_amount_limit = int(task_amount_limit)
+    task_amount_limit = (
+        int(task_amount_limit) if task_amount_limit != "Unlimited" else sys.maxsize
+    )
 
     runs_per_configuration = questionary.select(
         "Runs Per Configuration:",
-        choices=["1", "2", "3", "5"],
-        default="5",
+        choices=["1", "3", "5", "10"],
+        default="1",
     ).ask()
     runs_per_configuration = int(runs_per_configuration)
 
@@ -138,14 +179,26 @@ def main():
     evaluation.evaluate_all(
         # BUG local models follow a different naming convention. try to abstract the exact name of a model. maybe use a dict
         # for instance the same model is called Llama-3.1-8B-Instruct locally but llama-3.3-70b-instruct for GPT@JRC
-        models=[
-            HuggingfaceModel(f"/mnt/storage2/hf_models/{model}")
-            if local_mode
-            else GPTJRCModel(model)
-            for model in models
+        # BUG It assumes all remote agents are located at the same URL (not possible to define multiple URLs)
+        agents=[
+            LocalAgent(
+                model=HuggingfaceModel(model)
+                if local_mode
+                else OpenAICompatibleModel(model),
+                paradigm=paradigm,
+                environment=environment,
+            )
+            for model, paradigm, environment in itertools.product(
+                models, paradigms, environments
+            )
+        ]
+        + [
+            RemoteAgent(
+                url=remote_agents_url,
+                name=agent,
+            )
+            for agent in remote_agents
         ],
-        paradigms=paradigms,
-        environments=environments,
         tasklists=tasklists,
     )
 

@@ -1,6 +1,6 @@
 from typing import List
 
-from agents_eval.environments import Environment
+from agents_eval.environments.base_environment import Environment
 from agents_eval.tools import FinalAnswerTool, HumanTool, Tool
 
 

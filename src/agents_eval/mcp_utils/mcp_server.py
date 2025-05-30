@@ -9,7 +9,8 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Mount, Route
 
-from agents_eval.environments import CustomEnvironment, Environment
+from agents_eval.environments.custom_environment import CustomEnvironment
+from agents_eval.environments.base_environment import Environment
 from agents_eval.tools import FetchTool, WebSearchTool
 
 logging.basicConfig(level=logging.INFO)

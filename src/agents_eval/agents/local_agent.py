@@ -2,6 +2,7 @@ import json
 import re
 from typing import Dict, List
 
+from agents_eval.agents import Agent
 from agents_eval.environments import Environment
 from agents_eval.models import Model
 from agents_eval.paradigms import Paradigm
@@ -9,19 +10,21 @@ from agents_eval.tools import Tool
 from agents_eval.utils.printing import print
 
 
-class Agent:
-    """Standard implementation of the agentic loop, based on ReAct."""
+class LocalAgent(Agent):
+    """Standard implementation of the agentic loop."""
 
     def __init__(
         self,
         model: Model,
         paradigm: Paradigm,
+        environment: Environment,
         _temperature: float = 0.0,
-        verbose: bool = True,
+        verbose: bool = False,
         _native_function_calling: bool = False,
     ):
         self.model: Model = model
         self.paradigm: Paradigm = paradigm
+        self.environment: Environment = environment
         self._temperature: float = _temperature
         self.verbose = verbose
 
@@ -32,7 +35,6 @@ class Agent:
         self._native_function_calling = _native_function_calling
 
     def _call_tool(self, name: str, **parameters: Dict[str, any]) -> str:
-        # if name not in self.tools:
         matching_tools = [tool for tool in self.tools if tool.name == name]
         if len(matching_tools) == 0:
             return f"""The tool `{name}` that you have tried to call does not exist.
@@ -41,7 +43,6 @@ Make sure to only use explicitly provided tools."""
             return f"""[bold bright_white on_red] The tool `{name}` that you have tried to call is ambiguous because there are multiple tools with the same name.
 This should never happen. [/]"""
         else:
-            # tool = self.tools[name]
             tool = matching_tools[0]
         try:
             response = tool.execute(**parameters)
@@ -79,14 +80,24 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
 
         return generated_text, tool_calls
 
-    def run(
-        self,
-        environment: Environment,
-        task: str,
-        max_steps: int = 10,
-    ) -> str:
-        # self.tools: Dict[str, Tool] = {tool.name: tool for tool in environment.tools}
-        self.tools = environment.tools
+    @property
+    def name(self) -> str:
+        return f"( {self.model_name} x {self.paradigm_name} )"
+
+    @property
+    def model_name(self) -> str:
+        return self.model.name
+
+    @property
+    def paradigm_name(self) -> str:
+        return self.paradigm.name
+
+    @property
+    def environment_name(self) -> str:
+        return self.environment.name
+
+    def run(self, task: str, max_steps: int = 10) -> str:
+        self.tools = self.environment.tools
         self.conversation: List[Dict[str, str]] = []
 
         system_prompt = (
@@ -94,9 +105,9 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
             if not self._native_function_calling
             else self.paradigm._paradigm_prompt_without_tools
         ) + (
-            environment.environment_prompt
+            self.environment.environment_prompt
             if not self._native_function_calling
-            else environment._environment_prompt_without_tools
+            else self.environment._environment_prompt_without_tools
         )
         self.conversation.append(
             {
@@ -146,21 +157,28 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
         return final_answer
 
     def _extract_tool_calls(self, text: str) -> List[Dict]:
+        tool_calls = []
+
         # Pattern to match blocks starting with ```tool-call and ending with ```
         pattern = r"```tool-call\n(.*?)```"
 
         # Use re.DOTALL to make '.' match newlines as well
-        matches = re.findall(pattern, text, re.DOTALL)
+        try:
+            matches = re.findall(pattern, text, re.DOTALL)
+        except TypeError:
+            print(
+                f"[bold yellow]Error while using the regex to extract tool calls from this text:\n{text}[/]"
+            )
+            return []
 
         # Process each match to extract valid JSON content
-        tool_calls = []
         for match in matches:
             try:
                 # Parse the JSON content
                 tool_call = json.loads(match)
             except json.JSONDecodeError:
                 # Skip invalid JSON
-                print(f"[bold yellow]Found a malformed tool call:\n{match} [/]")
+                print(f"[bold yellow]Found a malformed tool call:\n{match}[/]")
                 continue
 
             if (
@@ -171,7 +189,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
                 tool_calls.append(tool_call)
             else:
                 # Skip invalid tool call
-                print(f"[bold yellow]Found an invalid tool call:\n{match} [/]")
+                print(f"[bold yellow]Found an invalid tool call:\n{match}[/]")
                 continue
 
         return tool_calls

@@ -5,20 +5,18 @@ import time
 from typing import Dict, List
 
 import pandas as pd
-from rich import print
 
-from agents_eval.agent import Agent
-from agents_eval.environments import Environment
-from agents_eval.models import GPTJRCModel, HuggingfaceModel, Model
-from agents_eval.paradigms import Paradigm
+from agents_eval.agents import Agent
+from agents_eval.models import GPTJRCModel, HuggingfaceModel
 from agents_eval.utils.paths import PROJECT_ROOT
+from agents_eval.utils.printing import loading_icon, print
 
 
 class Evaluation:
     def __init__(
         self,
         name: str = "eval",
-        judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for GPTJRCModel,
+        judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for GPTJRCModel
         verbose: bool = True,
         task_amount_limit: int = None,
         runs_per_configuration: int = 1,
@@ -44,31 +42,24 @@ class Evaluation:
 
     def evaluate_all(
         self,
-        models: List[Model],
-        paradigms: List[Paradigm],
-        environments: List[Environment],
+        agents: List[Agent],
         tasklists: List[str],
         _temperatures: List[float] = [0.0],
     ):
         results = []
 
-        grid = list(
-            itertools.product(models, paradigms, environments, tasklists, _temperatures)
-        )
-        for model, paradigm, environment, tasklist, _temperature in grid:
+        grid = list(itertools.product(agents, tasklists, _temperatures))
+        for agent, tasklist, _temperature in grid:
             for run in range(self.runs_per_configuration):
                 print(f"""
-[bold]Evaluating (run [sky_blue2]{run + 1}/{self.runs_per_configuration}[/])
-:robot: agent [sky_blue2]( {model.name} × {paradigm.name} )[/]
-:package: on enviromnent [sky_blue2]{environment.name}[/]
-:scroll: on tasklist [sky_blue2]{tasklist}[/]
-on _temperature [sky_blue2]{_temperature}[/]""")
+[bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
+:robot: agent [blue] {agent.name}[/]
+:package: on enviromnent [blue]{agent.environment_name}[/]
+:scroll: on tasklist [blue]{tasklist}[/]
+on _temperature [blue]{_temperature}[/]
+""")
 
-                agent = Agent(
-                    model, paradigm, _temperature=_temperature, verbose=self.verbose
-                )
-
-                report = self.evaluate(agent, environment, tasklist)
+                report = self.evaluate(agent, tasklist)
 
                 # aggregate relevant information from individual tasklist
                 correct_tasks = sum(
@@ -77,19 +68,23 @@ on _temperature [sky_blue2]{_temperature}[/]""")
                 total_time = sum(
                     [task_report["elapsed_time"] for _, task_report in report.items()]
                 )
-                print(f"""
-[bold]Evaluation report:
-{correct_tasks}/{len(report)} ({correct_tasks / len(report) * 100:.0f}%)[/] tasks completely successfully.
-""")
+                accuracy = (correct_tasks / len(report)) if correct_tasks > 0 else 0
 
-                # place value (correct_tasks / len(report)) into overall_report in "accuracy" column at the correct row
+                print()
+                print(
+                    f"[blue]{correct_tasks}[/blue]/[blue]{len(report)}[/blue] ([blue]{accuracy * 100:.0f}%[/blue])[/] tasks completely successfully.",
+                    box=True,
+                    box_title="Evaluation report:",
+                )
+
                 run_results = {
-                    "model": model.name,
-                    "paradigm": paradigm.name,
-                    "environment": environment.name,
+                    "agent": agent.name,
+                    "model": agent.model_name,
+                    "paradigm": agent.paradigm_name,
+                    "environment": agent.environment_name,
                     "tasklist": tasklist,
                     "_temperature": _temperature,
-                    "accuracy": correct_tasks / len(report),
+                    "accuracy": accuracy,
                     "total_time": total_time,
                     "detailed_report": report,
                 }
@@ -110,7 +105,6 @@ on _temperature [sky_blue2]{_temperature}[/]""")
     def evaluate(
         self,
         agent: Agent,
-        environment: Environment,
         tasklist: str,
     ):
         report: Dict[str, bool] = {}
@@ -141,58 +135,55 @@ on _temperature [sky_blue2]{_temperature}[/]""")
             )
 
             start_time = time.time()
-            print(f"""
-[bold]:memo: Task {i + 1}
-    Objective:[/] {task["objective"]} [bold]
-    Expected response:[/] {task["expected"]}""")
-            result = agent.run(
-                environment=environment,
-                task=task["objective"],
-            )
+            print()
+            print(task["objective"], box=True, box_title=f":memo: Task {i + 1}")
+            print(f"[bold]Expected response:[/] {task['expected']}")
+
+            with loading_icon():
+                result = agent.run(task=task["objective"])
 
             # check if run completed successfully
             if result is None:
                 print(
-                    "    [bold red]:cross_mark: The agent didn't provide a response. This means either it didn't call the Final Answer tool correctly, or it reached maximum iterations before providing a final answer."
+                    "[bold red]:cross_mark: The agent didn't provide a response. This means it may have reached the maximum number of iterations before providing a final answer, or it may have become stuck in a loop, or (in the case of local agents) it may have forgotten to call the Final Answer Tool.[/]"
                 )
-                continue
             else:
-                print(f"    [bold]Agent response:[/] {result}")
+                print(f"[bold]Agent response:[/] {result}")
 
-            # run judge model to determine semantic correctness
-            conversation = [
-                {"role": "system", "content": self.judge_prompt},
-                {
-                    "role": "user",
-                    "content": f"""AI assistant response: {result}
-    Expected response: {task["expected"]}""",
-                },
-            ]
-            verdict = self.judge.generate(conversation)
+                # run judge model to determine semantic correctness
+                conversation = [
+                    {"role": "system", "content": self.judge_prompt},
+                    {
+                        "role": "user",
+                        "content": f"""AI assistant response: {result}
+        Expected response: {task["expected"]}""",
+                    },
+                ]
+                verdict = self.judge.generate(conversation)
 
-            # check if verdict is valid (either "True" or "False")
-            if verdict == "True":
-                correct = True
-            elif verdict == "False":
-                correct = False
-            else:
-                raise ValueError(
-                    f"The judge model can only return True or False. It returned: {verdict}"
-                )
+                # check if verdict is valid (either "True" or "False")
+                if verdict == "True":
+                    is_correct = True
+                elif verdict == "False":
+                    is_correct = False
+                else:
+                    raise ValueError(
+                        f"The judge model can only return True or False. It returned: {verdict}"
+                    )
 
-            if correct:
-                print("    [bold green]:white_check_mark: Correct")
-            else:
-                print(
-                    f"    [bold red]:cross_mark: Incorrect[/] (it was [sky_blue2]{task['expected']}[/])"
-                )
+                if is_correct:
+                    print("[bold green]:white_check_mark: Correct")
+                else:
+                    print(
+                        f"[bold red]:cross_mark: Incorrect[/] (it was [blue]{task['expected']}[/])"
+                    )
 
             # prepare report
             elapsed_time = time.time() - start_time
             report[task["objective"]] = {
                 "expected": task["expected"],
-                "actual": result,
-                "is_correct": correct,
+                "actual": result if result is not None else "N/A",
+                "is_correct": is_correct if result is not None else False,
                 "elapsed_time": elapsed_time,
             }
 
@@ -201,8 +192,8 @@ on _temperature [sky_blue2]{_temperature}[/]""")
     def _task_prompt_prefix(category: str) -> str:
         """Return the task prompt prefix for the given category."""
         if category == "QA":
-            return ""
+            return "Provide the exact answer, without any additional text (for example, if the answer is a name, write only the name as it is):\n"
         elif category == "Claim Verification":
-            return "Is the following claim true, false, or we can't say for certain? (Reply with 'True', 'False', or 'Not Enough Info') \n"
+            return "Is the following claim true, false, or we can't say for certain? (Reply with 'True', 'False', or 'Not Enough Info')\n"
         else:
             raise ValueError(f"Unknown category: {category}")

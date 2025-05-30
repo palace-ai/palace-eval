@@ -1,9 +1,37 @@
+import itertools
+import re
+import sys
+import threading
+import time
 from builtins import print as builtin_print
+from contextlib import contextmanager
+from typing import List, Optional
 
 import emoji
+from wcwidth import wcswidth
+
+try:
+    from IPython import get_ipython
+    from IPython.display import clear_output, display
+
+    IN_NOTEBOOK = get_ipython() is not None
+except ImportError:
+    IN_NOTEBOOK = False
 
 
-def print(*args, sep=" ", end="\n"):
+def print(
+    *args: List[str],
+    sep: str = " ",
+    end: str = "\n",
+    box: bool = False,
+    box_title: Optional[str] = None,
+    wrap_width: int = 100,
+    builtin: bool = False,
+):
+    if builtin:
+        builtin_print(*args, sep=sep, end=end)
+        return
+
     # Mapping of style and color names to ANSI SGR parameters
     color_map = {
         "black": "30",
@@ -92,5 +120,182 @@ def print(*args, sep=" ", end="\n"):
     if any(s.startswith("\033[") for s in output):
         output.append("\033[0m")
 
+    formatted_text = "".join(output)
+
+    if box:
+
+        def _real_len(s):
+            return wcswidth(re.sub(r"\x1b\[[0-9;]*m", "", s))
+
+        def _split_visible_chunks(string, chunk_len):
+            tokens = re.findall(r"\033\[[0-9;]*m|.", string)
+            chunks, chunk, width = [], "", 0
+            for t in tokens:
+                w = 0 if t.startswith("\033[") else wcswidth(t)
+                if width + w > chunk_len:
+                    chunks.append(chunk)
+                    chunk, width = "", 0
+                chunk += t
+                width += w
+            if chunk:
+                chunks.append(chunk)
+            return chunks
+
+        # wrap lines according to wrap_width
+        formatted_lines = formatted_text.splitlines()
+        wrapped_lines = []
+        for line in formatted_lines:
+            wrapped_lines.extend(_split_visible_chunks(line, wrap_width))
+
+        max_length = max(_real_len(line) for line in wrapped_lines)
+
+        box_title = (
+            f" {emoji.emojize(box_title, language='alias')} " if box_title else ""
+        )
+        box_width = max(max_length, wcswidth(box_title) - 2)
+
+        horizontal_line = "─" * (box_width + 4)
+        top_border = (
+            f"╭─\033[1m{box_title}\033[0m{horizontal_line[wcswidth(box_title) + 1 :]}╮"
+        )
+        bottom_border = f"╰{horizontal_line}╯"
+
+        boxed_output = [top_border]
+        boxed_output.append(f"│  {' ' * box_width}  │")
+
+        for wrapped_line in wrapped_lines:
+            padding = box_width - _real_len(wrapped_line)
+            boxed_output.append(f"│  {wrapped_line}{' ' * padding}  │")
+        boxed_output.append(f"│  {' ' * box_width}  │")
+        boxed_output.append(bottom_border)
+
+        formatted_text = "\n".join(boxed_output)
+
     # Use builtin print to avoid recursion
-    builtin_print("".join(output), end=end, flush=True)
+    builtin_print(formatted_text, end=end, flush=True)
+
+
+@contextmanager
+def loading_icon():
+    spinner = itertools.cycle(
+        [
+            "⢀⠀",
+            "⡀⠀",
+            "⠄⠀",
+            "⢂⠀",
+            "⡂⠀",
+            "⠅⠀",
+            "⢃⠀",
+            "⡃⠀",
+            "⠍⠀",
+            "⢋⠀",
+            "⡋⠀",
+            "⠍⠁",
+            "⢋⠁",
+            "⡋⠁",
+            "⠍⠉",
+            "⠋⠉",
+            "⠋⠉",
+            "⠉⠙",
+            "⠉⠙",
+            "⠉⠩",
+            "⠈⢙",
+            "⠈⡙",
+            "⢈⠩",
+            "⡀⢙",
+            "⠄⡙",
+            "⢂⠩",
+            "⡂⢘",
+            "⠅⡘",
+            "⢃⠨",
+            "⡃⢐",
+            "⠍⡐",
+            "⢋⠠",
+            "⡋⢀",
+            "⠍⡁",
+            "⢋⠁",
+            "⡋⠁",
+            "⠍⠉",
+            "⠋⠉",
+            "⠋⠉",
+            "⠉⠙",
+            "⠉⠙",
+            "⠉⠩",
+            "⠈⢙",
+            "⠈⡙",
+            "⠈⠩",
+            "⠀⢙",
+            "⠀⡙",
+            "⠀⠩",
+            "⠀⢘",
+            "⠀⡘",
+            "⠀⠨",
+            "⠀⢐",
+            "⠀⡐",
+            "⠀⠠",
+            "⠀⢀",
+            "⠀⡀",
+            "⠀⠀",
+            "⠀⠀",
+            "⠀⠀",
+            "⠀⠀",
+        ]
+    )
+    animation_interval = 0.075
+    done = False
+    start_time = time.time()
+
+    def animate():
+        if IN_NOTEBOOK:
+            while not done:
+                elapsed_time = time.time() - start_time
+                builtin_print(
+                    f"\r{next(spinner)}  {elapsed_time:.1f}s", end="", flush=True
+                )
+                time.sleep(animation_interval)
+        else:
+            sys.stdout.write("\033[s")
+            while not done:
+                elapsed_time = time.time() - start_time
+                sys.stdout.write(f"\033[u{next(spinner)}  {elapsed_time:.1f}s")
+                sys.stdout.flush()
+                time.sleep(animation_interval)
+            sys.stdout.write("\033[u \033[u")
+            sys.stdout.flush()
+
+    # Start the animation in a separate thread
+    thread = threading.Thread(target=animate)
+    thread.start()
+
+    try:
+        yield  # This is where the calling code will execute
+    finally:
+        # Signal the animation to stop
+        done = True
+        # Wait for the animation thread to finish
+        thread.join()
+        if IN_NOTEBOOK:
+            builtin_print("\r", end="", flush=True)  # Clear the spinner in Jupyter
+        else:
+            sys.stdout.write("\r")
+            sys.stdout.flush()
+
+
+# Example usage
+def call_api():
+    time.sleep(5)
+    return "API response"
+
+
+if __name__ == "__main__":
+    # print("Starting long-running process...")
+    # with loading_icon():
+    #     result = call_api()
+    # print("Process complete! Result:", result)
+
+    print(
+        "[bold]Welcome to the :memo: Agents Evaluation CLI![/]\n[italic on_yellow]I hope you like it,\n and this is a very \nlong text because i want it to wrap it \nto the next line...[/] \nat least i hope it happend lol\n otherwise it would be really annoying\n123\n:memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo:",
+        box=True,
+        box_title=":memo: Welcome",
+        # wrap_width=10,
+    )

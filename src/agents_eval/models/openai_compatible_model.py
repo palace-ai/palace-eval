@@ -1,6 +1,6 @@
 from typing import Dict, List, Literal, Optional
 
-from openai import OpenAI, RateLimitError
+from openai import OpenAI, OpenAIError, RateLimitError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -17,11 +17,18 @@ _OpenAICompatibleAPIURLs = {
     "gptjrc": "https://api-gpt.jrc.ec.europa.eu/v1",
 }
 
+_huggingface_to_gptjrc_model_names_map = {
+    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-instruct",
+    "mistralai/Mistral-Small-3.1-24B-Instruct-2503": "mistral-small-3.1-24b",
+    "Qwen/Qwen3-32B": "qwen3-32b",
+    "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-coder-2.5-instruct",
+}
+
 
 class OpenAICompatibleModel(Model):
     def __init__(
         self,
-        model_id: str = "Qwen/Qwen3-8B",
+        model_id: str = "Qwen/Qwen3-32B",
         api_url: OpenAICompatibleAPIURL = "gptjrc",
     ):
         """
@@ -36,7 +43,10 @@ class OpenAICompatibleModel(Model):
                 f"Invalid api_url '{api_url}'. Must be one of {list(_OpenAICompatibleAPIURLs.keys())}."
             )
 
+        if model_id in _huggingface_to_gptjrc_model_names_map:
+            model_id = _huggingface_to_gptjrc_model_names_map[model_id]
         self.model_id = model_id
+
         base_url = _OpenAICompatibleAPIURLs[api_url]
 
         self.client = OpenAI(api_key=GPTJRC_TOKEN, base_url=base_url)
@@ -64,10 +74,16 @@ class OpenAICompatibleModel(Model):
         temperature: Optional[float] = 0.0,
         **_,
     ) -> str:
-        chat_completion = self.client.chat.completions.create(
-            model=self.model_id,
-            messages=messages,
-            stream=False,
-            temperature=temperature,
-        )
-        return chat_completion.choices[0].message.content
+        try:
+            chat_completion = self.client.chat.completions.create(
+                model=self.model_id,
+                messages=messages,
+                stream=False,
+                temperature=temperature,
+                timeout=60,
+            )
+            return chat_completion.choices[0].message.content
+        except OpenAIError as e:
+            return f"[bold yellow]The model could not generate text for this request. An unexpected exception occurred or the request timed out:\n{e}[/]"
+        except Exception:
+            return f"[bold yellow]Critical unknown error while generating text for conversation\n{messages}"

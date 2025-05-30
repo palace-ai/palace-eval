@@ -28,7 +28,13 @@ def download_tasklist(
     category: Optional[str] = None,
     label_mapping: Optional[Dict[str, str]] = None,
 ) -> None:
-    dataset = load_dataset(id, config, split=split, download_mode="force_redownload")
+    dataset = load_dataset(
+        id,
+        config,
+        split=split,
+        download_mode="force_redownload",
+        trust_remote_code=True,
+    )
     df_dataset = dataset.to_pandas()
 
     tasks = []
