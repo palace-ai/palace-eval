@@ -19,16 +19,13 @@ class LocalAgent(Agent):
         paradigm: Paradigm,
         environment: Environment,
         _temperature: float = 0.0,
-        verbose: bool = False,
         _native_function_calling: bool = False,
     ):
         self.model: Model = model
         self.paradigm: Paradigm = paradigm
         self.environment: Environment = environment
         self._temperature: float = _temperature
-        self.verbose = verbose
 
-        # self.tools: Dict[str, Tool] = {}
         self.tools: List[Tool] = []
         self.conversation: List[Dict[str, str]] = []
 
@@ -55,7 +52,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
 
         return response
 
-    def step(self) -> str:
+    def step(self, verbose: bool = False) -> str:
         if self._native_function_calling:
             generated_text, generated_tool_calls = self.model.generate_with_tools(
                 messages=self.conversation,
@@ -70,7 +67,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
             generated_text = self.model.generate(
                 messages=self.conversation, temperature=self._temperature
             )
-        if self.verbose:
+        if verbose:
             print(f"[bold]Generated text: [/] \n{generated_text}\n")
 
         tool_calls = self._extract_tool_calls(generated_text)
@@ -96,7 +93,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
     def environment_name(self) -> str:
         return self.environment.name
 
-    def run(self, task: str, max_steps: int = 10) -> str:
+    def run(self, task: str, max_steps: int = 10, verbose: bool = False) -> str:
         self.tools = self.environment.tools
         self.conversation: List[Dict[str, str]] = []
 
@@ -118,17 +115,17 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
         self.conversation.append({"role": "user", "content": task})
         final_answer = None
 
-        if self.verbose:
+        if verbose:
             print(f"[bold]System prompt: [/] \n{system_prompt}\n")
             print(f"[bold]Task: [/] \n{task}\n")
 
         for i in range(max_steps):
-            if self.verbose:
+            if verbose:
                 print("-" * 40)
                 print(f"[bold]\nSTEP {i + 1}: [/]")
 
             # run the agent step
-            generated_text, tool_calls = self.step()
+            generated_text, tool_calls = self.step(verbose=verbose)
 
             # append the last generated text
             self.conversation.append({"role": "assistant", "content": generated_text})
@@ -144,7 +141,7 @@ Maybe something was wrong with your syntax or maybe that tool is unavailable for
                 ]
             )
             self.conversation.append({"role": "user", "content": tool_responses})
-            if self.verbose:
+            if verbose:
                 print(f"[bold]Tool calls and responses: [/] \n{tool_responses}\n")
 
             # break if model has called the final answer tool

@@ -91,27 +91,23 @@ def print(
                 continue
 
             tag = text[i + 1 : j].lower().strip()
-            i = j + 1
-
-            # Closing tag: reset all styles
-            if tag == "/":
-                output.append("\033[0m")
-                continue
-
-            # Parse color/style tag
             parts = tag.split()
-            bg_nums = [
-                color_map[p] for p in parts if p.startswith("on_") and p in color_map
-            ]
-            fg_nums = [
-                color_map[p]
-                for p in parts
-                if not p.startswith("on_") and p in color_map
-            ]
-            all_nums = bg_nums + fg_nums
 
-            if all_nums:
-                output.append(f"\033[{';'.join(all_nums)}m")
+            if tag == "/" or all(part in color_map for part in parts):
+                i = j + 1
+                if tag == "/":  # closing tag: reset all styles
+                    output.append("\033[0m")
+                else:  # parse color/style tag
+                    bg_nums = [color_map[p] for p in parts if p.startswith("on_")]
+                    fg_nums = [color_map[p] for p in parts if not p.startswith("on_")]
+                    all_nums = bg_nums + fg_nums
+                    if all_nums:
+                        output.append(f"\033[{';'.join(all_nums)}m")
+                continue
+            else:
+                output.append(text[i : j + 1])
+                i = j + 1
+                continue
         else:
             output.append(text[i])
             i += 1
@@ -176,7 +172,7 @@ def print(
 
 
 @contextmanager
-def loading_icon():
+def loading_icon_v1():
     spinner = itertools.cycle(
         [
             "⢀⠀",
@@ -281,6 +277,132 @@ def loading_icon():
             sys.stdout.flush()
 
 
+class LoadingIcon:
+    def __init__(self, spinner, animation_interval):
+        self.spinner = spinner
+        self.animation_interval = animation_interval
+        self.done = False
+        self.start_time = time.time()
+        self.description = ""
+        self.lock = threading.Lock()
+        self.last_length = 0
+
+    def status(self, text):
+        with self.lock:
+            self.description = text
+
+    def animate(self):
+        if IN_NOTEBOOK:
+            while not self.done:
+                elapsed_time = time.time() - self.start_time
+                with self.lock:
+                    desc = self.description
+                    output = f"\r{next(self.spinner)}  ({elapsed_time:.1f}s)  {desc}"
+                    self.last_length = len(output) - 1
+                builtin_print(output, end="", flush=True)
+                time.sleep(self.animation_interval)
+            builtin_print("\r" + " " * self.last_length + "\r", end="", flush=True)
+        else:
+            sys.stdout.write("\033[s")
+            while not self.done:
+                elapsed_time = time.time() - self.start_time
+                with self.lock:
+                    desc = self.description
+                    output = (
+                        f"\033[u{next(self.spinner)}  ({elapsed_time:.1f}s)  {desc}"
+                    )
+                    self.last_length = len(output) - 1
+                sys.stdout.write(output)
+                sys.stdout.flush()
+                time.sleep(self.animation_interval)
+            sys.stdout.write("\033[u" + " " * self.last_length + "\033[u")
+            sys.stdout.flush()
+
+
+@contextmanager
+def loading():
+    spinner = itertools.cycle(
+        [
+            "⢀⠀",
+            "⡀⠀",
+            "⠄⠀",
+            "⢂⠀",
+            "⡂⠀",
+            "⠅⠀",
+            "⢃⠀",
+            "⡃⠀",
+            "⠍⠀",
+            "⢋⠀",
+            "⡋⠀",
+            "⠍⠁",
+            "⢋⠁",
+            "⡋⠁",
+            "⠍⠉",
+            "⠋⠉",
+            "⠋⠉",
+            "⠉⠙",
+            "⠉⠙",
+            "⠉⠩",
+            "⠈⢙",
+            "⠈⡙",
+            "⢈⠩",
+            "⡀⢙",
+            "⠄⡙",
+            "⢂⠩",
+            "⡂⢘",
+            "⠅⡘",
+            "⢃⠨",
+            "⡃⢐",
+            "⠍⡐",
+            "⢋⠠",
+            "⡋⢀",
+            "⠍⡁",
+            "⢋⠁",
+            "⡋⠁",
+            "⠍⠉",
+            "⠋⠉",
+            "⠋⠉",
+            "⠉⠙",
+            "⠉⠙",
+            "⠉⠩",
+            "⠈⢙",
+            "⠈⡙",
+            "⠈⠩",
+            "⠀⢙",
+            "⠀⡙",
+            "⠀⠩",
+            "⠀⢘",
+            "⠀⡘",
+            "⠀⠨",
+            "⠀⢐",
+            "⠀⡐",
+            "⠀⠠",
+            "⠀⢀",
+            "⠀⡀",
+            "⠀⠀",
+            "⠀⠀",
+            "⠀⠀",
+            "⠀⠀",
+        ]
+    )
+    animation_interval = 0.075
+
+    loading_icon_obj = LoadingIcon(spinner, animation_interval)
+    thread = threading.Thread(target=loading_icon_obj.animate)
+    thread.start()
+
+    try:
+        yield loading_icon_obj
+    finally:
+        loading_icon_obj.done = True
+        thread.join()
+        # if IN_NOTEBOOK:
+        #     builtin_print("\r", end="", flush=True)  # Clear the spinner in Jupyter
+        # else:
+        #     sys.stdout.write("\r")
+        #     sys.stdout.flush()
+
+
 # Example usage
 def call_api():
     time.sleep(5)
@@ -293,9 +415,18 @@ if __name__ == "__main__":
     #     result = call_api()
     # print("Process complete! Result:", result)
 
-    print(
-        "[bold]Welcome to the :memo: Agents Evaluation CLI![/]\n[italic on_yellow]I hope you like it,\n and this is a very \nlong text because i want it to wrap it \nto the next line...[/] \nat least i hope it happend lol\n otherwise it would be really annoying\n123\n:memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo:",
-        box=True,
-        box_title=":memo: Welcome",
-        # wrap_width=10,
-    )
+    # print(
+    #     "[bold]Welcome to the :memo: Agents Evaluation CLI![/]\n[italic on_yellow]I hope you like it,\n and this is a very \nlong text because i want it to wrap it \nto the next line...[/] \nat least i hope it happend lol\n otherwise it would be really annoying\n123\n:memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo:",
+    #     box=True,
+    #     box_title=":memo: Welcome",
+    #     # wrap_width=10,
+    # )
+
+    with loading() as ld:
+        ld.status("ABC")
+        time.sleep(2)
+        ld.status("123456")
+        time.sleep(2)
+        ld.status("ABCDEFGHI")
+        time.sleep(1)
+    builtin_print("Complete")

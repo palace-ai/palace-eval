@@ -17,10 +17,16 @@ class MCPEnvironment(Environment):
 
     def __init__(self, mcp_server: str):
         self._tools = None
-        self.url = __class__.MCP_SERVERS[mcp_server]["url"]
-        self.token = __class__.MCP_SERVERS[mcp_server]["token"]
-
-        # self.mcp_client = MCPClient()
+        self.url = (
+            __class__.MCP_SERVERS[mcp_server]["url"]
+            if mcp_server in __class__.MCP_SERVERS  # if present, use alias
+            else mcp_server  # otherwise, use direct URL
+        )
+        self.token = (
+            __class__.MCP_SERVERS[mcp_server]["token"]
+            if mcp_server in __class__.MCP_SERVERS
+            else None
+        )
 
     @property
     def name(self) -> str:
@@ -37,8 +43,7 @@ class MCPEnvironment(Environment):
         if self._tools is None:  # load tools the first time it's called
             with MCPClient().connection(url=self.url, token=self.token) as mcp_client:
                 mcp_tools = (mcp_client.list_tools()).tools
-            # self.mcp_client.connect(url=self.url, token=self.token)
-            # mcp_tools = (self.mcp_client.list_tools()).tools
+
             tools = []
             for mcp_tool in mcp_tools:
                 tool_parameters = {

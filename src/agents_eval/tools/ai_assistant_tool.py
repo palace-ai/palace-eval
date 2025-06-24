@@ -1,12 +1,12 @@
 from typing import Dict
 
-from agents_eval.models import GPTJRCModel
+from agents_eval.models.openai_compatible_model import OpenAICompatibleModel
 from agents_eval.tools import Tool
 
 
 class AIAssistantTool(Tool):
     def __init__(self):
-        self.model = GPTJRCModel()
+        self.model = OpenAICompatibleModel()
 
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""

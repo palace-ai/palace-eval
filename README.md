@@ -1,39 +1,59 @@
 # agents-eval
+![img](https://img.shields.io/badge/python-3.12.9-orange)
+
 A framework to evaluate the agentic capabilities of LLMs.
 
 ## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+**agents-eval** is an evaluation suite/framework that can quantitatively assess the performance of AI agents across several different benchmarks.
+It works both for locally-defined and executed agents as well as remote agents deployed via MCP.
+The benchmark tasklists evaluate the capability of the agents in tasks requiring the use of tools, mainly web browsing, to gather the required information, as well as reason with that information to reach the user objective.
+The framework allows to easily add new tasklists from HuggingFace and align them to the same format.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+The framework is composed of two main parts: the evaluation part and agent engine part. In the future, the agent engine part may be detached from this project and become its own library.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+The output of an evaluation run is a JSONL file containing all the collected information. This information is used to build an interactive web dashboard to interact with the results in a user-friendly and insightful way. However, the dashboard code is not currently in this project (may be added in the future).
+
+![img](assets/readme_images/dashboard.png)
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+**agents-eval** is provided as a Python package. It can be downloaded and installed normally (it or a variant may be released on PyPI in the future).
+After cloning the project, you may install with:
+```
+$ python3 -m pip install agents-eval
+```
+It is recommended to install it into a virtual environment.
+
+That's it! All the required dependencies should be downloaded automatically.
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+The main usage of this package is via its global CLI command `agents-eval`. Simply type it in your terminal (be sure to be within the Python environment where the package is installed):
+```
+$ agents-eval
+```
+
+This command should open up the main CLI, and you should be initially be presented with something like this:
+![img](assets/readme_images/cli.png)
+
+Subsequently, you will be prompted with a series of questions where you can configure the evaluation run. Use the up and down arrow keys to navigate the menu options, Space to select an option (for some choice you can select multiple options), and Enter to confirm the selection.
+These are the current evaluation parameters:
+- Agent type to test (local, remote, or both),
+- If remote agents is selected, the URL of the MCP server where the agent is deployed,
+- If remove agents is selected, the names of the remote agents to evaluate,
+- If local agents is selected, the reasoning paradigms to evaluate,
+- If local agents is selected, the LLMs to evaluate,
+- If local agents is selected, whether you want to run the LLMs underlying the agents on the local machine (a high-memory GPU is required) or on GPT@JRC,
+- If local agents is selected, the environments (set of tools) to evaluate, including remote MCP environments,
+- The benchmark tasklists to use for the evaluation,
+- Whether it should be verbose (print info to the terminal),
+- Number of tasks to evaluate for each tasklist (this is to prevent extremely long testing times),
+- Number of runs to perform for each configuration (it can be useful to lower the variance, since it's not deterministic),
+- The name for the evaluation run.
+
+After selecting all parameters, the evaluation run will start, and you will see the first configuration being evaluated:
+![img](assets/readme_images/cli2.png)
+
+The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl`.
 
 ## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+If you have any issues, you can open an issue on GitLab if they are enabled, or you can contact me at massimiliano.altieri@ec.europa.eu.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.

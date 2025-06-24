@@ -67,7 +67,16 @@ If you have any questions, please contact us at massimiliano.altieri@ec.europa.e
         MCPEnvironment(mcp_server="local"),
         MCPEnvironment(mcp_server="aloha"),
     ]
-    _TASKLISTS = ["AssistantBench", "Fever", "GAIA", "HLE", "HotpotQA", "SimpleQA"]
+    _TASKLISTS = [
+        "AssistantBench",
+        "CURIE-protein",
+        "Fever",
+        "GAIA",
+        "HLE",
+        "HotpotQA",
+        "Scopus",
+        "SimpleQA",
+    ]
 
     local_or_remote = questionary.checkbox(
         "What agent types would you like to test?",
@@ -150,8 +159,8 @@ If you have any questions, please contact us at massimiliano.altieri@ec.europa.e
 
     task_amount_limit = questionary.select(
         "Limit the number of tasks:",
-        choices=["5", "20", "50", "100", "Unlimited"],
-        default="5",
+        choices=["1", "5", "20", "50", "100", "Unlimited"],
+        default="1",
     ).ask()
     task_amount_limit = (
         int(task_amount_limit) if task_amount_limit != "Unlimited" else sys.maxsize
@@ -177,8 +186,6 @@ If you have any questions, please contact us at massimiliano.altieri@ec.europa.e
     )
 
     evaluation.evaluate_all(
-        # BUG local models follow a different naming convention. try to abstract the exact name of a model. maybe use a dict
-        # for instance the same model is called Llama-3.1-8B-Instruct locally but llama-3.3-70b-instruct for GPT@JRC
         # BUG It assumes all remote agents are located at the same URL (not possible to define multiple URLs)
         agents=[
             LocalAgent(

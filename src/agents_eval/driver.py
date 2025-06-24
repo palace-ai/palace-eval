@@ -1,6 +1,6 @@
 from agents_eval.environments import MCPEnvironment
 from agents_eval.evaluation import Evaluation
-from agents_eval.models import GPTJRCModel, HuggingfaceModel
+from agents_eval.models import HuggingfaceModel
 from agents_eval.paradigms import (
     PlanAndExecuteParadigm,
     ReActParadigm,
@@ -17,7 +17,7 @@ evaluation = Evaluation(verbose=False, task_amount_limit=20, runs_per_configurat
 
 results = evaluation.evaluate_all(
     models=[
-        # GPTJRCModel(),
+        # OpenAICompatibleModel(),
         HuggingfaceModel(
             "Qwen/Qwen3-32B"
         )  # /mnt/storage2/hf_models/Llama-3.1-8B-Instruct

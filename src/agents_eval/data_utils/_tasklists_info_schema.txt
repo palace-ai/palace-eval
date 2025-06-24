@@ -12,7 +12,7 @@
             "attachment": "(optional) the name of the column containing the name of the file attachment for this task"
         },
         "attachment_path": "(optional) the path containing the attachments/files for this tasklist (e.g., '2023/validation' for GAIA)",
-        "raw_bytes_attachment": "(optional) True if the 'filenames' of the attachments are actually binary representations of the files themselves",
+        "inline_attachment": "(optional) True if the 'filenames' of the attachments are actually binary representations of the files themselves",
         "category": "one of 'QA' or 'Claim Verification' for now",
         "label_mapping": (optional, only useful for Claim Verification) {
             "SUPPORTS": "True",  # map a value in the dataset labels to another value for omogeneity across tasklists

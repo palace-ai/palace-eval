@@ -1,5 +1,20 @@
 [
     {
+        "name": "CURIE-protein",
+        "id": "nhop/curie",
+        "config": "pdb",
+        "split": "train",
+        "column_names": {
+            "id": "id",
+            "objective": "prompt",
+            "expected": "gt",
+            "difficulty": "difficulty_level",
+            "attachment": "text"
+        },
+        "category": "QA",
+        "inline_attachment": "True"
+    },
+    {
         "name": "HotpotQA",
         "id": "hotpotqa/hotpot_qa",
         "config": "fullwiki",
@@ -76,7 +91,7 @@
             "expected": "answer",
             "attachment": "image"
         },
-        "raw_bytes_attachment": "True",
+        "inline_attachment": "True",
         "category": "QA"
     }
 ]

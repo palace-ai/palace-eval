@@ -8,7 +8,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from agents_eval.models import Model
+from agents_eval.models.base_model import Model
 from agents_eval.utils.secrets import GPTJRC_TOKEN
 
 OpenAICompatibleAPIURL = Literal["localhost", "gptjrc"]
@@ -80,7 +80,7 @@ class OpenAICompatibleModel(Model):
                 messages=messages,
                 stream=False,
                 temperature=temperature,
-                timeout=60,
+                timeout=120,
             )
             return chat_completion.choices[0].message.content
         except OpenAIError as e:

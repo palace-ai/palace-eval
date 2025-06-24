@@ -7,16 +7,16 @@ from typing import Dict, List
 import pandas as pd
 
 from agents_eval.agents import Agent
-from agents_eval.models import GPTJRCModel, HuggingfaceModel
+from agents_eval.models import HuggingfaceModel, OpenAICompatibleModel
 from agents_eval.utils.paths import PROJECT_ROOT
-from agents_eval.utils.printing import loading_icon, print
+from agents_eval.utils.printing import loading, print
 
 
 class Evaluation:
     def __init__(
         self,
         name: str = "eval",
-        judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for GPTJRCModel
+        judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for OpenAICompatibleModel
         verbose: bool = True,
         task_amount_limit: int = None,
         runs_per_configuration: int = 1,
@@ -33,7 +33,7 @@ class Evaluation:
             judge_model_id = "/mnt/storage2/hf_models/Qwen2.5-3B-Instruct"
             self.judge = HuggingfaceModel(judge_model_id, gpu_memory_utilization=0.3)
         elif judge_inference == "remote":
-            self.judge = GPTJRCModel()
+            self.judge = OpenAICompatibleModel("meta-llama/Llama-3.3-70B-Instruct")
         else:
             raise ValueError(
                 f"judge_inference must be either 'local' or 'remote', found: {judge_inference}"
@@ -72,7 +72,7 @@ on _temperature [blue]{_temperature}[/]
 
                 print()
                 print(
-                    f"[blue]{correct_tasks}[/blue]/[blue]{len(report)}[/blue] ([blue]{accuracy * 100:.0f}%[/blue])[/] tasks completely successfully.",
+                    f"[blue]{correct_tasks}[/] / [blue]{len(report)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completely successfully.",
                     box=True,
                     box_title="Evaluation report:",
                 )
@@ -120,7 +120,9 @@ on _temperature [blue]{_temperature}[/]
             tasks = [
                 task
                 for task in tasks
-                if task["attachment"] is None or task["attachment"] == ""
+                if task["attachment"] is None
+                or task["attachment"] == ""
+                or task["attachment"][-4:] == ".txt"
             ]
 
         # limit the number of tasks to evaluate
@@ -129,18 +131,33 @@ on _temperature [blue]{_temperature}[/]
 
         for i, task in enumerate(tasks):
             # preprocess task according to category
-            task["objective"] = (
+            prompt = (
                 __class__._task_prompt_prefix(tasklist_info["category"])
                 + task["objective"]
             )
+            # task["objective"] = (
+            #     __class__._task_prompt_prefix(tasklist_info["category"])
+            #     + task["objective"]
+            # )
+
+            if task["attachment"] is not None and task["attachment"] != "":
+                with open(
+                    PROJECT_ROOT
+                    / "tasklists"
+                    / tasklist
+                    / "task_files"
+                    / task["attachment"]
+                ) as f:
+                    attachment = f.read()
+                prompt += f"\n\nStart of text attachment >>>\n{attachment}<<< End of text attachment"
 
             start_time = time.time()
             print()
-            print(task["objective"], box=True, box_title=f":memo: Task {i + 1}")
+            print(prompt, box=True, box_title=f":memo: Task {i + 1}")
             print(f"[bold]Expected response:[/] {task['expected']}")
 
-            with loading_icon():
-                result = agent.run(task=task["objective"])
+            with loading():
+                result = agent.run(task=prompt, verbose=self.verbose)
 
             # check if run completed successfully
             if result is None:

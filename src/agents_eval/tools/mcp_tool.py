@@ -37,7 +37,11 @@ class MCPTool(Tool):
         if response is None:
             return f"Tool `{self.name}` encountered some issue and returned no result, likely due to a timeout. Maybe it was unable to process your specific input, or there was some internal error."
         else:
-            return response.content[0].text
+            return response.content[
+                0
+            ].text[
+                :300000
+            ]  # [:300000] is a workaround for very long outputs to ensure it fits in the model context
 
     @property
     def name(self) -> str:

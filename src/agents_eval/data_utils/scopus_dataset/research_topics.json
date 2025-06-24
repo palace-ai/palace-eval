@@ -1,0 +1,51 @@
+{
+    "physics": [
+        "Quantum computing",
+        "Dark matter",
+        "Gravitational waves",
+        "Nanophotonics",
+        "Superconductors"
+    ],
+    "engineering": [
+        "Renewable energy",
+        "Robotics",
+        "Smart cities",
+        "Biomedical devices",
+        "Additive manufacturing"
+    ],
+    "statistics": [
+        "Bayesian inference",
+        "Big data analytics",
+        "Causal inference",
+        "Machine learning optimization",
+        "Statistical genomics"
+    ],
+    "computer science": [
+        "Artificial intelligence ethics",
+        "Quantum algorithms",
+        "Cybersecurity threat detection",
+        "Natural language processing",
+        "Blockchain"
+    ],
+    "biology": [
+        "CRISPR",
+        "Microbiome and human health",
+        "Climate change",
+        "Cancer immunotherapy",
+        "Synthetic biology"
+    ],
+    "mathematics": [
+        "Topology",
+        "Cryptography",
+        "Mathematical modeling in epidemiology",
+        "Algebraic geometry",
+        "Numberical analysis"
+    ],
+    "chemistry": [
+        "Catalysts for green chemistry",
+        "Drug design",
+        "Materials chemistry for energy storage",
+        "Chemical sensors and biosensors",
+        "Photochemistry"
+    ]
+}

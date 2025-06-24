@@ -453,7 +453,7 @@ class MCPClient(metaclass=SingletonMetaclass):
             try:
                 # safety timeout on whatever the library might hang on
                 await asyncio.wait_for(
-                    self._session_context.__aexit__(None, None, None), timeout=5.0
+                    self._session_context.__aexit__(None, None, None), timeout=10.0
                 )
             except asyncio.TimeoutError:
                 print("Timeout during session cleanup, skipping")
@@ -469,7 +469,7 @@ class MCPClient(metaclass=SingletonMetaclass):
         if self._streams_context is not None:
             try:
                 await asyncio.wait_for(
-                    self._streams_context.__aexit__(None, None, None), timeout=5.0
+                    self._streams_context.__aexit__(None, None, None), timeout=10.0
                 )
             except asyncio.TimeoutError:
                 print("Timeout during streams cleanup, skipping")
@@ -497,9 +497,9 @@ class MCPClient(metaclass=SingletonMetaclass):
         self._async.signal_stop()
         try:
             # give the cleanup event up to 5s...
-            self._async.wait_for_disconnect(timeout=5)
+            self._async.wait_for_disconnect(timeout=10)
             # ...and the task itself up to another 5s
-            self._async.wait_for_task(timeout=5)
+            self._async.wait_for_task(timeout=10)
         except Exception as e:
             print(f"Warning during disconnect: {e!r}")
         finally:

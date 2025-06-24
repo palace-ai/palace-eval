@@ -27,24 +27,42 @@ class Environment(ABC):
 
     @property
     def environment_prompt(self) -> str:
-        return f"""This is a detailed overview of the environment that you will be working in while solving the provided task:
-Environment name: {self.name}
-Environment description: {self.description}
-Available tools in this environment that you can use: {
-            "".join(
-                [
-                    f'''
+        tools_str = "".join(
+            [
+                f"""
     {i + 1}. {tool.name}
     {tool.description}
     Tool parameters:
         {tool.parameters}
     Required parameters:
-        {tool.required_parameters}'''
-                    for i, tool in enumerate(self.tools)
-                ]
-            )
-        }
+        {tool.required_parameters}"""
+                for i, tool in enumerate(self.tools)
+            ]
+        )
+        return f"""This is a detailed overview of the environment that you will be working in while solving the provided task:
+Environment name: {self.name}
+Environment description: {self.description}
+Available tools in this environment that you can use: {tools_str}
 """
+
+    #         return f"""This is a detailed overview of the environment that you will be working in while solving the provided task:
+    # Environment name: {self.name}
+    # Environment description: {self.description}
+    # Available tools in this environment that you can use: {
+    #             "".join(
+    #                 [
+    #                     f'''
+    #     {i + 1}. {tool.name}
+    #     {tool.description}
+    #     Tool parameters:
+    #         {tool.parameters}
+    #     Required parameters:
+    #         {tool.required_parameters}'''
+    #                     for i, tool in enumerate(self.tools)
+    #                 ]
+    #             )
+    #         }
+    # """
 
     @property
     def _environment_prompt_without_tools(self) -> str:

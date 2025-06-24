@@ -24,7 +24,7 @@ def download_tasklist(
     column_names: Dict[str, str],
     config: Optional[str] = None,
     attachment_path: Optional[str] = None,
-    raw_bytes_attachment: Optional[bool] = False,
+    inline_attachment: Optional[bool] = False,
     category: Optional[str] = None,
     label_mapping: Optional[Dict[str, str]] = None,
 ) -> None:
@@ -43,8 +43,8 @@ def download_tasklist(
         attachment = (
             row[column_names["attachment"]] if "attachment" in column_names else ""
         )
-        if raw_bytes_attachment and attachment != "":
-            attachment = _get_filename_for_base64(attachment)
+        if inline_attachment and attachment != "":
+            attachment = _get_filename(attachment)
 
         # Convert dataset-specific task format to my own task format
         task = {
@@ -89,15 +89,15 @@ def download_tasklist(
         attachments_dir = Path(output_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
-        for filename in df_dataset[df_dataset[column_names["attachment"]] != ""][
+        for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][
             column_names["attachment"]
         ]:
             # attachment is present as a file name to download
-            if not raw_bytes_attachment:
+            if not inline_attachment:
                 try:
                     temp_path = hf_hub_download(
                         repo_id=id,
-                        filename=os.path.join(attachment_path, filename),
+                        filename=os.path.join(attachment_path, attachment),
                         repo_type="dataset",
                         local_dir=os.path.join(output_path, "task_files"),
                         local_dir_use_symlinks=False,
@@ -105,10 +105,10 @@ def download_tasklist(
                     )
 
                     # Move to final location
-                    shutil.move(temp_path, attachments_dir / filename)
+                    shutil.move(temp_path, attachments_dir / attachment)
 
                 except Exception as e:
-                    print(f"Error downloading {filename}: {e}")
+                    print(f"Error downloading {attachment}: {e}")
 
                 try:
                     shutil.rmtree(
@@ -119,40 +119,58 @@ def download_tasklist(
                 except OSError as e:
                     print(f"Error removing subdirectories: {e}")
 
-            # attachment is present as a raw byte string to decode
+            # attachment is present within the dataframe, either as plain text or as a raw byte string to decode
             else:
-                base64_payload = _extract_base64_payload(filename)
-                binary_data = base64.b64decode(base64_payload)
+                base64_payload = _extract_base64_payload(attachment)
+                decoded_payload = (
+                    base64.b64decode(base64_payload)
+                    if _is_base64(base64_payload)
+                    else base64_payload
+                )
 
-                output_file = _get_filename_for_base64(filename)
-                with open(attachments_dir / output_file, "wb") as f:
-                    f.write(binary_data)
+                output_file = _get_filename(attachment)
+                with open(
+                    attachments_dir / output_file,
+                    "wb" if _is_base64(base64_payload) else "w",
+                ) as f:
+                    f.write(decoded_payload)
 
     print(f"Tasklist successfully saved to {output_path}.")
+
+
+def _is_base64(s):
+    # Check if the string is valid base64
+    try:
+        if isinstance(s, str):
+            # Check if the string can be decoded from base64 and re-encoded to the same string
+            return base64.b64encode(base64.b64decode(s)).decode("utf-8") == s
+        return False
+    except Exception:
+        return False
 
 
 def _extract_base64_payload(base64_string: str) -> str:
     # Regex to match Data URI and capture the Base64 payload
     pattern = r"^data:[a-z]+/[a-z]+;base64,(.+)$"
     match = re.match(pattern, base64_string.strip())
-    return (
-        match.group(1) if match else base64_string
-    )  # Return payload or full string if there is no prefix
+    return match.group(1) if match else base64_string
 
 
-def _get_filename_for_base64(base64_str: str) -> str:
-    # Strip Data URI prefix if present
-    if base64_str.startswith("data:"):
-        base64_str = base64_str.split(",")[1]
+def _get_filename(s: str) -> str:
+    is_base64 = _is_base64(s)
 
-    # Decode and hash
-    binary_data = base64.b64decode(base64_str)
+    if is_base64 and s.startswith("data:"):
+        s = s.split(",")[1]
 
-    full_hash = hashlib.sha256(binary_data).hexdigest()
+    data = base64.b64decode(s) if is_base64 else s.encode("utf-8")
+    full_hash = hashlib.sha256(data).hexdigest()
     filename = full_hash[:24]  # Use the first 24 characters of the hash as the filename
 
-    guess = filetype.guess(binary_data)
-    extension = guess.extension if guess else "bin"
+    guess = filetype.guess(data)
+    if is_base64:
+        extension = guess.extension if guess else "bin"
+    else:
+        extension = "txt"
 
     return f"{filename}.{extension}"
 
