@@ -1,7 +1,8 @@
 **/__pycache__/
 **/___*
 **/*.egg-info/
-*.png
+**/*.png
+!assets/**/*.png
 .tokens.env
 build/
 results/*
