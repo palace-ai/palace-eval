@@ -1,10 +1,10 @@
-# agents-eval
+# palace
 ![img](https://img.shields.io/badge/python-3.12.9-orange)
 
 A framework to evaluate the agentic capabilities of LLMs.
 
 ## Description
-**agents-eval** is an evaluation suite/framework that can quantitatively assess the performance of AI agents across several different benchmarks.
+**PALACE** is an evaluation suite/framework that can quantitatively assess the performance of AI agents across several different benchmarks.
 It works both for locally-defined and executed agents as well as remote agents deployed via MCP.
 The benchmark tasklists evaluate the capability of the agents in tasks requiring the use of tools, mainly web browsing, to gather the required information, as well as reason with that information to reach the user objective.
 The framework allows to easily add new tasklists from HuggingFace and align them to the same format.
@@ -16,19 +16,19 @@ The output of an evaluation run is a JSONL file containing all the collected inf
 ![img](assets/readme_images/dashboard.png)
 
 ## Installation
-**agents-eval** is provided as a Python package. It can be downloaded and installed normally (it or a variant may be released on PyPI in the future).
+**palace** is provided as a Python package. It can be downloaded and installed normally (it or a variant may be released on PyPI in the future).
 After cloning the project, you may install with:
 ```
-$ python3 -m pip install agents-eval
+$ python3 -m pip install palace
 ```
 It is recommended to install it into a virtual environment.
 
 That's it! All the required dependencies should be downloaded automatically.
 
 ## Usage
-The main usage of this package is via its global CLI command `agents-eval`. Simply type it in your terminal (be sure to be within the Python environment where the package is installed):
+The main usage of this package is via its global CLI command `palace-cli`. Simply type it in your terminal (be sure to be within the Python environment where the package is installed):
 ```
-$ agents-eval
+$ palace-cli
 ```
 
 This command should open up the main CLI, and you should be initially be presented with something like this:
@@ -53,6 +53,21 @@ After selecting all parameters, the evaluation run will start, and you will see 
 ![img](assets/readme_images/cli2.png)
 
 The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl`.
+
+## Containers
+You can build and run the images in the `images` folder as containers.
+
+For example, to build the MCP server image, `cd` into the project root and run:
+```
+$ docker build -t mcp-server:latest -f images/mcp-server/Dockerfile .
+```
+
+And then,
+```
+$ docker run -d -p 8080:8080 mcp-server:latest
+```
+
+The MCP server will be ready to serve requests on port 8080.
 
 ## Support
 If you have any issues, you can open an issue on GitLab if they are enabled, or you can contact me at massimiliano.altieri@ec.europa.eu.

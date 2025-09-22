@@ -1,0 +1,28 @@
+[
+    {
+        "name": "user-friendly benchmark name for the folder and use across the project",
+        "id": "exact dataset id as shown on huggingface",
+        "config": "(optional) dataset sub-name as shown on huggingface (e.g., '2023_all' for GAIA)",
+        "split": "(optional) usually validation or test, as shown on huggingface",
+        "column_names": {
+            "id": "(optional) the name of the column to use for the task id",
+            "objective": "the name of the column containing the task objective/prompt",
+            "expected": "the name of the column containing the task label/answer",
+            "difficulty": "(optional) the name of the column containing the task difficulty",
+            "attachment": "(optional) the name of the column containing the name of the file attachment for this task"
+        },
+        "attachment_path": "(optional) the path containing the attachments/files for this tasklist (e.g., '2023/validation' for GAIA)",
+        "inline_attachment": "(optional) True if the 'filenames' of the attachments are actually binary representations of the files themselves",
+        "category": (optional) "if specified, only 'QA' or 'Claim Verification' have effect for now",
+        "label_mapping": (optional, only useful for Claim Verification) {
+            "SUPPORTS": "True",  # map a value in the dataset labels to another value for omogeneity across tasklists
+            "REFUTES": "False",
+            "NOT ENOUGH INFO": "Not Enough Info"
+        },
+        "custom_verificator": "def verify(pred, truth):\n    import json\n    return pred == json.loads(truth)['sequence']"  # (optional) a python function in the form def verify(pred, truth): ...; if not specified, it is assumed that we want to use a judge model
+    },
+    ...
+    {
+        ...
+    }
+]

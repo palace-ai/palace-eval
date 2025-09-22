@@ -1,0 +1,97 @@
+[
+    {
+        "name": "CURIE-protein",
+        "id": "nhop/curie",
+        "config": "pdb",
+        "split": "train",
+        "column_names": {
+            "id": "id",
+            "objective": "prompt",
+            "expected": "gt",
+            "difficulty": "difficulty_level",
+            "attachment": "text"
+        },
+        "inline_attachment": true,
+        "custom_verificator": "def verify(pred, truth):\n    import json\n    return pred == json.loads(truth)['sequence']"
+    },
+    {
+        "name": "HotpotQA",
+        "id": "hotpotqa/hotpot_qa",
+        "config": "fullwiki",
+        "split": "validation",
+        "column_names": {
+            "id": "id",
+            "objective": "question",
+            "expected": "answer",
+            "difficulty": "level"
+        },
+        "category": "QA"
+    },
+    {
+        "name": "GAIA",
+        "id": "gaia-benchmark/GAIA",
+        "config": "2023_all",
+        "split": "validation",
+        "column_names": {
+            "id": "task_id",
+            "objective": "Question",
+            "expected": "Final answer",
+            "difficulty": "Level",
+            "attachment": "file_name"
+        },
+        "attachment_path": "2023/validation",
+        "category": "QA"
+    },
+    {
+        "name": "SimpleQA",
+        "id": "basicv8vc/SimpleQA",
+        "split": "test",
+        "column_names": {
+            "objective": "problem",
+            "expected": "answer"
+        },
+        "category": "QA"
+    },
+    {
+        "name": "AssistantBench",
+        "id": "AssistantBench/AssistantBench",
+        "split": "validation",
+        "column_names": {
+            "id": "id",
+            "objective": "task",
+            "expected": "answer",
+            "difficulty": "difficulty"
+        },
+        "category": "QA"
+    },
+    {
+        "name": "Fever",
+        "id": "fever/fever",
+        "config": "v1.0",
+        "split": "labelled_dev",
+        "column_names": {
+            "id": "id",
+            "objective": "claim",
+            "expected": "label"
+        },
+        "category": "Claim Verification",
+        "label_mapping": {
+            "SUPPORTS": "True",
+            "REFUTES": "False",
+            "NOT ENOUGH INFO": "Not Enough Info"
+        }
+    },
+    {
+        "name": "HLE",
+        "id": "cais/hle",
+        "split": "test",
+        "column_names": {
+            "id": "id",
+            "objective": "question",
+            "expected": "answer",
+            "attachment": "image"
+        },
+        "inline_attachment": true,
+        "category": "QA"
+    }
+]

@@ -1,0 +1,15 @@
+[
+    {
+        "name": "HLE",
+        "id": "cais/hle",
+        "split": "test",
+        "column_names": {
+            "id": "id",
+            "objective": "question",
+            "expected": "answer",
+            "attachment": "image"
+        },
+        "inline_attachment": true,
+        "category": "QA"
+    }
+]
