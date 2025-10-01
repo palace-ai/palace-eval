@@ -51,7 +51,6 @@ class OpenAICompatibleModel(Model):
         self.model_id = model_id
 
         base_url = _OpenAICompatibleAPIURLs[api_url]
-
         self.client = OpenAI(api_key=GPTJRC_TOKEN, base_url=base_url)
 
     @property

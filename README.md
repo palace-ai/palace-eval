@@ -1,4 +1,4 @@
-# palace
+# PALACE
 ![img](https://img.shields.io/badge/python-3.12.9-orange)
 
 A framework to evaluate the agentic capabilities of LLMs.
@@ -18,7 +18,7 @@ The output of an evaluation run is a JSONL file containing all the collected inf
 ## Installation
 **palace** is provided as a Python package. It can be downloaded and installed normally (it or a variant may be released on PyPI in the future).
 After cloning the project, you may install with:
-```
+```bash
 $ python3 -m pip install palace
 ```
 It is recommended to install it into a virtual environment.
@@ -26,9 +26,10 @@ It is recommended to install it into a virtual environment.
 That's it! All the required dependencies should be downloaded automatically.
 
 ## Usage
-The main usage of this package is via its global CLI command `palace-cli`. Simply type it in your terminal (be sure to be within the Python environment where the package is installed):
-```
-$ palace-cli
+
+The main entry point of this package is via its global CLI command `palace-run`. Simply type it in your terminal (be sure to be within the Python environment where the package is installed):
+```bash
+$ palace-run
 ```
 
 This command should open up the main CLI, and you should be initially be presented with something like this:
@@ -54,16 +55,22 @@ After selecting all parameters, the evaluation run will start, and you will see 
 
 The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl`.
 
+### MCP Server
+
+The package comes with an MCP server that you can use to debug or test the application in case you don't have a ready MCP server to use. The pre-package MCP server only contains a web search tool and a fetch tool.
+
+To start it, simply run the global command `$ palace-mcpstart` on another terminal and leave it running.
+
 ## Containers
 You can build and run the images in the `images` folder as containers.
 
 For example, to build the MCP server image, `cd` into the project root and run:
-```
+```bash
 $ docker build -t mcp-server:latest -f images/mcp-server/Dockerfile .
 ```
 
 And then,
-```
+```bash
 $ docker run -d -p 8080:8080 mcp-server:latest
 ```
 
@@ -71,4 +78,3 @@ The MCP server will be ready to serve requests on port 8080.
 
 ## Support
 If you have any issues, you can open an issue on GitLab if they are enabled, or you can contact me at massimiliano.altieri@ec.europa.eu.
-

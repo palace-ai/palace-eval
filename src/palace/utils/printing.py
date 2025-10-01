@@ -141,7 +141,8 @@ def print(
         formatted_lines = formatted_text.splitlines()
         wrapped_lines = []
         for line in formatted_lines:
-            wrapped_lines.extend(_split_visible_chunks(line, wrap_width))
+            chunks = _split_visible_chunks(line, wrap_width)
+            wrapped_lines.extend(chunks if chunks else [""])
 
         max_length = max(_real_len(line) for line in wrapped_lines)
 
@@ -396,37 +397,3 @@ def loading():
     finally:
         loading_icon_obj.done = True
         thread.join()
-        # if IN_NOTEBOOK:
-        #     builtin_print("\r", end="", flush=True)  # Clear the spinner in Jupyter
-        # else:
-        #     sys.stdout.write("\r")
-        #     sys.stdout.flush()
-
-
-# Example usage
-def call_api():
-    time.sleep(5)
-    return "API response"
-
-
-if __name__ == "__main__":
-    # print("Starting long-running process...")
-    # with loading_icon():
-    #     result = call_api()
-    # print("Process complete! Result:", result)
-
-    # print(
-    #     "[bold]Welcome to the :memo: Agents Evaluation CLI![/]\n[italic on_yellow]I hope you like it,\n and this is a very \nlong text because i want it to wrap it \nto the next line...[/] \nat least i hope it happend lol\n otherwise it would be really annoying\n123\n:memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo::memo:",
-    #     box=True,
-    #     box_title=":memo: Welcome",
-    #     # wrap_width=10,
-    # )
-
-    with loading() as ld:
-        ld.status("ABC")
-        time.sleep(2)
-        ld.status("123456")
-        time.sleep(2)
-        ld.status("ABCDEFGHI")
-        time.sleep(1)
-    builtin_print("Complete")

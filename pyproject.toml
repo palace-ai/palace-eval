@@ -48,4 +48,5 @@ Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-e
 Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval"
 
 [project.scripts]
-palace-cli = "palace.cli.eval:main"
+palace-run = "palace.cli.run_eval:main"
+palace-mcpstart = "palace.cli.start_mcp_server:main"
