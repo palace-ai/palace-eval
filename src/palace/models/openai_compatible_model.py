@@ -25,6 +25,7 @@ _huggingface_to_gptjrc_model_names_map = {
     "mistralai/Mistral-Small-3.1-24B-Instruct-2503": "mistral-small-3.1-24b",
     "Qwen/Qwen3-32B": "qwen3-32b",
     "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-coder-2.5-instruct",
+    "openai/gpt-oss-120b": "gpt-oss-120b",
 }
 
 

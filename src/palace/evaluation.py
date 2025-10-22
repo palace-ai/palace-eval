@@ -211,9 +211,13 @@ class Evaluation:
         report: Dict[str, bool] = {}
 
         # load tasklist and metadata
-        with open(PROJECT_ROOT / "tasklists" / tasklist / "tasks.json") as f:
+        with open(
+            PROJECT_ROOT / "tasklists" / "automated" / tasklist / "tasks.json"
+        ) as f:
             tasks = json.load(f)
-        with open(PROJECT_ROOT / "tasklists" / tasklist / "info.json") as f:
+        with open(
+            PROJECT_ROOT / "tasklists" / "metadata" / tasklist / "info.json"
+        ) as f:
             tasklist_info = json.load(f)
 
         # filter out tasks that are not text-based
@@ -241,6 +245,7 @@ class Evaluation:
                 with open(
                     PROJECT_ROOT
                     / "tasklists"
+                    / "automated"
                     / tasklist
                     / "task_files"
                     / task["attachment"],
@@ -339,7 +344,7 @@ class Evaluation:
     def _task_prompt_prefix(category: str) -> str:
         """Return the task prompt prefix for the given category."""
         if category == "QA":
-            return "Provide the exact answer, without any additional text (for example, if the answer is a name, write only the name as it is):\n"
+            return ""  # "Provide the exact answer, without any additional text (for example, if the answer is a name, write only the name as it is):\n"
         elif category == "Claim Verification":
             return "Is the following claim true, false, or we can't say for certain? (Reply with 'True', 'False', or 'Not Enough Info')\n"
         else:

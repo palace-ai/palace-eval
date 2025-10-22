@@ -45,7 +45,7 @@ class AsyncThread:
                 return None
 
         return asyncio.run_coroutine_threadsafe(
-            wrap_with_timeout(coro, timeout=180), self.loop
+            wrap_with_timeout(coro, timeout=600), self.loop
         ).result()
 
     def start_main_task(self, coro: Coroutine):

@@ -107,7 +107,8 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             available_remote_agents = [
                 tool.name for tool in mcp_client.list_tools().tools
             ]
-
+        if len(available_remote_agents) == 0:
+            raise ValueError("No agents found in the provided MCP server URL.")
         remote_agents = questionary.checkbox(
             "Select Remote Agents:", choices=available_remote_agents
         ).ask()

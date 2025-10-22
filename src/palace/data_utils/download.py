@@ -80,7 +80,7 @@ def download_tasklist(
             task["expected"] = label_mapping[task["expected"]]
 
     # Save tasklist tasks and tasklist metadata to file
-    output_path = PROJECT_ROOT / "tasklists" / name
+    output_path = PROJECT_ROOT / "tasklists" / "automated" / name
     os.makedirs(output_path, exist_ok=True)
     with open(output_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
