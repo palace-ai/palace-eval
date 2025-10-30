@@ -79,12 +79,16 @@ def download_tasklist(
         for task in tasks:
             task["expected"] = label_mapping[task["expected"]]
 
-    # Save tasklist tasks and tasklist metadata to file
-    output_path = PROJECT_ROOT / "tasklists" / "automated" / name
-    os.makedirs(output_path, exist_ok=True)
-    with open(output_path / "tasks.json", "w", encoding="utf-8") as f:
+    # Save tasklist tasks
+    tasks_path = PROJECT_ROOT / "tasklists" / "automated" / name
+    os.makedirs(tasks_path, exist_ok=True)
+    with open(tasks_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
-    with open(output_path / "info.json", "w", encoding="utf-8") as f:
+
+    # Save tasklist metadata
+    metadata_path = PROJECT_ROOT / "tasklists" / "metadata" / name
+    os.makedirs(metadata_path, exist_ok=True)
+    with open(metadata_path / "info.json", "w", encoding="utf-8") as f:
         json.dump(
             {
                 "name": name,
@@ -100,7 +104,7 @@ def download_tasklist(
 
     # Download and save task files (attachments)
     if column_names.get("attachment") is not None:
-        attachments_dir = Path(output_path / "task_files")
+        attachments_dir = Path(tasks_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
         for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][
@@ -113,7 +117,7 @@ def download_tasklist(
                         repo_id=id,
                         filename=os.path.join(attachment_path, attachment),
                         repo_type="dataset",
-                        local_dir=os.path.join(output_path, "task_files"),
+                        local_dir=os.path.join(tasks_path, "task_files"),
                         local_dir_use_symlinks=False,
                         force_download=True,
                     )
@@ -126,10 +130,10 @@ def download_tasklist(
 
                 try:
                     shutil.rmtree(
-                        os.path.join(output_path, "task_files/2023")
+                        os.path.join(tasks_path, "task_files/2023")
                     )  # this needs to be generalized
-                    shutil.rmtree(os.path.join(output_path, "task_files/.cache"))
-                    print(f"Removed empty subdirectories under {output_path}")
+                    shutil.rmtree(os.path.join(tasks_path, "task_files/.cache"))
+                    print(f"Removed empty subdirectories under {tasks_path}")
                 except OSError as e:
                     print(f"Error removing subdirectories: {e}")
 
@@ -151,7 +155,7 @@ def download_tasklist(
                 ) as f:
                     f.write(attachment)
 
-    print(f"Tasklist successfully saved to {output_path}.")
+    print(f"Tasklist successfully saved to {tasks_path}.")
 
 
 def _string_type(s):
@@ -201,6 +205,45 @@ def _extract_base64_payload(base64_string: str) -> str:
 
 
 def _get_filename(s: str) -> str:
+    """
+    Accepts either a str (plain text or base64 data URI/payload) or bytes.
+    Produces a deterministic filename based on sha256 of the binary content,
+    and picks an extension using filetype.guess for binary data, or 'txt' for text.
+    """
+    # Handle bytes input
+    if isinstance(s, (bytes, bytearray)):
+        data_bytes = bytes(s)
+        try:
+            _ = data_bytes.decode("utf-8")
+            string_type = "text"
+        except UnicodeDecodeError:
+            string_type = "binary"
+    else:
+        # s is a str
+        string_type = _string_type(s)
+        if string_type == "base64":
+            payload = _extract_base64_payload(s)
+            data_bytes = base64.b64decode(payload)
+            string_type = "binary"
+        else:
+            # treat plain str as UTF-8 text
+            data_bytes = s.encode("utf-8")
+
+    # Hash the binary content
+    full_hash = hashlib.sha256(data_bytes).hexdigest()
+    filename = full_hash[:24]
+
+    # Guess file type from bytes
+    guess = filetype.guess(data_bytes)
+    if string_type == "text":
+        extension = "txt"
+    else:
+        extension = guess.extension if guess else "bin"
+
+    return f"{filename}.{extension}"
+
+
+def _backup_get_filename(s: str) -> str:
     # is_base64 = _is_base64(s)
 
     # if is_base64 and s.startswith("data:"):
@@ -231,4 +274,5 @@ if __name__ == "__main__":
         tasklists_info = json.load(f)
 
     for tasklist_info in tasklists_info:
+        print(f"Downloading tasklist with spec:\n{json.dumps(tasklist_info, indent=4)}")
         download_tasklist(**tasklist_info)
