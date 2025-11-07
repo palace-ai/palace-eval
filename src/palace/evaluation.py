@@ -38,7 +38,18 @@ class Evaluation:
             raise ValueError(
                 f"judge_inference must be either 'local' or 'remote', found: {judge_inference}"
             )
-        self.judge_prompt = """Your job is to assess whether two responses are semantically equivalent. You will be given a response which was obtained by an AI assistant, and the corresponding ground truth, which is what the user expected to receive from the assistant. You can only reply to each prompt with either "True" or "False", depending on whether you think that the two provided responses are semantically equivalent or not. You can't produce any other symbol other than "True" or "False"."""
+        self.judge_prompt = """You will be given a question, the correct answer, and another answer provided by the user, with this exact template:
+
+QUESTION
+The question
+
+CORRECT ANSWER
+The correct answer
+
+PROVIDED ANSWER
+The provided answer
+
+Your job is to assess whether the provided answer is a correct answer to the question, using the "correct" answer as a reference. You have to understand from the question if it requires a strict answer or if it allows for a somewhat more open / generic answer. For example, if the question asks for a specific word to be found in a specific place, it probably requires an exact match, while if the question asks for a recipe, or a general sentence, or abstract information, maybe the two answers don't need to match exactly, as long as the semantic content is correct. Just use your best judgement and try your best, as if you were the evaluator and had to grade these assignments as correct or incorrect. Your output can only be either "True" (if you think the provided answer is a correct answer to the question, relative to the "correct" answer) or "False" (if you think the provided answer is not a correct answer to the question). You can't produce any other symbol other than "True" or "False"."""
 
     def evaluate_all(
         self,
@@ -181,7 +192,6 @@ class Evaluation:
                     "paradigm": agent.paradigm_name,
                     "environment": agent.environment_name,
                     "tasklist": tasklist,
-                    # "_temperature": _temperature,
                     "accuracy": accuracy,
                     "total_time": total_time,
                     "detailed_report": report,
@@ -288,8 +298,14 @@ class Evaluation:
                         {"role": "system", "content": self.judge_prompt},
                         {
                             "role": "user",
-                            "content": f"""AI assistant response: {result}
-            Expected response: {task["expected"]}""",
+                            "content": f"""QUESTION
+{task["objective"]}
+
+CORRECT ANSWER
+{task["expected"]}
+
+PROVIDED ANSWER
+{result}""",
                         },
                     ]
                     verdict = self.judge.generate(conversation)

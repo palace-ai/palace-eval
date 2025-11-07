@@ -1,7 +1,7 @@
 from typing import List
 
 from palace.environments.base_environment import Environment
-from palace.mcp_utils.mcp_client import MCPClient
+from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.tools import FinalAnswerTool, MCPTool, Tool
 from palace.utils.secrets import ALOHA_TOKEN
 
@@ -41,7 +41,9 @@ class MCPEnvironment(Environment):
     @property
     def tools(self) -> List[Tool]:
         if self._tools is None:  # load tools the first time it's called
-            with MCPClient().connection(url=self.url, token=self.token) as mcp_client:
+            with MCPClientPool.get_connection(
+                url=self.url, token=self.token
+            ) as mcp_client:
                 mcp_tools = (mcp_client.list_tools()).tools
 
             tools = []

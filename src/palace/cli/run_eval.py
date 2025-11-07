@@ -12,7 +12,7 @@ from palace.environments import (
     MCPEnvironment,
 )
 from palace.evaluation import Evaluation
-from palace.mcp_utils.mcp_client import MCPClient
+from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.models import HuggingfaceModel, OpenAICompatibleModel
 from palace.paradigms import (
     ActParadigm,
@@ -24,7 +24,8 @@ from palace.utils.printing import print
 from palace.utils.secrets import ALOHA_TOKEN
 
 _DEFAULT_REMOTE_AGENTS_URL = (
-    "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
+    "http://localhost:8090/mcp/sse"
+    # "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
 )
 
 
@@ -103,7 +104,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         remote_agents_url = questionary.text(
             "Remote Agents URL:", default=_DEFAULT_REMOTE_AGENTS_URL
         ).ask()
-        with MCPClient().connection(remote_agents_url, ALOHA_TOKEN) as mcp_client:
+        with MCPClientPool.get_connection(remote_agents_url, ALOHA_TOKEN) as mcp_client:
             available_remote_agents = [
                 tool.name for tool in mcp_client.list_tools().tools
             ]

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from palace.agents import Agent
-from palace.mcp_utils.mcp_client import MCPClient
+from palace.mcp_utils.mcp_client import MCPClientPool
 
 
 class RemoteAgent(Agent):
@@ -13,7 +13,7 @@ class RemoteAgent(Agent):
         self.url = url
         self.token = token
 
-        with MCPClient().connection(url, token) as mcp_client:
+        with MCPClientPool.get_connection(url, token) as mcp_client:
             available_agents = [tool.name for tool in mcp_client.list_tools().tools]
 
         if len(available_agents) == 0:
@@ -50,7 +50,7 @@ class RemoteAgent(Agent):
 
     def run(self, task: str, **_) -> str:
         """BUG It assumes that the input parameter to the agent is always called `query`."""
-        with MCPClient().connection(self.url, self.token) as mcp_client:
+        with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
             try:
                 answer = mcp_client.call_tool(self.name, {"query": task})
                 return answer.content[0].text

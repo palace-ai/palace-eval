@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from palace.mcp_utils.mcp_client import MCPClient
+from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.tools import Tool
 from palace.utils.exceptions import ToolHallucinationException
 
@@ -30,7 +30,7 @@ class MCPTool(Tool):
                 raise ToolHallucinationException(f"""Tool `{self.name}` encountered the following error: parameter `{parameter}` was not found in the tool call but it is required. Make sure to comply with the required parameters name and type. For this tool, the required parameters are the following:
 {self.required_parameters}""")
 
-        with MCPClient().connection(
+        with MCPClientPool.get_connection(
             url=self._server_url, token=self._server_token
         ) as mcp_client:
             response = mcp_client.call_tool(self._name, kwargs)

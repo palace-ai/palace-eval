@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal
 
 from openai import OpenAI, OpenAIError, RateLimitError
 from tenacity import (
@@ -12,7 +12,6 @@ from palace.models.base_model import Model
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
 from palace.utils.secrets import GPTJRC_TOKEN
-from palace.utils.threading import with_timeout
 
 OpenAICompatibleAPIURL = Literal["localhost", "gptjrc"]
 _OpenAICompatibleAPIURLs = {
@@ -74,18 +73,13 @@ class OpenAICompatibleModel(Model):
     def generate(
         self,
         messages: List[Dict[str, str]],
-        timeout_seconds: Optional[int] = 60,
-        # temperature: Optional[float] = 0.0,
         **_,
     ) -> str:
         try:
-            chat_completion = with_timeout(seconds=timeout_seconds)(
-                self.client.chat.completions.create
-            )(
+            chat_completion = self.client.chat.completions.create(
                 model=self.model_id,
                 messages=messages,
                 stream=False,
-                # temperature=temperature,
             )
             return chat_completion.choices[0].message.content
         except TimeoutException as e:

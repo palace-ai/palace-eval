@@ -1,43 +1,108 @@
 import asyncio
 from contextlib import contextmanager
+from threading import Lock
 from typing import Dict, Optional
 
+import anyio
 import nest_asyncio
 from anyio import BrokenResourceError
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-from palace.utils.metaclasses import SingletonMetaclass
+from palace.utils.exceptions import TimeoutException
 from palace.utils.threading import AsyncThread
 
 # enable nested asyncio if running in jupyter notebook
 try:
-    from IPython import get_ipython
+    from IPython.core.getipython import get_ipython
 
-    if "IPKernelApp" in get_ipython().config:
+    ipython = get_ipython()
+    if ipython is not None and "IPKernelApp" in ipython.config:
         nest_asyncio.apply()
 except Exception:
     pass  # not running in jupyter notebook
 
 
-class MCPClient(metaclass=SingletonMetaclass):
+class MCPClientPool:
+    """Pool for reusing MCPClient connections"""
+
+    _instances: Dict[str, "MCPClient"] = {}
+    _lock = Lock()
+    _usage_count: Dict[str, int] = {}
+
+    @classmethod
+    @contextmanager
+    def get_connection(cls, server_url: str, token: Optional[str] = None):
+        """
+        Context manager that provides a client connection from the pool.
+
+        Usage:
+            with MCPClientPool.get_connection("http://localhost:8080/sse") as client:
+                client.list_tools()
+        """
+        client = None
+        try:
+            client = cls._get_client(server_url)
+            with client.connection(server_url, token):
+                yield client
+        finally:
+            if client:
+                cls._release_client(server_url)
+
+    @classmethod
+    def _get_client(cls, server_url: str) -> "MCPClient":
+        """Get or create a client for the given URL"""
+        with cls._lock:
+            if server_url not in cls._instances:
+                cls._instances[server_url] = MCPClient()
+                cls._usage_count[server_url] = 0
+
+            cls._usage_count[server_url] += 1
+            return cls._instances[server_url]
+
+    @classmethod
+    def _release_client(cls, server_url: str):
+        """Release a client after use"""
+        with cls._lock:
+            if server_url in cls._usage_count:
+                cls._usage_count[server_url] -= 1
+
+                # If no one is using this client, clean it up
+                if cls._usage_count[server_url] <= 0:
+                    client = cls._instances.pop(server_url, None)
+                    if client:
+                        client.disconnect()
+                    cls._usage_count.pop(server_url, None)
+
+    @classmethod
+    def cleanup_all(cls):
+        """Clean up all clients in the pool"""
+        with cls._lock:
+            for server_url, client in list(cls._instances.items()):
+                client.disconnect()
+            cls._instances.clear()
+            cls._usage_count.clear()
+
+
+class MCPClient:
     """Single class interface with simplified API"""
 
     def __init__(self):
         self.session: Optional[ClientSession] = None
-        self._async = AsyncThread()
+        self._async: Optional[AsyncThread] = None
         self._streams_context = None
         self._session_context = None
         self._connected = False
+        self._url: Optional[str] = None
+
+    def __del__(self):
+        """Ensure cleanup on garbage collection"""
+        self.disconnect()
 
     @contextmanager
     def connection(self, url: str, token: Optional[str] = None):
         """
         Context manager for connection lifecycle.
-
-        Usage:
-            with MCPClient().connection("http://localhost:8080/sse") as mcp_client:
-                mcp_client.list_tools()
         """
         try:
             self.connect(url, token)
@@ -49,88 +114,157 @@ class MCPClient(metaclass=SingletonMetaclass):
         if self._connected:
             raise RuntimeError("Already connected")
 
-        if self._async.loop.is_closed():
+        # Create new async thread if needed
+        if self._async is None or not self._async.is_running():
             self._async = AsyncThread()
+
+        self._url = url
 
         async def _main():
             headers = {"Authorization": f"Bearer {token}"} if token else {}
 
             try:
-                self._streams_context = sse_client(url=url, headers=headers)
-                streams = await self._streams_context.__aenter__()
+                # Use async with to ensure proper context management
+                async with sse_client(url=self._url, headers=headers) as streams:
+                    async with ClientSession(*streams) as session:
+                        self.session = session
+                        await session.initialize()
 
-                self._session_context = ClientSession(*streams)
-                self.session = await self._session_context.__aenter__()
-                await self.session.initialize()
+                        self._async.signal_ready()
 
-                self._async.signal_ready()
+                        # Keep the connection alive until stop signal
+                        try:
+                            while not self._async.should_stop():
+                                await asyncio.sleep(0.1)
+                        except anyio.get_cancelled_exc_class():
+                            print(
+                                "[red]Exception in MCPClient: Connection was cancelled"
+                            )
+                            raise
 
-                while not self._async.should_stop():
-                    await asyncio.sleep(0.1)
-
+            except Exception as e:
+                print(f"[red]Exception in MCPClient: Error in connection: {e}")
+                self._async.signal_ready()  # Always signal ready to avoid deadlock
             finally:
-                await self._cleanup_resources()
+                # No manual cleanup needed - async with handles it
+                self.session = None
 
         self._async.start_main_task(_main())
-        self._async.wait_until_ready(5)
-        self._connected = True
+
+        try:
+            self._async.wait_until_ready(15)  # Increased timeout
+            self._connected = True
+        except TimeoutException:
+            # If we timeout, check if the async task failed
+            if self._async._main_task and self._async._main_task.done():
+                try:
+                    self._async._main_task.result()  # This will raise the actual error
+                except Exception as e:
+                    raise ConnectionError(
+                        f"[red]Exception in MCPClient: Failed to connect to {url}: {e}"
+                    )
+            raise TimeoutException(
+                f"[red]Exception in MCPClient: Connection to {url} timed out after 15 seconds"
+            )
 
     async def _cleanup_resources(self):
         """Safely clean up all resources, ignoring expected errors"""
-        # Clean up session first
-        if self._session_context is not None:
-            try:
-                # safety timeout on whatever the library might hang on
-                await asyncio.wait_for(
-                    self._session_context.__aexit__(None, None, None), timeout=10.0
-                )
-            except asyncio.TimeoutError:
-                print("Timeout during session cleanup, skipping")
-            except BrokenResourceError:
-                pass
-            except Exception as e:
-                print(f"Unexpected error during cleanup: {e!r}")
-            finally:
-                self._session_context = None
-                self.session = None
+        cleanup_tasks = []
 
-        # Then clean up streams
+        if self._session_context is not None:
+
+            async def cleanup_session():
+                try:
+                    if self._session_context is None:
+                        raise RuntimeError(
+                            "Session context is already None during cleanup."
+                        )
+                    await asyncio.wait_for(
+                        self._session_context.__aexit__(None, None, None), timeout=10.0
+                    )
+                except asyncio.TimeoutError:
+                    print(
+                        "[red]Exception in MCPClient: Timeout during session cleanup, skipping"
+                    )
+                except BrokenResourceError:
+                    pass
+                except Exception as e:
+                    print(
+                        f"[red]Exception in MCPClient: Unexpected error during session cleanup: {e!r}"
+                    )
+                finally:
+                    self._session_context = None
+                    self.session = None
+
+            cleanup_tasks.append(cleanup_session())
+
         if self._streams_context is not None:
-            try:
-                await asyncio.wait_for(
-                    self._streams_context.__aexit__(None, None, None), timeout=10.0
-                )
-            except asyncio.TimeoutError:
-                print("Timeout during streams cleanup, skipping")
-            except BrokenResourceError:
-                pass
-            except Exception as e:
-                print(f"Unexpected error during cleanup: {e!r}")
-            finally:
-                self._streams_context = None
+
+            async def cleanup_streams():
+                try:
+                    if self._streams_context is None:
+                        raise RuntimeError(
+                            "[red]Exception in MCPClient: Streams context is already None during cleanup."
+                        )
+                    await asyncio.wait_for(
+                        self._streams_context.__aexit__(None, None, None), timeout=10.0
+                    )
+                except asyncio.TimeoutError:
+                    print(
+                        "[red]Exception in MCPClient: Timeout during streams cleanup, skipping"
+                    )
+                except BrokenResourceError:
+                    pass
+                except Exception as e:
+                    print(
+                        f"[red]Exception in MCPClient: Unexpected error during streams cleanup: {e!r}"
+                    )
+                finally:
+                    self._streams_context = None
+
+            cleanup_tasks.append(cleanup_streams())
+
+        if cleanup_tasks:
+            await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
     def list_tools(self):
         if not self._connected:
-            raise RuntimeError("Not connected")
+            raise RuntimeError("[red]Exception in MCPClient: Not connected")
+        if self.session is None:
+            raise RuntimeError(
+                "[red]Exception in MCPClient: list_tools called on a None session"
+            )
+        if self._async is None:
+            raise RuntimeError(
+                "[red]Exception in MCPClient: MCPClient async thread is not initialized"
+            )
         return self._async.run_async(self.session.list_tools())
 
     def call_tool(self, tool_name: str, parameters: Dict[str, str]):
         if not self._connected:
-            raise RuntimeError("Not connected")
+            raise RuntimeError("[red]Exception in MCPClient: Not connected")
+        if self.session is None:
+            raise RuntimeError(
+                "[red]Exception in MCPClient: call_tool called on a None session"
+            )
+        if self._async is None:
+            raise RuntimeError(
+                "[red]Exception in MCPClient: MCPClient async thread is not initialized"
+            )
         return self._async.run_async(self.session.call_tool(tool_name, parameters))
 
     def disconnect(self):
         if not self._connected:
             return
 
-        self._async.signal_stop()
         try:
-            # give the cleanup event up to 5s...
-            self._async.wait_for_disconnect(timeout=10)
-            # ...and the task itself up to another 5s
-            self._async.wait_for_task(timeout=10)
+            # Signal stop and wait for cleanup
+            if self._async:
+                self._async.signal_stop()
+                self._async.wait_for_disconnect(timeout=10)
+                self._async.wait_for_task(timeout=10)
         except Exception as e:
-            print(f"Warning during disconnect: {e!r}")
+            print(f"[red]Exception in MCPClient: Warning during disconnect: {e!r}")
         finally:
             self._force_reset_state()
 
@@ -140,4 +274,9 @@ class MCPClient(metaclass=SingletonMetaclass):
         self._streams_context = None
         self._session_context = None
         self._connected = False
-        self._async.reset()
+        self._url = None
+
+        # Stop the async thread completely
+        if self._async:
+            self._async.stop()
+            self._async = None

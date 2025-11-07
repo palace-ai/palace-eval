@@ -1,8 +1,10 @@
 import asyncio
 import concurrent.futures
+import os
 import threading
-from functools import wraps
-from typing import Any, Coroutine
+from typing import Any, Coroutine, Optional
+
+import psutil
 
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
@@ -13,11 +15,13 @@ class AsyncThread:
 
     def __init__(self):
         self.loop = asyncio.new_event_loop()
+        self.check_file_descriptors()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._main_task = None
         self._stop_event = threading.Event()
         self._disconnect_done = threading.Event()
         self._ready_event = threading.Event()
+        self._started = True  # Track if thread is running
         self._thread.start()
 
     def _run_loop(self):
@@ -25,16 +29,49 @@ class AsyncThread:
         try:
             self.loop.run_forever()
         finally:
+            # Clean up all remaining tasks
+            pending = asyncio.all_tasks(self.loop)
+            for task in pending:
+                task.cancel()
+
+            # Run final iteration to complete cancellations
+            if pending:
+                self.loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+
             self.loop.close()
+            self._started = False
 
     def reset(self):
+        """Only reset events, don't recreate thread/loop"""
         self._stop_event.clear()
         self._disconnect_done.clear()
         self._ready_event.clear()
         self._main_task = None
 
+    def stop(self):
+        """Properly stop the thread and event loop"""
+        if not self._started:
+            return
+
+        # Signal stop and stop the event loop
+        self.signal_stop()
+        if self.loop.is_running():
+            self.loop.call_soon_threadsafe(self.loop.stop)
+
+        # Wait for thread to finish with timeout
+        if self._thread.is_alive():
+            self._thread.join(timeout=5.0)
+            if self._thread.is_alive():
+                print("Warning: AsyncThread did not stop gracefully")
+
+        self._started = False
+
     def run_async(self, coro: Coroutine) -> Any:
-        async def wrap_with_timeout(coro: Coroutine, timeout: int) -> Coroutine:
+        async def wrap_with_timeout(
+            coro: Coroutine, timeout: int
+        ) -> Optional[Coroutine]:
             try:
                 return await asyncio.wait_for(coro, timeout)
             except asyncio.TimeoutError:
@@ -44,14 +81,23 @@ class AsyncThread:
                 print(f"Internal error occurred: {e}")
                 return None
 
+        # Check if loop is closed before running
+        if self.loop.is_closed():
+            raise RuntimeError("Event loop is closed")
+
         return asyncio.run_coroutine_threadsafe(
             wrap_with_timeout(coro, timeout=600), self.loop
         ).result()
 
     def start_main_task(self, coro: Coroutine):
+        if self.loop.is_closed():
+            raise RuntimeError("Cannot start task on closed event loop")
+
         async def wrapped_coro():
             try:
                 await coro
+            except Exception as e:
+                print(f"Error in main task: {e}")
             finally:
                 self._disconnect_done.set()
 
@@ -74,40 +120,24 @@ class AsyncThread:
             self._main_task.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
             print("Warning: main task did not finish in time")
+        except Exception as e:
+            print(f"Error in main task: {e}")
 
     def wait_until_ready(self, timeout: float = 5):
-        self._ready_event.wait(timeout)
+        if not self._ready_event.wait(timeout):
+            raise TimeoutException("AsyncThread not ready within timeout")
 
     def wait_for_disconnect(self, timeout: float = 5):
         self._disconnect_done.wait(timeout)
 
+    def is_running(self):
+        return self._started and not self.loop.is_closed()
 
-def with_timeout(seconds: int):
-    """Decorator that adds timeout to a function"""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            result_container = [None]
-            exception_container = [None]
-
-            def worker():
-                try:
-                    result_container[0] = func(*args, **kwargs)
-                except Exception as e:
-                    exception_container[0] = e
-
-            t = threading.Thread(target=worker, daemon=True)
-            t.start()
-            t.join(seconds)
-
-            if t.is_alive():
-                raise TimeoutException(f"Operation timed out after {seconds} seconds")
-            if exception_container[0]:
-                raise exception_container[0]
-
-            return result_container[0]
-
-        return wrapper
-
-    return decorator
+    @staticmethod
+    def check_file_descriptors():
+        process = psutil.Process(os.getpid())
+        fd_count = process.num_fds()
+        if fd_count > 1000:  # Adjust threshold as needed
+            print(
+                f"[bold on_yellow][WARN][/] High file descriptor usage detected: {fd_count}."
+            )
