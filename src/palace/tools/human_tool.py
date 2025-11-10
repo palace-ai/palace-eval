@@ -1,5 +1,3 @@
-from typing import Dict
-
 from pydantic import BaseModel, Field
 
 from palace.tools import Tool
@@ -28,7 +26,7 @@ class HumanTool(Tool):
         return "A tool that allows interaction with a human. Use it when you want some clarifications or feedback on the task that you are performing, to ensure that you are doing the right thing."
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {"query": "The query to ask the human."}
 

@@ -1,4 +1,3 @@
-from typing import Dict, List
 from urllib.parse import urlparse
 
 import pymupdf
@@ -132,7 +131,7 @@ class FetchTool(Tool):
         return """Fetch the content of a URL in plain text format."""
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {
             "url": "The search query.",
@@ -140,6 +139,6 @@ class FetchTool(Tool):
         }
 
     @property
-    def required_parameters(self) -> List[str]:
+    def required_parameters(self) -> list[str]:
         """Return the list of required parameters. By default, all of them are required. Override this method to define required ones."""
         return ["url"]

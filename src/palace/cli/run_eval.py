@@ -11,11 +11,13 @@ from palace.environments import (
     IsolatedEnvironmentWithLetterCount,
     MCPEnvironment,
 )
+from palace.environments.empty_environment import EmptyEnvironment
 from palace.evaluation import Evaluation
 from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.models import HuggingfaceModel, OpenAICompatibleModel
 from palace.paradigms import (
     ActParadigm,
+    NonAgenticParadigm,
     PlanAndExecuteParadigm,
     ReActParadigm,
     ReflectionParadigm,
@@ -58,6 +60,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     print()
 
     _PARADIGMS = [
+        NonAgenticParadigm(),
         ActParadigm(),
         ReActParadigm(),
         PlanAndExecuteParadigm(),
@@ -71,6 +74,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         "Qwen/Qwen2.5-Coder-32B-Instruct",
     ]
     _ENVIRONMENTS = [
+        EmptyEnvironment(),
         AssistantEnvironment(),
         IsolatedEnvironment(),
         IsolatedEnvironmentWithInterpreter(),
@@ -100,10 +104,65 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         print("You have selected nothing to test. Have a nice day :)")
         return
 
+    local_agents = []
+    remote_agents = []
+
+    if "Local" in local_or_remote:
+        # set paradigms
+        paradigm = questionary.checkbox(
+            "Select Reasoning Paradigms to test for local agents:",
+            choices=[questionary.Choice(p.name) for p in _PARADIGMS],
+        ).ask()
+        paradigms = [p for p in _PARADIGMS if p.name in paradigm]
+        if len(paradigms) == 0:
+            raise ValueError("No paradigms selected")
+
+        # set models
+        models = questionary.checkbox(
+            "Select Models to test for local agents:",
+            choices=_MODELS,
+        ).ask()
+        if len(models) == 0:
+            raise ValueError("No models selected")
+
+        # set local or remote llm
+        local_llm = questionary.select(
+            "Where do you want to run the LLMs for local agents?",
+            choices=["Locally (make sure you have enough GPU memory)", "GPT@JRC"],
+            default="GPT@JRC",
+        ).ask()
+        local_llm: bool = local_llm != "GPT@JRC"
+
+        # set environments
+        environments = questionary.checkbox(
+            "Select Environments to test for local agents:",
+            choices=[e.name for e in _ENVIRONMENTS],
+        ).ask()
+        environments = [e for e in _ENVIRONMENTS if e.name in environments]
+        if len(environments) == 0:
+            raise ValueError("No environments selected")
+
+        # add local agents
+        local_agents = [
+            LocalAgent(
+                model=HuggingfaceModel(model)
+                if local_llm
+                else OpenAICompatibleModel(model),
+                paradigm=paradigm,
+                environment=environment,
+            )
+            for model, paradigm, environment in itertools.product(
+                models, paradigms, environments
+            )
+        ]
+
     if "Remote" in local_or_remote:
+        # set url
         remote_agents_url = questionary.text(
             "Remote Agents URL:", default=_DEFAULT_REMOTE_AGENTS_URL
         ).ask()
+
+        # retrieve remote agents from url
         with MCPClientPool.get_connection(remote_agents_url, ALOHA_TOKEN) as mcp_client:
             available_remote_agents = [
                 tool.name for tool in mcp_client.list_tools().tools
@@ -113,48 +172,18 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         remote_agents = questionary.checkbox(
             "Select Remote Agents:", choices=available_remote_agents
         ).ask()
-    else:
-        remote_agents = []
 
-    if "Local" in local_or_remote:
-        default_paradigms = [ReActParadigm().name]
-        paradigm = questionary.checkbox(
-            "Select Reasoning Paradigms to test for local agents:",
-            choices=[
-                questionary.Choice(p.name, checked=p.name in default_paradigms)
-                for p in _PARADIGMS
-            ],
-        ).ask()
-        paradigms = [p for p in _PARADIGMS if p.name in paradigm]
-        if len(paradigms) == 0:
-            raise ValueError("No paradigms selected")
+        # add remote agents
+        remote_agents = [
+            RemoteAgent(
+                url=remote_agents_url,
+                token=ALOHA_TOKEN,
+                name=agent,
+            )
+            for agent in remote_agents
+        ]
 
-        models = questionary.checkbox(
-            "Select Models to test for local agents:",
-            choices=_MODELS,
-        ).ask()
-        if len(models) == 0:
-            raise ValueError("No models selected")
-
-        local_mode = questionary.select(
-            "Where do you want to run the LLMs for local agents?",
-            choices=["Locally (make sure you have enough GPU memory)", "GPT@JRC"],
-            default="GPT@JRC",
-        ).ask()
-        local_mode = local_mode != "GPT@JRC"
-
-        environments = questionary.checkbox(
-            "Select Environments to test for local agents:",
-            choices=[e.name for e in _ENVIRONMENTS],
-        ).ask()
-        environments = [e for e in _ENVIRONMENTS if e.name in environments]
-        if len(environments) == 0:
-            raise ValueError("No environments selected")
-    else:
-        models = []
-        paradigms = []
-        environments = []
-
+    # set tasklists
     tasklists = questionary.checkbox(
         "Select Tasklists to use as benchmarks:",
         choices=_TASKLISTS,
@@ -162,13 +191,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     if len(tasklists) == 0:
         raise ValueError("No tasklists selected")
 
-    verbose = questionary.select(
-        "Verbose Mode?",
-        choices=["True", "False"],
-        default="False",
-    ).ask()
-    verbose = True if verbose == "True" else False
-
+    # set task amount limit
     task_amount_limit = questionary.select(
         "Limit the number of tasks:",
         choices=["1", "5", "20", "50", "100", "Unlimited"],
@@ -178,6 +201,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         int(task_amount_limit) if task_amount_limit != "Unlimited" else sys.maxsize
     )
 
+    # set runs per configuration
     runs_per_configuration = questionary.select(
         "Runs Per Configuration:",
         choices=["1", "3", "5", "10"],
@@ -185,6 +209,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     ).ask()
     runs_per_configuration = int(runs_per_configuration)
 
+    # set run name
     name = questionary.text(
         "Name of the evaluation run:",
         default="eval",
@@ -192,34 +217,12 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
 
     evaluation = Evaluation(
         name=name,
-        verbose=verbose,
         task_amount_limit=task_amount_limit,
         runs_per_configuration=runs_per_configuration,
     )
 
     evaluation.evaluate_all(
-        # TODO BUG Currently it assumes all remote agents are located at the same URL (not possible to define multiple URLs)
-        agents=[
-            LocalAgent(
-                model=HuggingfaceModel(model)
-                if local_mode
-                else OpenAICompatibleModel(model),
-                paradigm=paradigm,
-                environment=environment,
-            )
-            for model, paradigm, environment in itertools.product(
-                models, paradigms, environments
-            )
-        ]
-        + [
-            RemoteAgent(
-                url=remote_agents_url,
-                token=ALOHA_TOKEN,
-                name=agent,
-            )
-            for agent in remote_agents
-        ],
-        tasklists=tasklists,
+        [agent for agent in local_agents + remote_agents], tasklists=tasklists
     )
 
 

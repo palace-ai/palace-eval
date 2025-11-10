@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
 
 
 class Tool(ABC):
-    """Base class for tools that agents can use.
-    """
+    """Base class for tools that agents can use."""
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> str:
@@ -25,11 +23,11 @@ class Tool(ABC):
 
     @property
     @abstractmethod
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters that can be passed to the tool along with their description."""
         pass
 
     @property
-    def required_parameters(self) -> List[str]:
+    def required_parameters(self) -> list[str]:
         """Return the list of required parameters. By default, all of them are required. Override this method to define required ones."""
         return [k for k in self.parameters]

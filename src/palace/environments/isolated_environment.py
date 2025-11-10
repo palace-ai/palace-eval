@@ -1,5 +1,3 @@
-from typing import List
-
 from palace.environments.base_environment import Environment
 from palace.tools import FinalAnswerTool, HumanTool, Tool
 
@@ -23,5 +21,5 @@ class IsolatedEnvironment(Environment):
 """
 
     @property
-    def tools(self) -> List[Tool]:
+    def tools(self) -> list[Tool]:
         return self._tools

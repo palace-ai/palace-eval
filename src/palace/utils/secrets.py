@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 from palace.utils.paths import PROJECT_ROOT
 
-load_dotenv(PROJECT_ROOT / ".tokens.env")
+load_dotenv(PROJECT_ROOT / ".secrets.env")
 
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 GPTJRC_TOKEN = os.getenv("GPTJRC_TOKEN")

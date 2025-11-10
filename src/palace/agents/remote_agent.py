@@ -1,6 +1,8 @@
 from typing import Optional
 
 from palace.agents import Agent
+from palace.environments.base_environment import Environment
+from palace.environments.unknown_environment import UnknownEnvironment
 from palace.mcp_utils.mcp_client import MCPClientPool
 
 
@@ -12,6 +14,7 @@ class RemoteAgent(Agent):
     ):
         self.url = url
         self.token = token
+        self._environment = UnknownEnvironment()
 
         with MCPClientPool.get_connection(url, token) as mcp_client:
             available_agents = [tool.name for tool in mcp_client.list_tools().tools]
@@ -45,10 +48,10 @@ class RemoteAgent(Agent):
         return "Unknown remote paradigm"
 
     @property
-    def environment_name(self) -> str:
-        return "Unknown remote environment"
+    def environment(self) -> Environment:
+        return self._environment
 
-    def run(self, task: str, **_) -> str:
+    def run(self, task: str) -> str:
         """BUG It assumes that the input parameter to the agent is always called `query`."""
         with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
             try:
@@ -56,4 +59,4 @@ class RemoteAgent(Agent):
                 return answer.content[0].text
             except Exception as e:
                 print(f"Remote agent returned the following exception: \n{e}")
-                return None
+                raise e

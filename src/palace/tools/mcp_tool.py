@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 
 from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.tools import Tool
@@ -10,8 +10,8 @@ class MCPTool(Tool):
         self,
         name: str,
         description: str,
-        parameters: Dict[str, str],
-        required_parameters: List[str],
+        parameters: dict[str, str],
+        required_parameters: list[str],
         server_url: str,
         server_token: Optional[str] = None,
     ):
@@ -55,11 +55,11 @@ class MCPTool(Tool):
         return self._description
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters that can be passed to the tool along with their description."""
         return self._parameters
 
     @property
-    def required_parameters(self) -> List[str]:
+    def required_parameters(self) -> list[str]:
         """Return the list of required parameters. By default, all of them are required. Override this method to define required ones."""
         return self._required_parameters

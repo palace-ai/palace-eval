@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from palace.environments.base_environment import Environment
+
 
 class Agent(ABC):
     """Base class that defines the agent interface.
@@ -23,10 +25,10 @@ class Agent(ABC):
 
     @property
     @abstractmethod
-    def environment_name(self) -> str:
+    def environment(self) -> Environment:
         pass
 
     @abstractmethod
-    def run(self, task: str, **kwargs) -> str:
+    def run(self, task: str) -> str:
         """Run the agent on the given task and return an answer."""
         pass

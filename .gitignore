@@ -3,7 +3,8 @@
 **/*.egg-info/
 **/*.png
 !assets/**/*.png
-.tokens.env
+.secrets.env
+.vscode
 build/
 results/*
 !results/.gitkeep

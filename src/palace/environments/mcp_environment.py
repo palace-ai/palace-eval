@@ -1,5 +1,3 @@
-from typing import List
-
 from palace.environments.base_environment import Environment
 from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.tools import FinalAnswerTool, MCPTool, Tool
@@ -30,16 +28,14 @@ class MCPEnvironment(Environment):
 
     @property
     def name(self) -> str:
-        """Return the name of the environment."""
         return f"MCP Environment @ {self.url}"
 
     @property
     def description(self) -> str:
-        """Return the description of the environment."""
         return """This environment interfaces with an MCP server to pull the list of available tools and to execute the tools that you need. Therefore, the list is dynamic. I can't give you an overview of the available tools because at the time of writing this, there is not static list. Don't worry, the list of available tools will now be dynamically pulled and you will be able to see them."""
 
     @property
-    def tools(self) -> List[Tool]:
+    def tools(self) -> list[Tool]:
         if self._tools is None:  # load tools the first time it's called
             with MCPClientPool.get_connection(
                 url=self.url, token=self.token

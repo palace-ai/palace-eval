@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Optional
+from typing import Optional
 
 from openai import OpenAI, RateLimitError
 from tenacity import (
@@ -40,7 +40,7 @@ class GPTJRCModel(Model):
     )
     def generate(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: Optional[float] = 0.0,
         **_,
     ) -> str:
@@ -54,8 +54,8 @@ class GPTJRCModel(Model):
 
     def generate_with_tools(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Tool],
+        messages: list[dict[str, str]],
+        tools: list[Tool],
         temperature: Optional[float] = 0.0,
         **_,
     ) -> str:

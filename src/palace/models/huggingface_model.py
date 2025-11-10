@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Optional
+from typing import Optional
 
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
@@ -39,7 +39,7 @@ class HuggingfaceModel(Model):
         self.initialized = True
 
     def generate(
-        self, messages: List[Dict[str, str]], temperature: Optional[float] = 0.0, **_
+        self, messages: list[dict[str, str]], temperature: Optional[float] = 0.0, **_
     ) -> str:
         if not self.initialized:
             self._initialize()

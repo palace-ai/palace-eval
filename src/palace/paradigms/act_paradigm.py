@@ -28,6 +28,6 @@ Nothing else can be in your response. Just one and only one "Actions:" section.
 """
         )
 
-    @property
-    def _paradigm_prompt_without_tools(self) -> str:
-        return super()._paradigm_prompt_without_tools
+    # @property
+    # def _paradigm_prompt_without_tools(self) -> str:
+    #     return super()._paradigm_prompt_without_tools

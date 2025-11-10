@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 import requests
 from bs4 import BeautifulSoup
 
@@ -7,7 +5,7 @@ from palace.tools import Tool
 
 
 class WebSearchTool(Tool):
-    def _duckduckgo_html_search(query: str) -> List[Dict[str, str]]:
+    def _duckduckgo_html_search(query: str) -> list[dict[str, str]]:
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query, "kl": "wt-wt"}
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -61,7 +59,7 @@ class WebSearchTool(Tool):
         return """Search the web using the input query, and retrieve a list of relevant results, each with a title, a URL, and a snippet of its content."""
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {
             "query": "The search query.",

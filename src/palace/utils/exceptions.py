@@ -4,3 +4,7 @@ class ToolHallucinationException(Exception):
 
 class TimeoutException(Exception):
     pass
+
+
+class ConvergenceError(Exception):
+    pass

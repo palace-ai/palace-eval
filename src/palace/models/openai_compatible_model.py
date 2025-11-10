@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal
+from typing import Literal
 
 from openai import OpenAI, OpenAIError, RateLimitError
 from tenacity import (
@@ -72,7 +72,7 @@ class OpenAICompatibleModel(Model):
     )
     def generate(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         **_,
     ) -> str:
         try:

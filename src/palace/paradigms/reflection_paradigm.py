@@ -39,6 +39,6 @@ You don't have to reach a final solution in a single message. You will continue 
 """
         )
 
-    @property
-    def _paradigm_prompt_without_tools(self) -> str:
-        return super()._paradigm_prompt_without_tools
+    # @property
+    # def _paradigm_prompt_without_tools(self) -> str:
+    #     return super()._paradigm_prompt_without_tools

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
 
 
 class Model(ABC):
@@ -7,12 +6,12 @@ class Model(ABC):
 
     @property
     @abstractmethod
-    def name(self):
+    def name(self) -> str:
         """The name of the model."""
         pass
 
     @abstractmethod
-    def generate(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def generate(self, messages: list[dict[str, str]], **kwargs) -> str:
         """
         Generate a response given a conversation history.
 

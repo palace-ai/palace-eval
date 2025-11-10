@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import contextmanager
 from threading import Lock
-from typing import Dict, Optional
+from typing import Any, Optional
 
 import anyio
 import nest_asyncio
@@ -26,13 +26,13 @@ except Exception:
 class MCPClientPool:
     """Pool for reusing MCPClient connections"""
 
-    _instances: Dict[str, "MCPClient"] = {}
+    _instances: dict[str, "MCPClient"] = {}
     _lock = Lock()
-    _usage_count: Dict[str, int] = {}
+    _usage_count: dict[str, int] = {}
 
     @classmethod
     @contextmanager
-    def get_connection(cls, server_url: str, token: Optional[str] = None):
+    def get_connection(cls, url: str, token: Optional[str] = None):
         """
         Context manager that provides a client connection from the pool.
 
@@ -42,43 +42,43 @@ class MCPClientPool:
         """
         client = None
         try:
-            client = cls._get_client(server_url)
-            with client.connection(server_url, token):
+            client = cls._get_client(url)
+            with client.connection(url, token):
                 yield client
         finally:
             if client:
-                cls._release_client(server_url)
+                cls._release_client(url)
 
     @classmethod
-    def _get_client(cls, server_url: str) -> "MCPClient":
+    def _get_client(cls, url: str) -> "MCPClient":
         """Get or create a client for the given URL"""
         with cls._lock:
-            if server_url not in cls._instances:
-                cls._instances[server_url] = MCPClient()
-                cls._usage_count[server_url] = 0
+            if url not in cls._instances:
+                cls._instances[url] = MCPClient()
+                cls._usage_count[url] = 0
 
-            cls._usage_count[server_url] += 1
-            return cls._instances[server_url]
+            cls._usage_count[url] += 1
+            return cls._instances[url]
 
     @classmethod
-    def _release_client(cls, server_url: str):
+    def _release_client(cls, url: str):
         """Release a client after use"""
         with cls._lock:
-            if server_url in cls._usage_count:
-                cls._usage_count[server_url] -= 1
+            if url in cls._usage_count:
+                cls._usage_count[url] -= 1
 
                 # If no one is using this client, clean it up
-                if cls._usage_count[server_url] <= 0:
-                    client = cls._instances.pop(server_url, None)
+                if cls._usage_count[url] <= 0:
+                    client = cls._instances.pop(url, None)
                     if client:
                         client.disconnect()
-                    cls._usage_count.pop(server_url, None)
+                    cls._usage_count.pop(url, None)
 
     @classmethod
     def cleanup_all(cls):
         """Clean up all clients in the pool"""
         with cls._lock:
-            for server_url, client in list(cls._instances.items()):
+            for url, client in list(cls._instances.items()):
                 client.disconnect()
             cls._instances.clear()
             cls._usage_count.clear()
@@ -121,11 +121,14 @@ class MCPClient:
         self._url = url
 
         async def _main():
-            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            assert self._url is not None
+            assert self._async is not None
 
             try:
-                # Use async with to ensure proper context management
-                async with sse_client(url=self._url, headers=headers) as streams:
+                async with sse_client(
+                    url=self._url,
+                    headers={"Authorization": f"Bearer {token}"} if token else {},
+                ) as streams:
                     async with ClientSession(*streams) as session:
                         self.session = session
                         await session.initialize()
@@ -240,7 +243,7 @@ class MCPClient:
             )
         return self._async.run_async(self.session.list_tools())
 
-    def call_tool(self, tool_name: str, parameters: Dict[str, str]):
+    def call_tool(self, tool_name: str, parameters: dict[str, Any]):
         if not self._connected:
             raise RuntimeError("[red]Exception in MCPClient: Not connected")
         if self.session is None:

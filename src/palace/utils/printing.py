@@ -5,7 +5,7 @@ import threading
 import time
 from builtins import print as builtin_print
 from contextlib import contextmanager
-from typing import List, Optional
+from typing import Optional
 
 import emoji
 from wcwidth import wcswidth
@@ -20,7 +20,7 @@ except ImportError:
 
 
 def print(
-    *args: List[str],
+    *args: str,
     sep: str = " ",
     end: str = "\n",
     box: bool = False,

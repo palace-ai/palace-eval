@@ -1,5 +1,4 @@
 import re
-from typing import Dict
 
 from palace.tools import Tool
 
@@ -26,7 +25,7 @@ class LetterCountTool(Tool):
         return "Count the number of occurrences of a given letter within a given word. This search is case-sensitive."
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {
             "letter": "The letter to find the number of occurrences of.",

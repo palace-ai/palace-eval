@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import filetype
 from datasets import load_dataset
@@ -21,12 +21,12 @@ def download_tasklist(
     name: str,
     id: str,
     split: str,
-    column_names: Dict[str, str],
+    column_names: dict[str, str],
     config: Optional[str] = None,
     attachment_path: Optional[str] = None,
     inline_attachment: Optional[bool] = None,
     category: Optional[str] = None,
-    label_mapping: Optional[Dict[str, str]] = None,
+    label_mapping: Optional[dict[str, str]] = None,
     custom_verificator: Optional[str] = None,
 ) -> None:
     if custom_verificator is not None and not bool(

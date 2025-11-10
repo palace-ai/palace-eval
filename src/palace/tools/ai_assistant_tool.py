@@ -1,5 +1,3 @@
-from typing import Dict
-
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.tools import Tool
 
@@ -38,7 +36,7 @@ Your job is to help people who are executing some tasks. They will ask you some 
         return "A tool that allows interaction with an AI assistant. Use it when you want an external opinion or you need help during the execution of the task. The answers may not be perfect on the first try, so you may have to insist if you are not satisfied with the answer."
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {
             "query": "The query to ask the AI assistant.",

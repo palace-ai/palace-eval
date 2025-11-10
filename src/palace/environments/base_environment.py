@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import List
 
 from palace.tools import Tool
 
@@ -21,7 +20,7 @@ class Environment(ABC):
 
     @property
     @abstractmethod
-    def tools(self) -> List[Tool]:
+    def tools(self) -> list[Tool]:
         """Return the list of tools available in the environment."""
         pass
 
@@ -64,9 +63,10 @@ Available tools in this environment that you can use: {tools_str}
     #         }
     # """
 
-    @property
-    def _environment_prompt_without_tools(self) -> str:
-        return f"""This is a detailed overview of the environment that you will be working in while solving the provided task:
-Environment name: {self.name}
-Environment description: {self.description}
-"""
+
+#     @property
+#     def _environment_prompt_without_tools(self) -> str:
+#         return f"""This is a detailed overview of the environment that you will be working in while solving the provided task:
+# Environment name: {self.name}
+# Environment description: {self.description}
+# """

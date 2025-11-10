@@ -1,11 +1,9 @@
-from typing import List
-
 from palace.environments.base_environment import Environment
 from palace.tools import FinalAnswerTool, Tool
 
 
 class CustomEnvironment(Environment):
-    def __init__(self, tools: List[Tool]):
+    def __init__(self, tools: list[Tool]):
         self._tools = tools
 
         # Add FinalAnswerTool if it is not provided explicitly
@@ -23,5 +21,5 @@ class CustomEnvironment(Environment):
         return """This environment is custom made, and contains only the tools that have been explicitly provided during initialization."""
 
     @property
-    def tools(self) -> List[Tool]:
+    def tools(self) -> list[Tool]:
         return self._tools

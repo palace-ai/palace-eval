@@ -1,5 +1,3 @@
-from typing import List
-
 from palace.environments.base_environment import Environment
 from palace.tools import AIAssistantTool, FinalAnswerTool, Tool
 
@@ -25,5 +23,5 @@ However, you can ask an AI assistant to help you, so use this opportunity.
 You can ask him all kinds of questions, he will be happy to help."""
 
     @property
-    def tools(self) -> List[Tool]:
+    def tools(self) -> list[Tool]:
         return self._tools

@@ -1,5 +1,3 @@
-from typing import Dict
-
 from palace.tools import Tool
 
 
@@ -33,7 +31,7 @@ Important: this does not evaluate the code as an expression! For instance, `retu
 Instead, in order to return a final result, you have to assign whatever you want to return to the `result` variable."""
 
     @property
-    def parameters(self) -> Dict[str, str]:
+    def parameters(self) -> dict[str, str]:
         """Return the parameters required by the tool along with their description."""
         return {
             "code": "The Python code to be executed.",
