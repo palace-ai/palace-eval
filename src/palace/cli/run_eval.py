@@ -85,6 +85,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     _TASKLISTS = [
         "AssistantBench",
         "CURIE-protein",
+        "DocRetrieval-ai",
         "Fever",
         "GAIA",
         "HLE",

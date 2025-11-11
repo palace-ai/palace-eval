@@ -67,7 +67,7 @@ class OpenAICompatibleModel(Model):
             RateLimitError,
         ),  # Retry only on RateLimitError
         before_sleep=lambda retry_state: print(
-            f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."
+            f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore
         ),
     )
     def generate(
@@ -78,9 +78,9 @@ class OpenAICompatibleModel(Model):
         try:
             chat_completion = self.client.chat.completions.create(
                 model=self.model_id,
-                messages=messages,
+                messages=messages,  # type: ignore
                 stream=False,
-            )
+            )  # type: ignore
             return chat_completion.choices[0].message.content
         except TimeoutException as e:
             print(

@@ -1,137 +1,117 @@
+import argparse
 import json
-import os
 import re
+import shutil
+from pathlib import Path
+from typing import Optional
 
 import pymupdf
-import requests
 
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.utils.paths import PROJECT_ROOT
+from palace.utils.printing import print
 
 
-def fetch_pdf_content(url: str, limit_length: int = None):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
+def fetch_pdf_content(path: Path, limit_length: Optional[int] = None):
+    title, full_text = "", ""
+    with pymupdf.open(path) as pdf:
+        title = pdf.metadata.get("title", "No title").strip()  # type: ignore
 
-        with pymupdf.open(stream=response.content, filetype="pdf") as pdf:
-            # retrieve pdf title from metadata
-            title = pdf.metadata.get("title", "No title").strip()
+        for page in pdf:
+            full_text += page.get_text()  # type: ignore
 
-            # retrieve full pdf text
-            full_text = ""
-            for page in pdf:
-                full_text += page.get_text()
+        if limit_length is not None and limit_length < len(full_text):
+            full_text = full_text[:limit_length] + "..."
 
-            # trim full_text length to `limit_length` if set
-            if limit_length is not None and limit_length < len(full_text):
-                full_text = full_text[:limit_length] + "..."
-
-            return {"title": title, "full_text": full_text}
-    except Exception as e:
-        return {"url": url, "error": str(e)}
+    return title, full_text
 
 
 def main():
-    system_prompt_judge = """The user will give you a question, the correct answer to that question, and an answer that was provided by someone.
-Your goal is to determine whether the provided answer correctly answers the question, using the correct answer as a reference.
-The user will give you this information using this exact format:
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument(
+        "fileset",
+        type=str,
+        choices=[f.name for f in (Path(__file__).parent / "files").iterdir()],
+        help="The name of the folder containing the set of files to use to build the dataset.",
+    )
+    argparser.add_argument(
+        "-n",
+        "--tasks-per-file",
+        type=int,
+        default=6,
+        help="The number of tasks to create for each file. Multiples of 6 are preferred for an even difficulty distribution.",
+    )
+    argparser.add_argument(
+        "--task-confidence",
+        type=int,
+        default=5,
+        help="The number of attempts for an LLM to solve each task before it is considered 'unsolvable' without access to the file content. A task is added only if the LLM fails for this many attempts.",
+    )
+    args = argparser.parse_args()
 
-```question
-The question.
-```
+    TASKLIST_NAME = f"DocRetrieval-{args.fileset}"
 
-```correct_answer
-The correct answer to the question, which you have to use as reference to determine whether the provided answer ir correct.
-```
-
-```provided_answer
-The provided answer, which you have to determine whether it correctly answers the question.
-```
-
-Your output must match this exact format:
-
-```reasoning
-All your reasoning and observations go here, including your motivations for learning towards correct or incorrect.
-```
-
-```verdict
-Either Correct or Incorrect. No other character can be here.
-```
-"""
-
-    system_prompt_tester = """Answer the following question without searching the web and without being too verbose:
-    
-{question}
-"""
-
-    system_prompt_generate_question = """The user will upload a text file. You have to read that text and give him an advanced and difficult question that cannot be answered by an LLM if it doesn't have access to the full text.
-The question should have a discursive answer, that is impossible to know without having the reference text.
-Then, also provide the correct answer, verbatim references to the portions of text that answer that question, and a difficulty score for the question.
-
-You have to format your output as follows (including the fenced code blocks with language specifier, and don't add any extra formatting):
-```question
-Place your question here
-```
-
-```answer
-Place the correct answer to the question here
-```
-
-```references
-Place the verbatim references to the portions of text that answer the question here
-```
-
-```difficulty
-Place the difficulty score for the question here, as an integer from 0 to 100
-```
-"""
-
-    QUESTIONS_PER_FILE = 1
-    TASKLIST_NAME = "LegisRetrieval"
+    # load system prompts
+    system_prompts: dict[str, str] = {}
+    for path in (Path(__file__).parent / "system_prompts").iterdir():
+        with open(path) as f:
+            system_prompts[path.stem] = f.read()
 
     # initialize model
     model = OpenAICompatibleModel("openai/gpt-oss-120b")
 
-    # get list of files
-    files = [
-        {
-            "title": "European AI in Science Strategy",
-            "url": "https://research-and-innovation.ec.europa.eu/document/download/c1afd7d0-ff65-4f84-be48-b0e0949596c5_en?filename=COM_2025_724_1_EN_ACT_part1_v8.pdf",
-        }
-    ]
-
-    tasks_path = PROJECT_ROOT / "tasklists" / "automated" / TASKLIST_NAME / "tasks.json"
+    # set paths
+    tasks_path = PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME / "tasks.json"
     task_files_path = (
-        PROJECT_ROOT / "tasklists" / "automated" / TASKLIST_NAME / "task_files"
+        PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME / "task_files"
     )
     metadata_path = (
-        PROJECT_ROOT / "tasklists" / "metadata" / TASKLIST_NAME / "task_files"
+        PROJECT_ROOT / "tasklists" / "metadata" / TASKLIST_NAME / "info.json"
     )
+    log_path = Path(__file__).parent / "___log.txt"
+    log_path.unlink(missing_ok=True)
 
     tasks = []
+    for p, path in enumerate(
+        (Path(__file__).parent / "files" / args.fileset).iterdir()
+    ):
+        print(f"[bold]({p + 1}) {path.name}")
 
-    for file in files:
         # extract pdf
-        title = file["title"]
-        full_text = fetch_pdf_content(file["url"])["full_text"]
+        _, full_text = fetch_pdf_content(path)
 
         # generate tasks
-        for i in range(QUESTIONS_PER_FILE):
+        task_count = 0
+        while task_count < args.tasks_per_file:
+            task_count += 1
+
             # create task id
-            task_id = f"{TASKLIST_NAME}_{title.replace(' ', '_')}_{i + 1}"
+            task_id = f"{TASKLIST_NAME}_{path.stem.replace(' ', '_')}_{task_count}"
+
+            # set difficulty modifiers
+            difficulty_modifiers = {
+                "easy": "low difficulty",
+                "medium": "moderate difficulty",
+                "hard": "very high difficulty, even",
+            }
+            difficulty_key = {1: "easy", 2: "medium", 0: "hard"}[task_count % 3]
 
             # generate question, complete with answer, references, and difficulty score
             complete_question = model.generate(
                 [
-                    {"role": "system", "content": system_prompt_generate_question},
+                    {
+                        "role": "system",
+                        "content": system_prompts["question_generator"].replace(
+                            "<<<difficulty_modifier>>>",
+                            difficulty_modifiers[difficulty_key],
+                        ),
+                    },
                     {
                         "role": "user",
-                        "content": f"ATTACHMENT ({title}):\n\n{full_text}",
+                        "content": f"ATTACHMENT ({path.name}):\n\n{full_text}",
                     },
                 ]
             )
-            print(complete_question)
 
             # use regex to extract question, answer, references, and difficulty score
             pattern = r"```.*?\n(.*?)\n```"
@@ -142,51 +122,94 @@ Place the difficulty score for the question here, as an integer from 0 to 100
                 "expected": task[1],
                 "references": task[2],
                 "difficulty": task[3],
+                "document": path.name,
+                "attachment": "",
+                "custom_verificator": "",
             }
-
-            # the task is registered only if the models fails to generate after this many tries
-            MAX_ATTEMPS = 5
+            print(
+                f"[bold]Task {task_count}[/]  ({difficulty_key} - {task['difficulty']})[/]\n[dim]{task['objective']}[/]"
+            )
 
             count = 0
             correct = False
-            while not correct and count < MAX_ATTEMPS:
+            while not correct and count < args.task_confidence:
                 count += 1
-                print(f"Attempt #{count}")
 
                 # generate answer to the question without access to the file
                 answer = model.generate(
-                    [{"role": "user", "content": task["objective"]}]
+                    [
+                        {"role": "system", "content": system_prompts["tester"]},
+                        {"role": "user", "content": task["objective"]},
+                    ]
                 )
-                print(answer)
 
                 # if judge says it's incorrect (needs access to files in order to be answered), add it to the dataset
                 judgement = model.generate(
                     [
-                        {"role": "system", "content": system_prompt_judge},
+                        {"role": "system", "content": system_prompts["judge"]},
                         {
                             "role": "user",
                             "content": f"QUESTION\n{task['objective']}\n\nCORRECT ANSWER\n{task['expected']}\n\nPROVIDED ANSWER\n{answer}",
                         },
                     ]
                 )
-                print(judgement)
+
                 try:
-                    judgement = re.findall(r"```verdict\n(.*?)\n```", judgement)
-                    assert len(judgement) == 1
-                    judgement = judgement[0].lower()
-                    assert judgement in ["correct", "incorrect"]
-                    correct |= judgement == "correct"
-                except AssertionError:  # no verdict or incorrect syntax, just redo it
+                    reasoning = re.findall(
+                        r"```reasoning\n(.*?)\n```", judgement, flags=re.S
+                    )[0]
+                    verdict = re.findall(
+                        r"```verdict\n(.*?)\n```", judgement, flags=re.S
+                    )[0]
+                    assert verdict in ["Correct", "Incorrect"]
+                except (
+                    IndexError,
+                    AssertionError,
+                ):  # no verdict or incorrect syntax, just redo it
                     count -= 1
                     continue
 
-            if judgement == "incorrect":
+                correct |= verdict == "Correct"
+                print("[green].[/]" if not correct else "[red]F[/]", end="")
+
+                print(
+                    f"Task {task_count} ({difficulty_key} - {task['difficulty']}) -- Check {count}:\n{task['objective']}\n\nExpected:\n{task['expected']}\n\nProvided:\n{answer}\n\nJudge reasoning:\n{reasoning}\n\nVerdict:\n{verdict}\n",
+                    file_path=log_path,
+                    file_only=True,
+                )
+
+                if correct:  # task is not good, try with a new one
+                    task_count -= 1
+                    break
+
+            print()
+            if not correct:
                 tasks.append(task)
 
-    # save task and task file (pdf)
-    os.makedirs(os.path.dirname(tasks_path), exist_ok=True)
+    # save task and task files (pdf)
+    Path(tasks_path.parent).mkdir(parents=True, exist_ok=True)
     with open(tasks_path, "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
+
+    Path(task_files_path).mkdir(parents=True, exist_ok=True)
+    for path in (Path(__file__).parent / "files" / args.fileset).iterdir():
+        shutil.copy2(path, task_files_path / path.name)
+
+    Path(metadata_path.parent).mkdir(parents=True, exist_ok=True)
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "name": TASKLIST_NAME,
+                "id": "_Custom/DocRetrieval",
+                "type": "custom",
+                "config": args.fileset,
+                "split": None,
+                "category": "QA",
+            },
+            f,
+            ensure_ascii=False,
+            indent=4,
+        )
 
 
 if __name__ == "__main__":

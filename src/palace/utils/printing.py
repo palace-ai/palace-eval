@@ -5,31 +5,63 @@ import threading
 import time
 from builtins import print as builtin_print
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Optional
 
 import emoji
 from wcwidth import wcswidth
 
 try:
-    from IPython import get_ipython
-    from IPython.display import clear_output, display
+    from IPython.core.getipython import get_ipython
 
     IN_NOTEBOOK = get_ipython() is not None
 except ImportError:
     IN_NOTEBOOK = False
 
 
+def _write_to_file(path: Path, *values: object, sep: str = " ", end: str = "\n"):
+    # strip styling
+    unstyled_values = [
+        re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", str(v)) for v in values
+    ]
+
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(sep.join([str(v) for v in unstyled_values]))
+        f.write(end)
+
+
 def print(
-    *args: str,
+    *values: object,
     sep: str = " ",
     end: str = "\n",
     box: bool = False,
     box_title: Optional[str] = None,
-    wrap_width: int = 100,
+    wrap_width: int = 110,
+    file_path: Optional[Path] = None,
+    file_only: bool = False,
     builtin: bool = False,
-):
+) -> None:
+    """Wraps the builtin `print` with additional styling and functionalities.
+
+    Args:
+        sep (str, optional): String inserted between values. Defaults to " ".
+        end (str, optional): String appended after the last value. Defaults to "\\n".
+        box (bool, optional): Draw a box surrounding the printed text. Defaults to False.
+        box_title (Optional[str], optional): Set a header title for the box. Defaults to None.
+        wrap_width (int, optional): Automatically wrap lines after the specified length. Defaults to 110.
+        file_path (Optional[Path], optional): File path to write the printed text to file.
+            When writing to file, all styling is removed. Defaults to None.
+        file_only (bool, optional): If True, the text is not printed to the standard output, but only to file. Defaults to False.
+        builtin (bool, optional): Use the builtin print, bypassing all styling options. Defaults to False.
+    """
+    if file_path is not None:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
     if builtin:
-        builtin_print(*args, sep=sep, end=end)
+        if file_path is not None:
+            _write_to_file(file_path, values, sep=sep, end=end)
+        if not file_only:
+            builtin_print(*values, sep=sep, end=end)
         return
 
     # Mapping of style and color names to ANSI SGR parameters
@@ -75,48 +107,69 @@ def print(
         "strike": "9",
     }
 
-    # Join all args into a single string and replace shortcodes with actual emojis
-    raw = sep.join(str(arg) for arg in args)
-    text = emoji.emojize(raw, language="alias")
+    def _apply_styles(s):
+        i, n = 0, len(s)
+        out = []
+        active_styles = []
+        any_sgr = False
 
-    i, n = 0, len(text)
-    output = ["\033[0m"]  # Reset at start so no sticky styles
+        while i < n:
+            if s[i] == "[" and (i == 0 or s[i - 1] != "\\"):
+                j = s.find("]", i)
+                if j == -1:
+                    out.append(s[i])
+                    i += 1
+                    continue
 
-    while i < n:
-        if text[i] == "[" and (i == 0 or text[i - 1] != "\\"):
-            j = text.find("]", i)
-            if j == -1:
-                output.append(text[i])
-                i += 1
-                continue
+                tag = s[i + 1 : j].lower().strip()
+                parts = tag.split()
 
-            tag = text[i + 1 : j].lower().strip()
-            parts = tag.split()
+                if tag == "/":  # reset all
+                    i = j + 1
+                    active_styles.clear()
+                    out.append("\033[0m")
+                    any_sgr = True
+                    continue
 
-            if tag == "/" or all(part in color_map for part in parts):
+                if tag.startswith("/") and tag[1:] in color_map:
+                    i = j + 1
+                    style_to_remove = color_map[tag[1:]]
+                    if style_to_remove in active_styles:
+                        active_styles.remove(style_to_remove)
+                    out.append("\033[0m")
+                    if active_styles:
+                        out.append(f"\033[{';'.join(active_styles)}m")
+                    any_sgr = True
+                    continue
+
+                if all(part in color_map for part in parts):
+                    i = j + 1
+                    codes = [color_map[p] for p in parts]
+                    active_styles.extend(codes)
+                    seen = set()
+                    active_styles = [
+                        c for c in active_styles if not (c in seen or seen.add(c))
+                    ]
+                    out.append(f"\033[{';'.join(codes)}m")
+                    any_sgr = True
+                    continue
+
+                out.append(s[i : j + 1])
                 i = j + 1
-                if tag == "/":  # closing tag: reset all styles
-                    output.append("\033[0m")
-                else:  # parse color/style tag
-                    bg_nums = [color_map[p] for p in parts if p.startswith("on_")]
-                    fg_nums = [color_map[p] for p in parts if not p.startswith("on_")]
-                    all_nums = bg_nums + fg_nums
-                    if all_nums:
-                        output.append(f"\033[{';'.join(all_nums)}m")
                 continue
             else:
-                output.append(text[i : j + 1])
-                i = j + 1
-                continue
-        else:
-            output.append(text[i])
-            i += 1
+                out.append(s[i])
+                i += 1
 
-    # Reset at end if any SGR codes emitted
-    if any(s.startswith("\033[") for s in output):
-        output.append("\033[0m")
+        # keep active_styles as the final active SGR codes (do not clear them here)
+        if any_sgr:
+            out.append("\033[0m")
 
-    formatted_text = "".join(output)
+        return "".join(out), active_styles
+
+    raw = sep.join(str(val) for val in values)
+    text = emoji.emojize(raw, language="alias")
+    formatted_text, active_styles = _apply_styles(text)
 
     if box:
 
@@ -125,14 +178,24 @@ def print(
 
         def _split_visible_chunks(string, chunk_len):
             tokens = re.findall(r"\033\[[0-9;]*m|.", string)
-            chunks, chunk, width = [], "", 0
+            chunks, chunk, width, current_sgr = [], "", 0, ""
             for t in tokens:
-                w = 0 if t.startswith("\033[") else wcswidth(t)
+                if t.startswith("\033["):
+                    if t == "\033[0m":
+                        current_sgr = ""
+                    else:
+                        current_sgr = current_sgr + t
+                    chunk += t
+                    continue
+
+                w = wcswidth(t)
                 if width + w > chunk_len:
                     chunks.append(chunk)
-                    chunk, width = "", 0
-                chunk += t
-                width += w
+                    chunk = current_sgr + t
+                    width = w
+                else:
+                    chunk += t
+                    width += w
             if chunk:
                 chunks.append(chunk)
             return chunks
@@ -144,138 +207,155 @@ def print(
             chunks = _split_visible_chunks(line, wrap_width)
             wrapped_lines.extend(chunks if chunks else [""])
 
-        max_length = max(_real_len(line) for line in wrapped_lines)
-
-        box_title = (
-            f" {emoji.emojize(box_title, language='alias')} " if box_title else ""
+        max_length = (
+            max(_real_len(line) for line in wrapped_lines) if wrapped_lines != [] else 0
         )
-        box_width = max(max_length, wcswidth(box_title) - 2)
+
+        if box_title:
+            styled_title, _ = _apply_styles(emoji.emojize(box_title, language="alias"))
+            box_title = f" {styled_title} "
+        else:
+            box_title = ""
+        box_width = max(
+            max_length, wcswidth(re.sub(r"\x1b\[[0-9;]*m", "", box_title)) - 2
+        )
 
         horizontal_line = "─" * (box_width + 4)
-        top_border = (
-            f"╭─\033[1m{box_title}\033[0m{horizontal_line[wcswidth(box_title) + 1 :]}╮"
-        )
-        bottom_border = f"╰{horizontal_line}╯"
 
-        boxed_output = [top_border]
-        boxed_output.append(f"│  {' ' * box_width}  │")
+        visible_title_width = _real_len(box_title)
+        top_border = (
+            f"\033[0m╭─\033[1m{box_title}\033[0m"
+            f"{horizontal_line[visible_title_width + 1 :]}╮"
+        )
+        bottom_border = f"\033[0m╰{horizontal_line}╯"
+        empty_line = f"\033[0m│  {' ' * box_width}  │"
+
+        boxed_output = [top_border, empty_line]
+
+        prefix = f"\033[{';'.join(active_styles)}m" if active_styles else ""
 
         for wrapped_line in wrapped_lines:
             padding = box_width - _real_len(wrapped_line)
-            boxed_output.append(f"│  {wrapped_line}{' ' * padding}  │")
-        boxed_output.append(f"│  {' ' * box_width}  │")
+            boxed_output.append(
+                f"\033[0m│  {prefix}{wrapped_line}\033[0m{' ' * padding}  │"
+            )
+
+        boxed_output.append(empty_line)
         boxed_output.append(bottom_border)
 
         formatted_text = "\n".join(boxed_output)
 
     # Use builtin print to avoid recursion
-    builtin_print(formatted_text, end=end, flush=True)
+    if file_path is not None:
+        _write_to_file(file_path, formatted_text, end=end)
+    if not file_only:
+        builtin_print(formatted_text, end=end, flush=True)
 
 
-@contextmanager
-def loading_icon_v1():
-    spinner = itertools.cycle(
-        [
-            "⢀⠀",
-            "⡀⠀",
-            "⠄⠀",
-            "⢂⠀",
-            "⡂⠀",
-            "⠅⠀",
-            "⢃⠀",
-            "⡃⠀",
-            "⠍⠀",
-            "⢋⠀",
-            "⡋⠀",
-            "⠍⠁",
-            "⢋⠁",
-            "⡋⠁",
-            "⠍⠉",
-            "⠋⠉",
-            "⠋⠉",
-            "⠉⠙",
-            "⠉⠙",
-            "⠉⠩",
-            "⠈⢙",
-            "⠈⡙",
-            "⢈⠩",
-            "⡀⢙",
-            "⠄⡙",
-            "⢂⠩",
-            "⡂⢘",
-            "⠅⡘",
-            "⢃⠨",
-            "⡃⢐",
-            "⠍⡐",
-            "⢋⠠",
-            "⡋⢀",
-            "⠍⡁",
-            "⢋⠁",
-            "⡋⠁",
-            "⠍⠉",
-            "⠋⠉",
-            "⠋⠉",
-            "⠉⠙",
-            "⠉⠙",
-            "⠉⠩",
-            "⠈⢙",
-            "⠈⡙",
-            "⠈⠩",
-            "⠀⢙",
-            "⠀⡙",
-            "⠀⠩",
-            "⠀⢘",
-            "⠀⡘",
-            "⠀⠨",
-            "⠀⢐",
-            "⠀⡐",
-            "⠀⠠",
-            "⠀⢀",
-            "⠀⡀",
-            "⠀⠀",
-            "⠀⠀",
-            "⠀⠀",
-            "⠀⠀",
-        ]
-    )
-    animation_interval = 0.075
-    done = False
-    start_time = time.time()
+# @contextmanager
+# def loading_icon_v1():
+#     spinner = itertools.cycle(
+#         [
+#             "⢀⠀",
+#             "⡀⠀",
+#             "⠄⠀",
+#             "⢂⠀",
+#             "⡂⠀",
+#             "⠅⠀",
+#             "⢃⠀",
+#             "⡃⠀",
+#             "⠍⠀",
+#             "⢋⠀",
+#             "⡋⠀",
+#             "⠍⠁",
+#             "⢋⠁",
+#             "⡋⠁",
+#             "⠍⠉",
+#             "⠋⠉",
+#             "⠋⠉",
+#             "⠉⠙",
+#             "⠉⠙",
+#             "⠉⠩",
+#             "⠈⢙",
+#             "⠈⡙",
+#             "⢈⠩",
+#             "⡀⢙",
+#             "⠄⡙",
+#             "⢂⠩",
+#             "⡂⢘",
+#             "⠅⡘",
+#             "⢃⠨",
+#             "⡃⢐",
+#             "⠍⡐",
+#             "⢋⠠",
+#             "⡋⢀",
+#             "⠍⡁",
+#             "⢋⠁",
+#             "⡋⠁",
+#             "⠍⠉",
+#             "⠋⠉",
+#             "⠋⠉",
+#             "⠉⠙",
+#             "⠉⠙",
+#             "⠉⠩",
+#             "⠈⢙",
+#             "⠈⡙",
+#             "⠈⠩",
+#             "⠀⢙",
+#             "⠀⡙",
+#             "⠀⠩",
+#             "⠀⢘",
+#             "⠀⡘",
+#             "⠀⠨",
+#             "⠀⢐",
+#             "⠀⡐",
+#             "⠀⠠",
+#             "⠀⢀",
+#             "⠀⡀",
+#             "⠀⠀",
+#             "⠀⠀",
+#             "⠀⠀",
+#             "⠀⠀",
+#         ]
+#     )
+#     animation_interval = 0.075
+#     done = False
+#     start_time = time.time()
 
-    def animate():
-        if IN_NOTEBOOK:
-            while not done:
-                elapsed_time = time.time() - start_time
-                builtin_print(
-                    f"\r{next(spinner)}  {elapsed_time:.1f}s", end="", flush=True
-                )
-                time.sleep(animation_interval)
-        else:
-            sys.stdout.write("\033[s")
-            while not done:
-                elapsed_time = time.time() - start_time
-                sys.stdout.write(f"\033[u{next(spinner)}  {elapsed_time:.1f}s")
-                sys.stdout.flush()
-                time.sleep(animation_interval)
-            sys.stdout.write("\033[u \033[u")
-            sys.stdout.flush()
+#     def animate():
+#         if IN_NOTEBOOK:
+#             while not done:
+#                 elapsed_time = time.time() - start_time
+#                 builtin_print(
+#                     f"\r{next(spinner)}  {elapsed_time:.1f}s", end="", flush=True
+#                 )
+#                 time.sleep(animation_interval)
+#         else:
+#             sys.stdout.write("\033[s")
+#             while not done:
+#                 elapsed_time = time.time() - start_time
+#                 sys.stdout.write(f"\033[u{next(spinner)}  {elapsed_time:.1f}s")
+#                 sys.stdout.flush()
+#                 time.sleep(animation_interval)
+#             sys.stdout.write("\033[u \033[u")
+#             sys.stdout.flush()
 
-    # Start the animation in a separate thread
-    thread = threading.Thread(target=animate)
-    thread.start()
+#     # Start the animation in a separate thread
+#     thread = threading.Thread(target=animate)
+#     thread.start()
 
-    try:
-        yield  # This is where the calling code will execute
-    finally:
-        # Signal the animation to stop
-        done = True
-        # Wait for the animation thread to finish
-        thread.join()
-        if IN_NOTEBOOK:
-            builtin_print("\r", end="", flush=True)  # Clear the spinner in Jupyter
-        else:
-            sys.stdout.write("\r")
-            sys.stdout.flush()
+#     try:
+#         yield  # This is where the calling code will execute
+#     finally:
+#         # Signal the animation to stop
+#         done = True
+#         # Wait for the animation thread to finish
+#         thread.join()
+#         if IN_NOTEBOOK:
+#             builtin_print("\r", end="", flush=True)  # Clear the spinner in Jupyter
+#         else:
+#             sys.stdout.write("\r")
+#             sys.stdout.flush()
 
 
 class LoadingIcon:

@@ -229,13 +229,18 @@ Either Correct or Incorrect. No other text can be here.
 
         # load tasklist and metadata
         with open(
-            PROJECT_ROOT / "tasklists" / "automated" / tasklist / "tasks.json"
-        ) as f:
-            tasks = json.load(f)
-        with open(
             PROJECT_ROOT / "tasklists" / "metadata" / tasklist / "info.json"
         ) as f:
             tasklist_info = json.load(f)
+
+        tasklist_path = (
+            PROJECT_ROOT
+            / "tasklists"
+            / ("automated" if tasklist_info["type"] == "automated" else "custom")
+            / tasklist
+        )
+        with open(tasklist_path / "tasks.json") as f:
+            tasks = json.load(f)
 
         # filter out tasks that are not text-based
         if self.text_tasks_only:
@@ -260,12 +265,7 @@ Either Correct or Incorrect. No other text can be here.
 
             if task["attachment"] is not None and task["attachment"] != "":
                 with open(
-                    PROJECT_ROOT
-                    / "tasklists"
-                    / "automated"
-                    / tasklist
-                    / "task_files"
-                    / task["attachment"],
+                    tasklist_path / "task_files" / task["attachment"],
                     encoding="utf-8",
                 ) as f:
                     attachment = f.read()
