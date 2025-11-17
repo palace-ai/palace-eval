@@ -24,32 +24,33 @@ _huggingface_to_gptjrc_model_names_map = {
 
 
 class OpenAICompatibleModel(Model):
+    @classmethod
+    def list_models(cls, url: str, token: str | None = None) -> list[str]:
+        """List available models from the OpenAI-compatible API server."""
+        client = OpenAI(api_key=token, base_url=url)
+        models = client.models.list()
+        return [model.id for model in models.data]
+
+    _DEFAULT_MODEL_ID = "llama-3.3-70b-instruct"
+
     def __init__(
         self,
         url: str,
         token: str | None = None,
-        model_id: Literal[
-            "meta-llama/Llama-3.3-70B-Instruct",
-            "MiniMaxAI/MiniMax-M2",
-            "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
-            "Qwen/Qwen3-32B",
-            "Qwen/Qwen2.5-Coder-32B-Instruct",
-            "openai/gpt-4o",
-            "openai/gpt-oss-120b",
-        ] = "Qwen/Qwen3-32B",
+        model_id: str = None,
     ):
         """
         A class to interact with OpenAI-compatible models.
 
         Arguments:
-            model_id (str): The model ID to use as found on Huggingface. Defaults to "Qwen/Qwen3-8B".
             url (str): The URL of the OpenAI compatible API server.
+            token (str): The API token for authentication.
+            model_id (str): The model ID to use as found on Huggingface. Defaults to `llama-3.3-70b-instruct`.
         """
-        if model_id not in _huggingface_to_gptjrc_model_names_map:
-            raise ValueError(
-                "BUG: keys in _huggingface_to_gptjrc_model_names_map and allowed Literals for model_id don't match."
-            )
-        self.model_id = _huggingface_to_gptjrc_model_names_map[model_id]
+        if model_id in _huggingface_to_gptjrc_model_names_map:
+            self.model_id = _huggingface_to_gptjrc_model_names_map[model_id]
+        else:
+            self.model_id = model_id
         self.client = OpenAI(api_key=token, base_url=url)
 
     @property
@@ -63,7 +64,7 @@ class OpenAICompatibleModel(Model):
             multiplier=10, max=60
         ),  # Exponential backoff (10s -> 20s -> 40s -> 60s)
         retry=retry_if_exception_type(
-            RateLimitError,
+            (RateLimitError, TimeoutException, OpenAIError)
         ),  # Retry only on RateLimitError
         before_sleep=lambda retry_state: print(
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore

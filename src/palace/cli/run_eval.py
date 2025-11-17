@@ -3,7 +3,7 @@ import sys
 
 import questionary
 
-from palace.agents import LocalAgent, RemoteAgent
+from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
 from palace.environments import (
     AssistantEnvironment,
     IsolatedEnvironment,
@@ -26,10 +26,12 @@ from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.printing import print
 from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
 
-_DEFAULT_REMOTE_AGENTS_URL = (
+_DEFAULT_MCP_AGENTS_URL = (
     "http://localhost:8090/mcp/sse"
     # "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
 )
+_DEFAULT_OPENAI_AGENTS_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
+_DEFAULT_OPENAI_AGENTS_TOKEN = GPTJRC_PROD_TOKEN
 
 
 def main():
@@ -99,16 +101,19 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     local_or_remote = questionary.checkbox(
         "What agent types would you like to test?",
         choices=[
-            questionary.Choice("Remote", checked=True),
-            questionary.Choice("Local", checked=True),
+            questionary.Choice("Remote (via MCP)"),
+            questionary.Choice("Remote (via OpenAI-compatible API)"),
+            questionary.Choice("Local"),
         ],
     ).ask()
     if len(local_or_remote) == 0:
         print("You have selected nothing to test. Have a nice day :)")
         return
 
-    local_agents = []
-    remote_agents = []
+    agents = []
+    # local_agents = []
+    # mcp_agents = []
+    # openai_agents = []
 
     if "Local" in local_or_remote:
         # set paradigms
@@ -146,7 +151,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             raise ValueError("No environments selected")
 
         # add local agents
-        local_agents = [
+        agents += [
             LocalAgent(
                 model=HuggingfaceModel(model)
                 if local_llm
@@ -161,33 +166,62 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             )
         ]
 
-    if "Remote" in local_or_remote:
+    if "Remote (via MCP)" in local_or_remote:
         # set url
-        remote_agents_url = questionary.text(
-            "Remote Agents URL:", default=_DEFAULT_REMOTE_AGENTS_URL
+        mcp_agents_url = questionary.text(
+            "MCP Agents URL:", default=_DEFAULT_MCP_AGENTS_URL
         ).ask()
 
         # retrieve remote agents from url
         with MCPClientPool.get_connection(
-            remote_agents_url, ALOHA_STAGING_TOKEN
+            mcp_agents_url, ALOHA_STAGING_TOKEN
         ) as mcp_client:
-            available_remote_agents = [
-                tool.name for tool in mcp_client.list_tools().tools
-            ]
-        if len(available_remote_agents) == 0:
+            available_mcp_agents = [tool.name for tool in mcp_client.list_tools().tools]
+        if len(available_mcp_agents) == 0:
             raise ValueError("No agents found in the provided MCP server URL.")
-        remote_agents = questionary.checkbox(
-            "Select Remote Agents:", choices=available_remote_agents
+        mcp_agents = questionary.checkbox(
+            "Select MCP Agents:", choices=available_mcp_agents
         ).ask()
 
-        # add remote agents
-        remote_agents = [
-            RemoteAgent(
-                url=remote_agents_url,
+        # add MCP agents
+        agents += [
+            MCPAgent(
+                url=mcp_agents_url,
                 token=ALOHA_STAGING_TOKEN,
                 name=agent,
             )
-            for agent in remote_agents
+            for agent in mcp_agents
+        ]
+
+    if "Remote (via OpenAI-compatible API)" in local_or_remote:
+        openai_agents_url = questionary.text(
+            "OpenAI-compatible Agents URL:", default=_DEFAULT_OPENAI_AGENTS_URL
+        ).ask()
+        token = (
+            questionary.text("OpenAI-compatible Agents Token:").ask()
+            if openai_agents_url != _DEFAULT_OPENAI_AGENTS_URL
+            else _DEFAULT_OPENAI_AGENTS_TOKEN
+        )
+        available_openai_agents = OpenAICompatibleModel.list_models(
+            url=openai_agents_url, token=token
+        )
+        if len(available_openai_agents) == 0:
+            raise ValueError(
+                "No agents found in the provided OpenAI-compatible server URL."
+            )
+
+        openai_agents = questionary.checkbox(
+            "Select OpenAI-compatible Agents:", choices=available_openai_agents
+        ).ask()
+
+        # add OpenAI-compatible agents
+        agents += [
+            OpenAIAPIAgent(
+                url=openai_agents_url,
+                token=token,
+                name=agent,
+            )
+            for agent in openai_agents
         ]
 
     # set tasklists
@@ -229,7 +263,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     )
 
     evaluation.evaluate_all(
-        [agent for agent in local_agents + remote_agents], tasklists=tasklists
+        # [agent for agent in local_agents + mcp_agents + openai_agents],
+        agents,
+        tasklists=tasklists,
     )
 
 

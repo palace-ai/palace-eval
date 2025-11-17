@@ -8,7 +8,7 @@ from palace.environments.unknown_environment import UnknownEnvironment
 from palace.mcp_utils.mcp_client import MCPClientPool
 
 
-class RemoteAgent(Agent):
+class MCPAgent(Agent):
     """A class to connect to a remote agent deployed via MCP and call it as a black box."""
 
     def __init__(self, url: str, token: str | None = None, name: str | None = None):
@@ -64,7 +64,6 @@ class RemoteAgent(Agent):
         return self._environment
 
     def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
-        """BUG It assumes that the input parameter to the agent is always called `query`."""
         with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
             try:
                 output: CallToolResult = mcp_client.call_tool(
@@ -81,7 +80,7 @@ class RemoteAgent(Agent):
                 raise TypeError()
         except Exception:
             raise ValueError(
-                f"RemoteAgent answer not found in output content. Got: {output.content}"
+                f"MCPAgent answer not found in output content. Got: {output.content}"
             )
 
         try:
