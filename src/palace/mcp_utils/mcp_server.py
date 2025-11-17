@@ -47,6 +47,7 @@ class MCPServer:
         ]
 
     @server.call_tool()
+    @staticmethod  # TODO check if it gives problems
     async def call_tool(
         name: str, arguments: dict
     ) -> list[TextContent | ImageContent | EmbeddedResource]:
@@ -58,15 +59,13 @@ class MCPServer:
 
         try:
             tool = [t for t in __class__.tool_environment.tools if t.name == name][0]
-
+            result = tool.execute(**arguments)
+            return [TextContent(type="text", text=result)]
         except IndexError as e:
             print(
-                f"Can't find a tool matching {name} in {__class__.tool_environment.tools}:\n{e}"
+                f"Can't find a tool matching {name} in {__class__.tool_environment.tools}."
             )
-
-        result = tool.execute(**arguments)
-
-        return [TextContent(type="text", text=result)]
+            raise e
 
     def start(
         self, host: str = "0.0.0.0", port: int = 8080, debug: bool = False
@@ -106,40 +105,3 @@ class MCPServer:
         )
 
         uvicorn.run(starlette_app, host=host, port=port)
-
-    # def create_starlette_app(
-    #     mcp_server_instance: Server, *, debug: bool = False
-    # ) -> Starlette:
-    #     """Create a Starlette application that can serve the provided mcp server with SSE."""
-    #     sse = SseServerTransport("/messages/")
-
-    #     async def handle_sse(request: Request) -> None:
-    #         log.info(f"SSE connection request received from {request.client}")
-    #         async with sse.connect_sse(
-    #             request.scope,
-    #             request.receive,
-    #             request._send,
-    #         ) as (read_stream, write_stream):
-    #             log.info("SSE transport connected, starting MCP server run loop.")
-    #             try:
-    #                 init_options = mcp_server_instance.create_initialization_options()
-
-    #                 await mcp_server_instance.run(
-    #                     read_stream,
-    #                     write_stream,
-    #                     init_options,
-    #                 )
-    #             except Exception:
-    #                 log.exception("Exception during mcp_server.run")
-    #             finally:
-    #                 log.info("MCP server run loop finished.")
-
-    #     return Starlette(
-    #         debug=debug,
-    #         routes=[
-    #             Route("/sse", endpoint=handle_sse),
-    #             Mount("/messages/", app=sse.handle_post_message),
-    #         ],
-    #         on_startup=[lambda: log.info("Starlette server starting...")],
-    #         on_shutdown=[lambda: log.info("Starlette server shutting down...")],
-    #     )

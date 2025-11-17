@@ -8,8 +8,8 @@ from mcp.types import Tool as MCPTool
 from starlette.applications import Starlette
 from starlette.routing import Route
 
-from abw.mcp_servers.fetch_tool import FetchTool
-from abw.mcp_servers.web_search_tool import WebSearchTool
+from palace.tools.fetch_tool import FetchTool
+from palace.tools.web_search_tool import WebSearchTool
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ class MCPServer:
         ]
 
     @server.call_tool()
+    @staticmethod  # TODO check if it gives problems
     async def call_tool(
         name: str, arguments: dict
     ) -> list[TextContent | ImageContent | EmbeddedResource]:
@@ -57,13 +58,11 @@ class MCPServer:
 
         try:
             tool = [t for t in __class__.tools if t.name == name][0]
-
+            result = tool.execute(**arguments)
+            return [TextContent(type="text", text=result)]
         except IndexError as e:
-            print(f"Can't find a tool matching {name} in {__class__.tools}:\n{e}")
-
-        result = tool.execute(**arguments)
-
-        return [TextContent(type="text", text=result)]
+            print(f"Can't find a tool matching {name} in {__class__.tools}.")
+            raise e
 
     def start(
         self, host: str = "0.0.0.0", port: int = 8080, debug: bool = False

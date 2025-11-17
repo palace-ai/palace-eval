@@ -36,12 +36,3 @@ class HumanTool(Tool):
         class Config:
             # Disable validation on assignment
             validate_assignment = False
-
-    def mcp_execute(
-        self,
-        params: Parameters,
-    ) -> str:
-        if isinstance(params, dict):
-            params = __class__.Parameters(**params)
-
-        return self.execute(params)

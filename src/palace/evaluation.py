@@ -3,14 +3,24 @@ import json
 import os
 import re
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
 from palace.agents import Agent
 from palace.models import HuggingfaceModel, OpenAICompatibleModel
+from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import loading, print
+from palace.utils.secrets import GPTJRC_PROD_TOKEN
+
+agent_run_stats: list[dict[str, Any]] = [
+    {"name": "n_steps", "pass@k": True, "pass@k_symbol": "s"},
+    {"name": "n_toolcalls", "pass@k": True, "pass@k_symbol": "tc"},
+    {"name": "n_tool_hallucinations"},
+    {"name": "tools_list"},
+    {"name": "tool_calls_list"},
+]
 
 
 class Evaluation:
@@ -32,7 +42,11 @@ class Evaluation:
             judge_model_id = "/mnt/storage2/hf_models/Qwen2.5-3B-Instruct"
             self.judge = HuggingfaceModel(judge_model_id, gpu_memory_utilization=0.3)
         elif judge_inference == "remote":
-            self.judge = OpenAICompatibleModel("meta-llama/Llama-3.3-70B-Instruct")
+            self.judge = OpenAICompatibleModel(
+                GPTJRC_PROD_API_URL,
+                GPTJRC_PROD_TOKEN,
+                "meta-llama/Llama-3.3-70B-Instruct",
+            )
         else:
             raise ValueError(
                 f"judge_inference must be either 'local' or 'remote', found: {judge_inference}"
@@ -91,14 +105,13 @@ Either Correct or Incorrect. No other text can be here.
                 # the score is not based only on passed tasks but on failed tasks too! (they will decrease the final score)
                 # basically, any pass@{N}{metric} score can never be greater than the accuracy; it's just accuracy with extra constraints
                 pass_at_k_scores = {}
-                pass_at_k_metrics_names = [
-                    {"name": "n_steps", "symbol": "s"},
-                    {"name": "n_toolcalls", "symbol": "tc"},
-                ]
-                k_values = [1, 3, 6, 10]
-
                 for metric, k_value in itertools.product(
-                    pass_at_k_metrics_names, k_values
+                    [
+                        stat
+                        for stat in agent_run_stats
+                        if stat.get("pass@k") and stat["name"] in report
+                    ],
+                    [1, 3, 6, 10],
                 ):
                     n_tasks_with_metric = len(
                         [
@@ -109,7 +122,7 @@ Either Correct or Incorrect. No other text can be here.
                     )
                     if n_tasks_with_metric == 0:
                         continue  # skip to avoid division by zero
-                    pass_at_k_scores[f"pass@{k_value}{metric['symbol']}"] = (
+                    pass_at_k_scores[f"pass@{k_value}{metric['pass@k_symbol']}"] = (
                         len(
                             [
                                 task_report
@@ -124,7 +137,9 @@ Either Correct or Incorrect. No other text can be here.
 
                 # compute averages for each task-specific metric, including average when the task is successful and average when the task failed
                 metrics_averages = {}
-                for metric in pass_at_k_metrics_names:
+                for stat in agent_run_stats:
+                    if not stat.get("pass@k") or stat["name"] not in report:
+                        continue
                     total = 0
                     count = 0
                     total_passed = 0
@@ -132,26 +147,24 @@ Either Correct or Incorrect. No other text can be here.
                     total_failed = 0
                     count_failed = 0
                     for task_report in report.values():
-                        if metric["name"] not in task_report:
-                            continue
-                        total += task_report[metric["name"]]
+                        total += task_report[stat["name"]]
                         count += 1
                         if task_report["is_correct"]:
-                            total_passed += task_report[metric["name"]]
+                            total_passed += task_report[stat["name"]]
                             count_passed += 1
                         elif not task_report["is_correct"]:
-                            total_failed += task_report[metric["name"]]
+                            total_failed += task_report[stat["name"]]
                             count_failed += 1
                         else:
                             raise Exception("Task is neither correct nor not correct")
                     if count > 0:
-                        metrics_averages[f"avg_{metric['name']}"] = total / count
+                        metrics_averages[f"avg_{stat['name']}"] = total / count
                     if count_passed > 0:
-                        metrics_averages[f"avg_{metric['name']}_passed"] = (
+                        metrics_averages[f"avg_{stat['name']}_passed"] = (
                             total_passed / count_passed
                         )
                     if count_failed > 0:
-                        metrics_averages[f"avg_{metric['name']}_failed"] = (
+                        metrics_averages[f"avg_{stat['name']}_failed"] = (
                             total_failed / count_failed
                         )
 
@@ -284,7 +297,7 @@ Either Correct or Incorrect. No other text can be here.
             print(f"[bold]Expected response:[/] {task['expected']}")
 
             with loading():
-                result = agent.run(task=prompt)
+                result, run_stats = agent.run(task=prompt)
 
             # check if run completed successfully
             if result is None:
@@ -368,17 +381,18 @@ PROVIDED ANSWER
 
             # prepare report
             elapsed_time = time.time() - start_time
-            report[task["objective"]] = {
+            report[task["id"]] = {
+                "objective": task["objective"],
                 "expected": task["expected"],
-                "actual": result if result is not None else "<N/A>",
+                "actual": result,
                 "is_correct": is_correct if result is not None else False,  # type: ignore
                 "judge_reasoning": judge_reasoning,
                 "elapsed_time": elapsed_time,
             }
-            # add extra agent execution info to report
-            # TODO add telemetry back
-            # for k, v in extras.items():
-            #     report[task["objective"]][k] = v
+            # add agent execution metrics to report
+            if run_stats is not None:
+                for k, v in run_stats.items():
+                    report[task["id"]][k] = v
 
         return report
 

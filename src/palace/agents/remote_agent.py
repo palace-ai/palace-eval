@@ -1,4 +1,6 @@
-from typing import Optional
+from typing import Any
+
+from mcp.types import CallToolResult, TextContent
 
 from palace.agents import Agent
 from palace.environments.base_environment import Environment
@@ -9,22 +11,20 @@ from palace.mcp_utils.mcp_client import MCPClientPool
 class RemoteAgent(Agent):
     """A class to connect to a remote agent deployed via MCP and call it as a black box."""
 
-    def __init__(
-        self, url: str, token: Optional[str] = None, name: Optional[str] = None
-    ):
+    def __init__(self, url: str, token: str | None = None, name: str | None = None):
         self.url = url
         self.token = token
         self._environment = UnknownEnvironment()
 
         with MCPClientPool.get_connection(url, token) as mcp_client:
-            available_agents = [tool.name for tool in mcp_client.list_tools().tools]
+            available_agents = mcp_client.list_tools().tools
 
         if len(available_agents) == 0:
             raise ValueError(f"There is no agent or tool at {url}.")
 
-        if name is not None and name in available_agents:
+        if name is not None and name in [a.name for a in available_agents]:
             self._name = name
-        elif name is not None and name not in available_agents:
+        elif name is not None and name not in [a.name for a in available_agents]:
             raise ValueError(
                 f"There is no agent with the provided name {name} at {url}, only found: {available_agents}."
             )
@@ -33,7 +33,19 @@ class RemoteAgent(Agent):
                 f"There is more than one agent at {url} but provided name is {name}. Specify one of {available_agents}."
             )
         else:  # name is None and there is exactly one agent
-            self._name = available_agents[0]
+            self._name = available_agents[0].name
+
+        try:
+            self._input_parameter = list(
+                [a for a in available_agents if a.name == self._name][0]
+                .inputSchema["properties"]
+                .keys()
+            )[0]
+        except Exception as e:
+            raise ValueError(
+                f"Can't find the input parameter for the agent {self._name} at {url}. \
+                    Are you sure the agent has an inputSchema={{'properties': ...}} defined?"
+            ) from e
 
     @property
     def name(self) -> str:
@@ -51,12 +63,33 @@ class RemoteAgent(Agent):
     def environment(self) -> Environment:
         return self._environment
 
-    def run(self, task: str) -> str:
+    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
         """BUG It assumes that the input parameter to the agent is always called `query`."""
         with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
             try:
-                answer = mcp_client.call_tool(self.name, {"query": task})
-                return answer.content[0].text
+                output: CallToolResult = mcp_client.call_tool(
+                    self.name, {self._input_parameter: task}
+                )
             except Exception as e:
                 print(f"Remote agent returned the following exception: \n{e}")
                 raise e
+
+        try:
+            assert isinstance(output.content[0], TextContent)
+            answer = output.content[0].text
+            if not isinstance(answer, str):
+                raise TypeError()
+        except Exception:
+            raise ValueError(
+                f"RemoteAgent answer not found in output content. Got: {output.content}"
+            )
+
+        try:
+            assert isinstance(output.structuredContent, dict)
+            metrics = output.structuredContent["result"][1]
+            if not isinstance(metrics, dict):
+                raise TypeError()
+        except Exception:
+            metrics = None
+
+        return answer, metrics

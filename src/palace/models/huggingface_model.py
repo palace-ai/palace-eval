@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
@@ -38,9 +37,7 @@ class HuggingfaceModel(Model):
             )
         self.initialized = True
 
-    def generate(
-        self, messages: list[dict[str, str]], temperature: Optional[float] = 0.0, **_
-    ) -> str:
+    def generate(self, messages: list[dict[str, str]], **_) -> str:
         if not self.initialized:
             self._initialize()
 
@@ -50,7 +47,6 @@ class HuggingfaceModel(Model):
             add_generation_prompt=True,
         )
         sampling_params = SamplingParams(
-            temperature=temperature,
             max_tokens=16384,
             n=1,
             stop="###STOP###",

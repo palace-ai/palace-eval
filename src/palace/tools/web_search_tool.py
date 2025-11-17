@@ -5,6 +5,7 @@ from palace.tools import Tool
 
 
 class WebSearchTool(Tool):
+    @staticmethod
     def _duckduckgo_html_search(query: str) -> list[dict[str, str]]:
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query, "kl": "wt-wt"}
@@ -15,19 +16,29 @@ class WebSearchTool(Tool):
 
         results = []
         for result in soup.select(".result"):
-            title = result.select_one(".result__title a").text
-            link = result.select_one(".result__url")["href"]
-            snippet = (
-                result.select_one(".result__snippet").text
-                if result.select_one(".result__snippet")
-                else ""
-            )
+            title = result.select_one(".result__title a")
+            if title is not None:
+                title = title.text
+            else:
+                title = ""
+
+            link = result.select_one(".result__url")
+            if link is not None:
+                link = str(link["href"])
+            else:
+                link = ""
+
+            snippet = result.select_one(".result__snippet")
+            if snippet is not None:
+                snippet = snippet.text
+            else:
+                snippet = ""
 
             # DuckDuckGo links are redirects (e.g., //duckduckgo.com/l/?uddg=...)
             # Extract the real URL:
             if link.startswith("//duckduckgo.com/l/?uddg="):
                 link = link.split("uddg=")[1].split("&")[0]
-                link = requests.utils.unquote(link)  # Decode URL-encoded characters
+                link = requests.utils.unquote(link)  # type: ignore # Decode URL-encoded characters
 
             results.append({"title": title, "link": link, "snippet": snippet})
 

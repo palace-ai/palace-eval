@@ -46,10 +46,9 @@ def download_tasklist(
         download_mode="force_redownload",
         trust_remote_code=True,
     )
-    df_dataset = dataset.to_pandas()
-
+    df_dataset = dataset.to_pandas()  # type: ignore
     tasks = []
-    for i, row in df_dataset.iterrows():
+    for i, row in df_dataset.iterrows():  # type: ignore
         # Get attachment name
         attachment = (
             row[column_names["attachment"]] if "attachment" in column_names else ""
@@ -107,7 +106,7 @@ def download_tasklist(
         attachments_dir = Path(tasks_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
-        for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][
+        for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][  # type: ignore
             column_names["attachment"]
         ]:
             # attachment is present as a file name to download
@@ -115,7 +114,7 @@ def download_tasklist(
                 try:
                     temp_path = hf_hub_download(
                         repo_id=id,
-                        filename=os.path.join(attachment_path, attachment),
+                        filename=os.path.join(attachment_path, attachment),  # type: ignore
                         repo_type="dataset",
                         local_dir=os.path.join(tasks_path, "task_files"),
                         local_dir_use_symlinks=False,
@@ -147,7 +146,7 @@ def download_tasklist(
                     #     if _string_type(attachment) == "base64"
                     #     else attachment
 
-                output_file = _get_filename(attachment)
+                output_file = _get_filename(attachment)  # type: ignore
                 with open(
                     attachments_dir / output_file,
                     "w" if attachment_type == "text" else "wb",
@@ -254,7 +253,7 @@ def _backup_get_filename(s: str) -> str:
         s = _extract_base64_payload(s)
 
     # data = base64.b64decode(s) if string_type == "base64" else s.decode("utf-8")
-    data = s.decode("utf-8")
+    data = s.decode("utf-8")  # type: ignore
     full_hash = hashlib.sha256(data).hexdigest()
     filename = full_hash[:24]  # Use the first 24 characters of the hash as the filename
 

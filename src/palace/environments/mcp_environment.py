@@ -1,7 +1,7 @@
 from palace.environments.base_environment import Environment
 from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.tools import FinalAnswerTool, MCPTool, Tool
-from palace.utils.secrets import ALOHA_TOKEN
+from palace.utils.secrets import ALOHA_STAGING_TOKEN
 
 
 class MCPEnvironment(Environment):
@@ -9,7 +9,7 @@ class MCPEnvironment(Environment):
         "local": {"url": "http://localhost:8080/sse", "token": None},
         "aloha": {
             "url": "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/jrc-gpt/sse",
-            "token": ALOHA_TOKEN,
+            "token": ALOHA_STAGING_TOKEN,
         },
     }
 

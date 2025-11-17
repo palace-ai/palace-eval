@@ -8,8 +8,10 @@ from typing import Optional
 import pymupdf
 
 from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import print
+from palace.utils.secrets import GPTJRC_PROD_TOKEN
 
 
 def fetch_pdf_content(path: Path, limit_length: Optional[int] = None):
@@ -58,7 +60,9 @@ def main():
             system_prompts[path.stem] = f.read()
 
     # initialize model
-    model = OpenAICompatibleModel("openai/gpt-oss-120b")
+    model = OpenAICompatibleModel(
+        GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN, "openai/gpt-oss-120b"
+    )
 
     # set paths
     tasks_path = PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME / "tasks.json"

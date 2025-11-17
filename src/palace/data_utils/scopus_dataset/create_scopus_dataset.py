@@ -5,7 +5,7 @@ from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.utils.paths import CODE_ROOT, PROJECT_ROOT
 from palace.utils.printing import loading
-from palace.utils.secrets import ALOHA_TOKEN
+from palace.utils.secrets import ALOHA_STAGING_TOKEN
 
 SCOPUS_MCP_URL = "http://localhost:8000/sse"
 
@@ -22,7 +22,7 @@ papers = {
 }
 
 # retrieve field-related papers and populate the dict
-with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_TOKEN) as mcp_client:
+with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_STAGING_TOKEN) as mcp_client:
     with loading() as ld:
         for subject, fields in research_topics.items():
             ld.status(f"Retrieving {subject}-related papers...")
@@ -42,7 +42,7 @@ model = OpenAICompatibleModel("gpt-4o")
 
 # for each paper, generate the question-answer pair and put it in the dict
 count = 0
-with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_TOKEN) as mcp_client:
+with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_STAGING_TOKEN) as mcp_client:
     with loading() as ld:
         for subject, subject_papers in papers.items():
             for field, field_papers in subject_papers.items():

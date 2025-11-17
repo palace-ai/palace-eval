@@ -22,8 +22,9 @@ from palace.paradigms import (
     ReActParadigm,
     ReflectionParadigm,
 )
+from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.printing import print
-from palace.utils.secrets import ALOHA_TOKEN
+from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
 
 _DEFAULT_REMOTE_AGENTS_URL = (
     "http://localhost:8090/mcp/sse"
@@ -68,6 +69,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     ]
     _MODELS = [
         "meta-llama/Llama-3.3-70B-Instruct",
+        "minimax-m2",
         "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
         "Qwen/Qwen3-32B",
         "gpt-4o",
@@ -148,7 +150,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             LocalAgent(
                 model=HuggingfaceModel(model)
                 if local_llm
-                else OpenAICompatibleModel(model),
+                else OpenAICompatibleModel(
+                    GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN, model
+                ),
                 paradigm=paradigm,
                 environment=environment,
             )
@@ -164,7 +168,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         ).ask()
 
         # retrieve remote agents from url
-        with MCPClientPool.get_connection(remote_agents_url, ALOHA_TOKEN) as mcp_client:
+        with MCPClientPool.get_connection(
+            remote_agents_url, ALOHA_STAGING_TOKEN
+        ) as mcp_client:
             available_remote_agents = [
                 tool.name for tool in mcp_client.list_tools().tools
             ]
@@ -178,7 +184,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         remote_agents = [
             RemoteAgent(
                 url=remote_agents_url,
-                token=ALOHA_TOKEN,
+                token=ALOHA_STAGING_TOKEN,
                 name=agent,
             )
             for agent in remote_agents

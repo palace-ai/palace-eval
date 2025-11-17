@@ -11,19 +11,14 @@ from tenacity import (
 from palace.models.base_model import Model
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
-from palace.utils.secrets import GPTJRC_TOKEN
-
-OpenAICompatibleAPIURL = Literal["localhost", "gptjrc"]
-_OpenAICompatibleAPIURLs = {
-    "localhost": "http://localhost:8000/v1",
-    "gptjrc": "https://api-gpt.jrc.ec.europa.eu/v1",
-}
 
 _huggingface_to_gptjrc_model_names_map = {
     "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-instruct",
+    "MiniMaxAI/MiniMax-M2": "minimax-m2",
     "mistralai/Mistral-Small-3.1-24B-Instruct-2503": "mistral-small-3.1-24b",
     "Qwen/Qwen3-32B": "qwen3-32b",
     "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-coder-2.5-instruct",
+    "openai/gpt-4o": "gpt-4o",
     "openai/gpt-oss-120b": "gpt-oss-120b",
 }
 
@@ -31,27 +26,31 @@ _huggingface_to_gptjrc_model_names_map = {
 class OpenAICompatibleModel(Model):
     def __init__(
         self,
-        model_id: str = "Qwen/Qwen3-32B",
-        api_url: OpenAICompatibleAPIURL = "gptjrc",
+        url: str,
+        token: str | None = None,
+        model_id: Literal[
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "MiniMaxAI/MiniMax-M2",
+            "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+            "Qwen/Qwen3-32B",
+            "Qwen/Qwen2.5-Coder-32B-Instruct",
+            "openai/gpt-4o",
+            "openai/gpt-oss-120b",
+        ] = "Qwen/Qwen3-32B",
     ):
         """
         A class to interact with OpenAI-compatible models.
 
         Arguments:
             model_id (str): The model ID to use as found on Huggingface. Defaults to "Qwen/Qwen3-8B".
-            local (bool): Whether to use a local model (True) or GPT@JRC (False). Defaults to False.
+            url (str): The URL of the OpenAI compatible API server.
         """
-        if api_url not in _OpenAICompatibleAPIURLs:
+        if model_id not in _huggingface_to_gptjrc_model_names_map:
             raise ValueError(
-                f"Invalid api_url '{api_url}'. Must be one of {list(_OpenAICompatibleAPIURLs.keys())}."
+                "BUG: keys in _huggingface_to_gptjrc_model_names_map and allowed Literals for model_id don't match."
             )
-
-        if model_id in _huggingface_to_gptjrc_model_names_map:
-            model_id = _huggingface_to_gptjrc_model_names_map[model_id]
-        self.model_id = model_id
-
-        base_url = _OpenAICompatibleAPIURLs[api_url]
-        self.client = OpenAI(api_key=GPTJRC_TOKEN, base_url=base_url)
+        self.model_id = _huggingface_to_gptjrc_model_names_map[model_id]
+        self.client = OpenAI(api_key=token, base_url=url)
 
     @property
     def name(self):

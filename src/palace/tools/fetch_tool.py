@@ -8,7 +8,8 @@ from palace.tools import Tool
 
 
 class FetchTool(Tool):
-    def _fetch_page_content(url: str, limit_length: int = None):
+    @staticmethod
+    def _fetch_page_content(url: str, limit_length: int | None = None):
         try:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -35,6 +36,7 @@ class FetchTool(Tool):
         except Exception as e:
             return {"url": url, "error": str(e)}
 
+    @staticmethod
     def _is_pdf_url(url):
         """
         Check if a URL points to a PDF file by:
@@ -74,19 +76,23 @@ class FetchTool(Tool):
         except (requests.RequestException, ValueError):
             return False
 
-    def _fetch_pdf_content(url: str, limit_length: int = None):
+    @staticmethod
+    def _fetch_pdf_content(url: str, limit_length: int | None = None):
         try:
             response = requests.get(url)
             response.raise_for_status()
 
             with pymupdf.open(stream=response.content, filetype="pdf") as pdf:
                 # retrieve pdf title from metadata
-                title = pdf.metadata.get("title", "No title").strip()
+                if pdf.metadata is not None:
+                    title = pdf.metadata.get("title", "No title").strip()
+                else:
+                    title = "No title"
 
                 # retrieve full pdf text
                 content = ""
                 for page in pdf:
-                    content += page.get_text()
+                    content += page.get_text()  # type: ignore
 
                 # trim content length to `limit_length` if set
                 if limit_length is not None and limit_length < len(content):

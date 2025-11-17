@@ -1,10 +1,12 @@
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.tools import Tool
+from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.secrets import GPTJRC_PROD_TOKEN
 
 
 class AIAssistantTool(Tool):
     def __init__(self):
-        self.model = OpenAICompatibleModel()
+        self.model = OpenAICompatibleModel(GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
 
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""

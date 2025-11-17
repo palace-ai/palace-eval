@@ -49,7 +49,7 @@ class LocalAgent(Agent):
     def environment(self) -> Environment:
         return self._environment
 
-    def run(self, task: str) -> str:
+    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
         self.tools = self.environment.tools
         self.conversation = []
 
@@ -117,15 +117,12 @@ class LocalAgent(Agent):
         if final_answer is None:
             raise ConvergenceError()
 
-        # TODO add telemetry back, in a better way, to keep track of insider agent behaviour
-        # self.run_stats.append(
-        #     {
-        #         "n_steps": steps,
-        #         "n_toolcalls": self.n_toolcalls,
-        #         "n_tool_hallucinations": self.n_tool_hallucinations,
-        #     }
-        # )
-        return final_answer
+        metrics: dict[str, Any] = {
+            "n_steps": steps,
+            "n_toolcalls": self.n_toolcalls,
+            "n_tool_hallucinations": self.n_tool_hallucinations,
+        }
+        return final_answer, metrics
 
     def step(self) -> tuple[str, list[dict[str, Any]]]:
         generated_text = self.model.generate(messages=self.conversation)

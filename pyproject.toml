@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "palace"
 version = "0.1"
-description = "Create agents or use existing ones as-a-tool. Evaluate them on different tasks and different environments. Use the provided base set of tools, define new ones, or use remote ones through MCP."
+description = "A Platform for Automated LLMs Agentic Capabilities Evaluation."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 authors = [
     { name = "Massimiliano ALTIERI", email = "massimiliano.altieri@ec.europa.eu" },
 ]
@@ -19,28 +19,29 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "anyio==4.8.0",
-    "beautifulsoup4==4.13.4",
-    "datasets==3.5.0",
-    "emoji==2.14.1",
+    "anyio==4.11.0",
+    "beautifulsoup4==4.14.2",
+    "datasets==4.4.1",
+    "emoji==2.15.0",
     "filetype==1.2.0",
-    "huggingface_hub>=0.30.2",
-    "ipython==8.12.3",
-    "mcp==1.6.0",
+    "huggingface_hub==0.36.0",
+    "ipython==9.7.0",
+    "mcp==1.21.0",
     "nest_asyncio==1.6.0",
-    "openai==1.76.0",
-    "pandas==2.2.3",
-    "pydantic==2.11.3",
-    "pymupdf==1.25.5",
-    "python-dotenv==1.1.0",
-    "questionary==2.1.0",
-    "Requests==2.32.3",
-    "starlette==0.46.2",
+    "openai==2.7.2",
+    "pandas==2.3.3",
+    "psutil==7.1.3",
+    "pydantic==2.12.4",
+    "pymupdf==1.26.6",
+    "python-dotenv==1.2.1",
+    "questionary==2.1.1",
+    "Requests==2.32.5",
+    "starlette==0.49.3",
     "tenacity==9.1.2",
-    "transformers>=4.49.0",
-    "uvicorn==0.34.2",
-    "vllm==0.7.3",
-    "wcwidth==0.2.13"
+    "transformers==4.57.1",
+    "uvicorn==0.38.0",
+    "vllm==0.11.0",
+    "wcwidth==0.2.14",
 ]
 
 [project.urls]
