@@ -56,8 +56,9 @@ def main():
     # load system prompts
     system_prompts: dict[str, str] = {}
     for path in (Path(__file__).parent / "system_prompts").iterdir():
-        with open(path) as f:
-            system_prompts[path.stem] = f.read()
+        if path.suffix == ".pdf":
+            with open(path) as f:
+                system_prompts[path.stem] = f.read()
 
     # initialize model
     model = OpenAICompatibleModel(
