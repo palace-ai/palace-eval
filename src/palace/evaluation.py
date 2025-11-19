@@ -282,22 +282,31 @@ Either Correct or Incorrect. No other text can be here.
                     encoding="utf-8",
                 ) as f:
                     attachment = f.read()
-                max_attachment_len = 100000
+                max_attachment_len = 1000000
                 if len(attachment) > max_attachment_len:
                     # TODO this is a temporary workaround, it must be fixed. either increase the truncation to the LLM limit or find another way
                     print(
-                        f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment)}, truncating it to {max_attachment_len})"
+                        f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment)}), truncating it to {max_attachment_len} characters."
                     )
                     attachment = attachment[:max_attachment_len]
-                prompt += f"\n\nStart of text attachment >>>\n{attachment}<<< End of text attachment"
 
-            start_time = time.time()
-            print()
-            print(prompt, box=True, box_title=f":memo: Task {i + 1}")
+                attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment"
+                attachment_str_debug = f"""Start of text attachment >>>\n{
+                    f"{attachment[:1000]}... (truncated)"
+                    if len(attachment) > 1000
+                    else attachment
+                }\n<<< End of text attachment"""
+
+            print(
+                f"{attachment_str_debug}\n\n{prompt}",
+                box=True,
+                box_title=f":memo: Task {i + 1}",
+            )
             print(f"[bold]Expected response:[/] {task['expected']}")
 
+            start_time = time.time()
             with loading():
-                result, run_stats = agent.run(task=prompt)
+                result, run_stats = agent.run(task=f"{attachment_str}\n\n{prompt}")
 
             # check if run completed successfully
             if result is None:

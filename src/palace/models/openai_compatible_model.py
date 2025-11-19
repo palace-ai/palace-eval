@@ -63,9 +63,7 @@ class OpenAICompatibleModel(Model):
         wait=wait_exponential(
             multiplier=10, max=60
         ),  # Exponential backoff (10s -> 20s -> 40s -> 60s)
-        retry=retry_if_exception_type(
-            (RateLimitError, TimeoutException, OpenAIError)
-        ),  # Retry only on RateLimitError
+        # retry=retry_if_exception_type((RateLimitError, TimeoutException, OpenAIError)),
         before_sleep=lambda retry_state: print(
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore
         ),

@@ -23,6 +23,7 @@ from palace.paradigms import (
     ReflectionParadigm,
 )
 from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import print
 from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
 
@@ -86,16 +87,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         MCPEnvironment(mcp_server="local"),
         MCPEnvironment(mcp_server="aloha"),
     ]
-    _TASKLISTS = [
-        "AssistantBench",
-        "CURIE-protein",
-        "DocRetrieval-ai",
-        "Fever",
-        "GAIA",
-        "HLE",
-        "HotpotQA",
-        "Scopus",
-        "SimpleQA",
+
+    available_tasklists = [
+        t.name for t in (PROJECT_ROOT / "tasklists" / "metadata").iterdir()
     ]
 
     local_or_remote = questionary.checkbox(
@@ -227,7 +221,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     # set tasklists
     tasklists = questionary.checkbox(
         "Select Tasklists to use as benchmarks:",
-        choices=_TASKLISTS,
+        choices=available_tasklists,
     ).ask()
     if len(tasklists) == 0:
         raise ValueError("No tasklists selected")

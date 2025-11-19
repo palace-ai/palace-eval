@@ -12,6 +12,7 @@ from datasets import load_dataset
 from huggingface_hub import hf_hub_download, login
 
 from palace.utils.paths import PROJECT_ROOT
+from palace.utils.printing import print
 from palace.utils.secrets import HUGGINGFACE_TOKEN
 
 login(token=HUGGINGFACE_TOKEN)
@@ -40,11 +41,11 @@ def download_tasklist(
         )
 
     dataset = load_dataset(
-        id,
-        config,
+        path=id,
+        name=config,
         split=split,
         download_mode="force_redownload",
-        trust_remote_code=True,
+        # trust_remote_code=True,
     )
     df_dataset = dataset.to_pandas()  # type: ignore
     tasks = []
@@ -92,6 +93,7 @@ def download_tasklist(
             {
                 "name": name,
                 "id": id,
+                "type": "automated",
                 "config": config,
                 "split": split,
                 "category": category,
@@ -143,8 +145,6 @@ def download_tasklist(
                 if attachment_type == "base64":
                     attachment = _extract_base64_payload(attachment)
                     attachment = base64.b64decode(attachment)
-                    #     if _string_type(attachment) == "base64"
-                    #     else attachment
 
                 output_file = _get_filename(attachment)  # type: ignore
                 with open(
@@ -243,16 +243,10 @@ def _get_filename(s: str) -> str:
 
 
 def _backup_get_filename(s: str) -> str:
-    # is_base64 = _is_base64(s)
-
-    # if is_base64 and s.startswith("data:"):
-    #     s = s.split(",")[1]
-
     string_type = _string_type(s)
     if string_type == "base64":
         s = _extract_base64_payload(s)
 
-    # data = base64.b64decode(s) if string_type == "base64" else s.decode("utf-8")
     data = s.decode("utf-8")  # type: ignore
     full_hash = hashlib.sha256(data).hexdigest()
     filename = full_hash[:24]  # Use the first 24 characters of the hash as the filename
@@ -273,5 +267,7 @@ if __name__ == "__main__":
         tasklists_info = json.load(f)
 
     for tasklist_info in tasklists_info:
-        print(f"Downloading tasklist with spec:\n{json.dumps(tasklist_info, indent=4)}")
+        print(
+            f"Downloading [bold]{tasklist_info['name']}[/]\n[dim]{json.dumps(tasklist_info, indent=4)}[/]"
+        )
         download_tasklist(**tasklist_info)

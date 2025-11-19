@@ -1,5 +1,70 @@
 [
   {
+    "name": "BABILong-32k-qa1",
+    "id": "RMT-team/babilong",
+    "config": "32k",
+    "split": "qa1",
+    "column_names": {
+      "objective": "question",
+      "expected": "target",
+      "attachment": "input"
+    },
+    "inline_attachment": true,
+    "category": "Long context QA"
+  },
+  {
+    "name": "BABILong-32k-qa2",
+    "id": "RMT-team/babilong",
+    "config": "32k",
+    "split": "qa2",
+    "column_names": {
+      "objective": "question",
+      "expected": "target",
+      "attachment": "input"
+    },
+    "inline_attachment": true,
+    "category": "Long context QA"
+  },
+  {
+    "name": "BABILong-32k-qa3",
+    "id": "RMT-team/babilong",
+    "config": "32k",
+    "split": "qa3",
+    "column_names": {
+      "objective": "question",
+      "expected": "target",
+      "attachment": "input"
+    },
+    "inline_attachment": true,
+    "category": "Long context QA"
+  },
+  {
+    "name": "BABILong-32k-qa4",
+    "id": "RMT-team/babilong",
+    "config": "32k",
+    "split": "qa4",
+    "column_names": {
+      "objective": "question",
+      "expected": "target",
+      "attachment": "input"
+    },
+    "inline_attachment": true,
+    "category": "Long context QA"
+  },
+  {
+    "name": "BABILong-32k-qa5",
+    "id": "RMT-team/babilong",
+    "config": "32k",
+    "split": "qa5",
+    "column_names": {
+      "objective": "question",
+      "expected": "target",
+      "attachment": "input"
+    },
+    "inline_attachment": true,
+    "category": "Long context QA"
+  },
+  {
     "name": "CURIE-protein",
     "id": "nhop/curie",
     "config": "pdb",
