@@ -290,15 +290,18 @@ Either Correct or Incorrect. No other text can be here.
                     )
                     attachment = attachment[:max_attachment_len]
 
-                attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment"
-                attachment_str_debug = f"""Start of text attachment >>>\n{
-                    f"{attachment[:1000]}... (truncated)"
-                    if len(attachment) > 1000
-                    else attachment
-                }\n<<< End of text attachment"""
+                    attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment\n\n"
+                    attachment_str_debug = f"""Start of text attachment >>>\n{
+                        f"{attachment[:1000]}... (truncated)"
+                        if len(attachment) > 1000
+                        else attachment
+                    }\n<<< End of text attachment\n\n"""
+            else:
+                attachment_str = ""
+                attachment_str_debug = ""
 
             print(
-                f"{attachment_str_debug}\n\n{prompt}",
+                f"{attachment_str_debug}{prompt}",
                 box=True,
                 box_title=f":memo: Task {i + 1}",
             )
@@ -306,7 +309,7 @@ Either Correct or Incorrect. No other text can be here.
 
             start_time = time.time()
             with loading():
-                result, run_stats = agent.run(task=f"{attachment_str}\n\n{prompt}")
+                result, run_stats = agent.run(task=f"{attachment_str}{prompt}")
 
             # check if run completed successfully
             if result is None:

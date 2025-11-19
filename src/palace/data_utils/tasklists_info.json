@@ -1,9 +1,9 @@
 [
   {
-    "name": "BABILong-32k-qa1",
+    "name": "BABILong-32k",
     "id": "RMT-team/babilong",
     "config": "32k",
-    "split": "qa1",
+    "split": ["qa1", "qa2", "qa3", "qa4", "qa5"],
     "column_names": {
       "objective": "question",
       "expected": "target",
@@ -13,49 +13,10 @@
     "category": "Long context QA"
   },
   {
-    "name": "BABILong-32k-qa2",
+    "name": "BABILong-128k",
     "id": "RMT-team/babilong",
-    "config": "32k",
-    "split": "qa2",
-    "column_names": {
-      "objective": "question",
-      "expected": "target",
-      "attachment": "input"
-    },
-    "inline_attachment": true,
-    "category": "Long context QA"
-  },
-  {
-    "name": "BABILong-32k-qa3",
-    "id": "RMT-team/babilong",
-    "config": "32k",
-    "split": "qa3",
-    "column_names": {
-      "objective": "question",
-      "expected": "target",
-      "attachment": "input"
-    },
-    "inline_attachment": true,
-    "category": "Long context QA"
-  },
-  {
-    "name": "BABILong-32k-qa4",
-    "id": "RMT-team/babilong",
-    "config": "32k",
-    "split": "qa4",
-    "column_names": {
-      "objective": "question",
-      "expected": "target",
-      "attachment": "input"
-    },
-    "inline_attachment": true,
-    "category": "Long context QA"
-  },
-  {
-    "name": "BABILong-32k-qa5",
-    "id": "RMT-team/babilong",
-    "config": "32k",
-    "split": "qa5",
+    "config": "128k",
+    "split": ["qa1", "qa2", "qa3", "qa4", "qa5"],
     "column_names": {
       "objective": "question",
       "expected": "target",

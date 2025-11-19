@@ -21,7 +21,7 @@ login(token=HUGGINGFACE_TOKEN)
 def download_tasklist(
     name: str,
     id: str,
-    split: str,
+    split: list[str] | str,
     column_names: dict[str, str],
     config: Optional[str] = None,
     attachment_path: Optional[str] = None,
@@ -30,6 +30,22 @@ def download_tasklist(
     label_mapping: Optional[dict[str, str]] = None,
     custom_verificator: Optional[str] = None,
 ) -> None:
+    if isinstance(split, list):
+        for s in split:
+            download_tasklist(
+                name=f"{name}-{s}",
+                id=id,
+                split=s,
+                column_names=column_names,
+                config=config,
+                attachment_path=attachment_path,
+                inline_attachment=inline_attachment,
+                category=category,
+                label_mapping=label_mapping,
+                custom_verificator=custom_verificator,
+            )
+        return
+
     if custom_verificator is not None and not bool(
         re.match(
             r"^\s*def\s+verify\s*\(\s*pred\s*,\s*truth\s*\)\s*:\s*",
@@ -40,13 +56,7 @@ def download_tasklist(
             f"If custom_verificator is specified, it must follow the signature 'def verify(pred, truth) -> bool', found {custom_verificator}."
         )
 
-    dataset = load_dataset(
-        path=id,
-        name=config,
-        split=split,
-        download_mode="force_redownload",
-        # trust_remote_code=True,
-    )
+    dataset = load_dataset(path=id, name=config, split=split)
     df_dataset = dataset.to_pandas()  # type: ignore
     tasks = []
     for i, row in df_dataset.iterrows():  # type: ignore
@@ -141,7 +151,7 @@ def download_tasklist(
             # attachment is present within the dataframe, either as plain text or as a raw byte string to decode
             else:
                 attachment_type = _string_type(attachment)
-                print(f"\nAttachment ({attachment_type}):\n{attachment[:100]}")
+                # print(f"\nAttachment ({attachment_type}):\n{attachment[:100]}")
                 if attachment_type == "base64":
                     attachment = _extract_base64_payload(attachment)
                     attachment = base64.b64decode(attachment)
@@ -174,7 +184,7 @@ def _string_type(s):
         ):  # Looks like Base64
             s = _extract_base64_payload(s)
             decoded = base64.b64decode(s + "==", validate=False)  # era validate=True
-            print("Lookss like base64")
+            print("Looks like base64")
             reencoded = base64.b64encode(decoded).decode("utf-8")
             print(f"{s[:50]} <---> {reencoded[:50]}")
             if reencoded == s:

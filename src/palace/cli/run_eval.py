@@ -88,9 +88,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         MCPEnvironment(mcp_server="aloha"),
     ]
 
-    available_tasklists = [
-        t.name for t in (PROJECT_ROOT / "tasklists" / "metadata").iterdir()
-    ]
+    available_tasklists = sorted(
+        [t.name for t in (PROJECT_ROOT / "tasklists" / "metadata").iterdir()]
+    )
 
     local_or_remote = questionary.checkbox(
         "What agent types would you like to test?",
