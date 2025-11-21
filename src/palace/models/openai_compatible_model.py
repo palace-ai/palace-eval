@@ -1,5 +1,3 @@
-from typing import Literal
-
 from openai import OpenAI, OpenAIError, RateLimitError
 from tenacity import (
     retry,
@@ -35,9 +33,10 @@ class OpenAICompatibleModel(Model):
 
     def __init__(
         self,
+        /,
+        model_id: str,
         url: str,
         token: str | None = None,
-        model_id: str = None,
     ):
         """
         A class to interact with OpenAI-compatible models.
@@ -58,17 +57,46 @@ class OpenAICompatibleModel(Model):
         """The name of the model."""
         return self.model_id
 
+    def generate(
+        self,
+        messages: list[dict[str, str]],
+        **kwargs,
+    ) -> str:
+        """Generate text based on the input messages.
+
+        Arguments:
+            messages (list[dict]): A list of messages in the format required by OpenAI chat completions.
+
+        Returns:
+            str: The generated text.
+        """
+        try:
+            return self.generate_with_retry(messages, **kwargs)
+        except TimeoutException as e:
+            print(
+                f"[bold yellow on_red]\nTimeoutException raised during model generation! This likely comes from a threading issue and not from the API.\n[/][yellow]{messages}\n"
+            )
+            return f"Timeout occurred: {e}"
+        except OpenAIError as e:
+            print(
+                f"[bold yellow]The model could not generate text for this request. An unexpected exception occurred or the request timed out:\n{e}[/]"
+            )
+            return "The model could not generate text because it timed out. Please try again."
+        except Exception as e:
+            print(f"[bold yellow]Critical unknown error while generating text:\n{e}[/]")
+            return "The model could not generate text due to an unknown error. Please try again."
+
     @retry(
         stop=stop_after_attempt(5),  # Max 5 attempts
         wait=wait_exponential(
             multiplier=10, max=60
         ),  # Exponential backoff (10s -> 20s -> 40s -> 60s)
-        # retry=retry_if_exception_type((RateLimitError, TimeoutException, OpenAIError)),
+        retry=retry_if_exception_type((RateLimitError, TimeoutException, OpenAIError)),
         before_sleep=lambda retry_state: print(
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore
         ),
     )
-    def generate(
+    def generate_with_retry(
         self,
         messages: list[dict[str, str]],
         **_,
@@ -80,16 +108,5 @@ class OpenAICompatibleModel(Model):
                 stream=False,
             )  # type: ignore
             return chat_completion.choices[0].message.content
-        except TimeoutException as e:
-            print(
-                f"[bold yellow on_red]\nTIMEOUT EXCEPTION IS CAUGHT!\n[/][yellow]{messages}\n"
-            )
-            return f"Timeout occurred: {e}"
-        except OpenAIError as e:
-            print(
-                f"[bold yellow]The model could not generate text for this request. An unexpected exception occurred or the request timed out:\n{e}[/]"
-            )
-            return "The model could not generate text because it timed out. Please try again."
-        except Exception as e:
-            print(f"[bold yellow]Critical unknown error while generating text:\n{e}[/]")
-            return "The model could not generate text due to an unknown error. Please try again."
+        except (TimeoutException, OpenAIError, Exception):
+            raise

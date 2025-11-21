@@ -150,7 +150,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 model=HuggingfaceModel(model)
                 if local_llm
                 else OpenAICompatibleModel(
-                    GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN, model
+                    model, GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
                 ),
                 paradigm=paradigm,
                 environment=environment,

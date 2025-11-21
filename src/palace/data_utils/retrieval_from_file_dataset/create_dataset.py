@@ -62,7 +62,7 @@ def main():
 
     # initialize model
     model = OpenAICompatibleModel(
-        GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN, "openai/gpt-oss-120b"
+        "openai/gpt-oss-120b", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
     )
 
     # set paths

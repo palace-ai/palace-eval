@@ -1,11 +1,8 @@
 from typing import Any
 
-from mcp.types import CallToolResult, TextContent
-
 from palace.agents import Agent
 from palace.environments.base_environment import Environment
 from palace.environments.unknown_environment import UnknownEnvironment
-from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 
 
@@ -15,10 +12,16 @@ class OpenAIAPIAgent(Agent):
     Metrics are not supported for this agent type yet.
     """
 
-    def __init__(self, url: str, token: str | None = None, name: str | None = None):
+    def __init__(
+        self,
+        /,
+        name: str,
+        url: str,
+        token: str | None = None,
+    ):
+        self._name = name
         self.url = url
         self.token = token
-        self._name = name
         self._environment = UnknownEnvironment()
 
     @property
@@ -38,7 +41,9 @@ class OpenAIAPIAgent(Agent):
         return self._environment
 
     def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
-        agent = OpenAICompatibleModel(self.url, self.token, self.name)
+        agent = OpenAICompatibleModel(
+            model_id=self.name, url=self.url, token=self.token
+        )
         try:
             output = agent.generate([{"role": "user", "content": task}])
         except Exception as e:

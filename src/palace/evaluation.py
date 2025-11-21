@@ -43,9 +43,9 @@ class Evaluation:
             self.judge = HuggingfaceModel(judge_model_id, gpu_memory_utilization=0.3)
         elif judge_inference == "remote":
             self.judge = OpenAICompatibleModel(
+                "meta-llama/Llama-3.3-70B-Instruct",
                 GPTJRC_PROD_API_URL,
                 GPTJRC_PROD_TOKEN,
-                "meta-llama/Llama-3.3-70B-Instruct",
             )
         else:
             raise ValueError(
@@ -290,12 +290,12 @@ Either Correct or Incorrect. No other text can be here.
                     )
                     attachment = attachment[:max_attachment_len]
 
-                    attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment\n\n"
-                    attachment_str_debug = f"""Start of text attachment >>>\n{
-                        f"{attachment[:1000]}... (truncated)"
-                        if len(attachment) > 1000
-                        else attachment
-                    }\n<<< End of text attachment\n\n"""
+                attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment\n\n"
+                attachment_str_debug = f"""Start of text attachment >>>\n{
+                    f"{attachment[:1000]}... (truncated)"
+                    if len(attachment) > 1000
+                    else attachment
+                }\n<<< End of text attachment\n\n"""
             else:
                 attachment_str = ""
                 attachment_str_debug = ""

@@ -3,9 +3,10 @@ import os
 
 from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.paths import CODE_ROOT, PROJECT_ROOT
 from palace.utils.printing import loading
-from palace.utils.secrets import ALOHA_STAGING_TOKEN
+from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
 
 SCOPUS_MCP_URL = "http://localhost:8000/sse"
 
@@ -38,7 +39,7 @@ with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_STAGING_TOKEN) as mcp_cl
                     papers[subject][field].append(paper)
 
 # initialize model for question-answer pair generation
-model = OpenAICompatibleModel("gpt-4o")
+model = OpenAICompatibleModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
 
 # for each paper, generate the question-answer pair and put it in the dict
 count = 0
