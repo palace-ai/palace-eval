@@ -141,15 +141,31 @@ const EvaluationDashboard = () => {
     }, [filteredData]);
 
     const accuracyTimeScatter = useMemo(() => {
-        return filteredData.map((item, idx) => ({
+        return   Object.values(
+                filteredData.map((item, idx) => ({
             x: item.accuracy,
             y: item.total_time,
             name: `${item.agent || `${item.model} x ${item.paradigm}`} (${item.tasklist})`,
             agent: item.agent || `${item.model} x ${item.paradigm}`,
-            tasklist: item.tasklist,
-            accuracy: item.accuracy,
-            time: item.total_time
-        }));
+            tasklist: item.tasklist
+                        })).reduce((acc, item) => {
+                if (!acc[item.agent]) {
+                acc[item.agent] = { agent: item.agent, sumX: 0, sumY: 0, count: 0, name: item.name, tasklist: item.tasklist};
+                }
+                acc[item.agent].sumX += item.x;
+                acc[item.agent].sumY += item.y;
+                acc[item.agent].count += 1;
+                return acc;
+                }, {})
+                ).map(({ agent, sumX, sumY, count, name, tasklist}) => ({
+                x: sumX / count,
+                y: sumY / count,
+                name: name,
+                agent: agent,
+                tasklist: tasklist, 
+                accuracy: sumX / count, 
+                time: sumY / count
+                }));
     }, [filteredData]);
 
     const modelTaskRadarData = useMemo(() => {
