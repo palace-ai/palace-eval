@@ -1,18 +1,15 @@
 import itertools
 import json
 import os
-import re
 import time
 from typing import Any, Optional
 
 import pandas as pd
 
 from palace.agents import Agent
-from palace.models import HuggingfaceModel, OpenAICompatibleModel
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.task import Task
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import loading, print
-from palace.utils.secrets import GPTJRC_PROD_TOKEN
 
 agent_run_stats: list[dict[str, Any]] = [
     {"name": "n_steps", "pass@k": True, "pass@k_symbol": "s"},
@@ -27,7 +24,6 @@ class Evaluation:
     def __init__(
         self,
         name: str = "eval",
-        judge_inference: str = "remote",  # "local" for HuggingfaceModel or "remote" for OpenAICompatibleModel
         task_amount_limit: Optional[int] = None,
         runs_per_configuration: int = 1,
         text_tasks_only: bool = True,
@@ -36,41 +32,6 @@ class Evaluation:
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.text_tasks_only = text_tasks_only
-
-        # initialize judge model
-        if judge_inference == "local":
-            judge_model_id = "/mnt/storage2/hf_models/Qwen2.5-3B-Instruct"
-            self.judge = HuggingfaceModel(judge_model_id, gpu_memory_utilization=0.3)
-        elif judge_inference == "remote":
-            self.judge = OpenAICompatibleModel(
-                "meta-llama/Llama-3.3-70B-Instruct",
-                GPTJRC_PROD_API_URL,
-                GPTJRC_PROD_TOKEN,
-            )
-        else:
-            raise ValueError(
-                f"judge_inference must be either 'local' or 'remote', found: {judge_inference}"
-            )
-        self.judge_prompt = """You will be given a question, the correct answer, and another answer provided by the user, with this exact template:
-
-QUESTION
-The question
-
-CORRECT ANSWER
-The correct answer
-
-PROVIDED ANSWER
-The provided answer
-
-Your job is to assess whether the provided answer is a correct answer to the question, using the "correct" answer as a reference. You have to understand from the question if it requires a strict answer or if it allows for a somewhat more open / generic answer. For example, if the question asks for a specific word to be found in a specific place, it probably requires an exact match, while if the question asks for a recipe, or a general sentence, or abstract information, maybe the two answers don't need to match exactly, as long as the semantic content is correct. Just use your best judgement and try your best, as if you were the evaluator and had to grade these assignments as correct or incorrect.
-Your output must follow this format:
-
-REASONING
-Your observations and reasoning about why the provided answer might or might not be correct. Please be detailed. From this paragraph it should be obvious why you decided to give a correct or incorrect score.
-
-JUDGEMENT
-Either Correct or Incorrect. No other text can be here.
-"""
 
     def evaluate_all(
         self,
@@ -253,16 +214,20 @@ Either Correct or Incorrect. No other text can be here.
             / tasklist
         )
         with open(tasklist_path / "tasks.json") as f:
-            tasks = json.load(f)
+            json_tasks = json.load(f)
+        tasks: list[Task] = [Task.from_dict(task) for task in json_tasks]
+        for task in tasks:
+            if task.category is None:
+                task.category = tasklist_info["category"]
 
         # filter out tasks that are not text-based
         if self.text_tasks_only:
             tasks = [
                 task
                 for task in tasks
-                if task["attachment"] is None
-                or task["attachment"] == ""
-                or task["attachment"][-4:] == ".txt"
+                if task.attachment is None
+                or task.attachment == ""
+                or task.attachment[-4:] == ".txt"
             ]
 
         # limit the number of tasks to evaluate
@@ -270,15 +235,11 @@ Either Correct or Incorrect. No other text can be here.
             tasks = tasks[: self.task_amount_limit]
 
         for i, task in enumerate(tasks):
-            # preprocess task according to category
-            prompt = (
-                __class__._task_prompt_prefix(tasklist_info["category"])
-                + task["objective"]
-            )
+            prompt = task.create_prompt()
 
-            if task["attachment"] is not None and task["attachment"] != "":
+            if task.attachment is not None and task.attachment != "":
                 with open(
-                    tasklist_path / "task_files" / task["attachment"],
+                    tasklist_path / "task_files" / task.attachment,
                     encoding="utf-8",
                 ) as f:
                     attachment = f.read()
@@ -305,7 +266,7 @@ Either Correct or Incorrect. No other text can be here.
                 box=True,
                 box_title=f":memo: Task {i + 1}",
             )
-            print(f"[bold]Expected response:[/] {task['expected']}")
+            print(f"[bold]Expected response:[/] {task.expected}")
 
             start_time = time.time()
             with loading():
@@ -317,103 +278,49 @@ Either Correct or Incorrect. No other text can be here.
                     "[bold red]:cross_mark: The agent didn't provide a response. This means it may have reached the maximum number of iterations before providing a final answer, or it may have become stuck in a loop, or (in the case of local agents) it may have forgotten to call the Final Answer Tool.[/]"
                 )
                 is_correct = False
-                judge_reasoning = None
-            elif task["custom_verificator"] == "":
-                print(f"[bold]Agent response:[/] {result}")
+                reasoning = None
+            elif task.custom_verificator is not None and task.custom_verificator != "":
 
-                # run judge model to determine semantic correctness
-                conversation = [
-                    {"role": "system", "content": self.judge_prompt},
-                    {
-                        "role": "user",
-                        "content": f"""QUESTION
-{task["objective"]}
+                def load_function(code: str):
+                    # Create an isolated namespace for the exec
+                    local_env = {}
+                    exec(code, {}, local_env)
+                    return local_env["verify"]
 
-CORRECT ANSWER
-{task["expected"]}
-
-PROVIDED ANSWER
-{result}""",
-                    },
-                ]
-                judge_output = self.judge.generate(conversation)
                 try:
-                    judge_reasoning = re.findall(
-                        r"REASONING\n(.*?)\nJUDGEMENT", judge_output, flags=re.S
-                    )[0]
+                    verificator = load_function(task.custom_verificator)
+                    is_correct = verificator(result, task.expected)
+                    reasoning = None
                 except Exception as e:
                     print(
-                        f"Couldn't get judge reasoning from judge output:\n{judge_output}\n\nEncountered the following exception: {e}"
-                    )
-                    judge_reasoning = None
-                try:
-                    judgement = re.findall(
-                        r"JUDGEMENT\n(.*)", judge_output, flags=re.S
-                    )[0]
-                except Exception as e:
-                    print(
-                        f"Couldn't get judge judgement from judge output:\n{judge_output}\n\nEncountered the following exception: {e}"
-                    )
-                    raise e
-                # check if judgement is valid (either "Correct" or "Incorrect")
-                if judgement == "Correct":
-                    is_correct = True
-                elif judgement == "Incorrect":
-                    is_correct = False
-                else:
-                    raise ValueError(
-                        f"The judge model's judgement can only be Correct or Incorrect. It returned: {judgement}"
-                    )
-            else:
-                # use custom verificator to determine correctness
-                try:
-
-                    def load_function(code: str):
-                        # Create an isolated namespace for the exec
-                        local_env = {}
-                        exec(code, {}, local_env)
-                        return local_env["verify"]
-
-                    verificator = load_function(task["custom_verificator"])
-                    is_correct = verificator(result, task["expected"])
-                    judge_reasoning = None
-                except Exception as e:
-                    print(
-                        f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task['custom_verificator']}\nThe exception is:\n{e}.\nSkipping to next task.[/]"
+                        f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task.custom_verificator}\nThe exception is:\n{e}.\nSkipping to next task.[/"
                     )
                     continue
-            if is_correct:
-                print("[bold green]:white_check_mark: Correct")
             else:
-                print(
-                    f"[bold red]:cross_mark: Incorrect[/] (it was [blue]{task['expected']}[/])"
-                )
-            if judge_reasoning is not None:
-                print(f"[italic]Judge Reasoning: {judge_reasoning}[/]")
+                is_correct, reasoning = task.verify(result)
+                if is_correct:
+                    print("[bold green]:white_check_mark: Correct")
+                else:
+                    print(
+                        f"[bold red]:cross_mark: Incorrect[/] (it was [blue]{task.expected}[/])"
+                    )
+                if reasoning is not None:
+                    print(f"[italic]Reasoning: {reasoning}[/]")
+                print(f"[bold]Agent response:[/] {result}")
 
             # prepare report
             elapsed_time = time.time() - start_time
-            report[task["id"]] = {
-                "objective": task["objective"],
-                "expected": task["expected"],
+            report[task.id] = {
+                "objective": task.objective,
+                "expected": task.expected,
                 "actual": result,
-                "is_correct": is_correct if result is not None else False,  # type: ignore
-                "judge_reasoning": judge_reasoning,
+                "is_correct": is_correct if result is not None else False,
+                "reasoning": reasoning,
                 "elapsed_time": elapsed_time,
             }
             # add agent execution metrics to report
             if run_stats is not None:
                 for k, v in run_stats.items():
-                    report[task["id"]][k] = v
+                    report[task.id][k] = v
 
         return report
-
-    @staticmethod
-    def _task_prompt_prefix(category: str) -> str:
-        """Return the task prompt prefix for the given category."""
-        if category == "QA":
-            return ""  # "Provide the exact answer, without any additional text (for example, if the answer is a name, write only the name as it is):\n"
-        elif category == "Claim Verification":
-            return "Is the following claim true, false, or we can't say for certain? (Reply with 'True', 'False', or 'Not Enough Info')\n"
-        else:
-            return ""

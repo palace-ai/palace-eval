@@ -1,6 +1,7 @@
 from typing import Any
 
 from mcp.types import CallToolResult, TextContent
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from palace.agents import Agent
 from palace.environments.base_environment import Environment
@@ -63,9 +64,18 @@ class MCPAgent(Agent):
     def environment(self) -> Environment:
         return self._environment
 
-    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(5),
+        before_sleep=lambda retry_state: print(
+            "Remote agent raised an exception, retrying...",
+        ),
+    )
+    def _run_with_retry(self, task: str) -> tuple[str, dict[str, Any] | None]:
+        """Run the agent with retries on failure."""
         with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
             try:
+                print(f"Calling remote agent {self.name} with task: {task}")
                 output: CallToolResult = mcp_client.call_tool(
                     self.name, {self._input_parameter: task}
                 )
@@ -76,8 +86,7 @@ class MCPAgent(Agent):
         try:
             assert isinstance(output.content[0], TextContent)
             answer = output.content[0].text
-            if not isinstance(answer, str):
-                raise TypeError()
+            assert isinstance(answer, str) and answer.strip() != ""
         except Exception:
             raise ValueError(
                 f"MCPAgent answer not found in output content. Got: {output.content}"
@@ -92,3 +101,6 @@ class MCPAgent(Agent):
             metrics = None
 
         return answer, metrics
+
+    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
+        return self._run_with_retry(task)

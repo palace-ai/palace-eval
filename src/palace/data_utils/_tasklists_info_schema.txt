@@ -3,7 +3,7 @@
         "name": "user-friendly benchmark name for the folder and use across the project",
         "id": "exact dataset id as shown on huggingface",
         "config": "(optional) dataset sub-name as shown on huggingface (e.g., '2023_all' for GAIA)",
-        "split": "(optional) usually validation or test, as shown on huggingface",
+        "split": "(optional) usually validation or test, as shown on huggingface. can be a list",
         "column_names": {
             "id": "(optional) the name of the column to use for the task id",
             "objective": "the name of the column containing the task objective/prompt",
