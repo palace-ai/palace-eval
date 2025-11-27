@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from mcp.types import CallToolResult, TextContent
@@ -93,10 +94,9 @@ class MCPAgent(Agent):
             )
 
         try:
-            assert isinstance(output.structuredContent, dict)
-            metrics = output.structuredContent["result"][1]
-            if not isinstance(metrics, dict):
-                raise TypeError()
+            assert isinstance(output.content[1], TextContent)
+            metrics = json.loads(output.content[1].text)
+            assert isinstance(metrics, dict)
         except Exception:
             metrics = None
 
