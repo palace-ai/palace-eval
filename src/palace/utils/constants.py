@@ -11,4 +11,6 @@ ALOHA_STAGING_URL = (
 REACT_AGENT_ALOHA_URL = (
     "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
 )
-TS_STAGING_URL = "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/arag/mcp/sse"  # sse not supported?
+TS_STAGING_URL = (
+    "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/arag/sse"
+)

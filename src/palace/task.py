@@ -248,13 +248,23 @@ class JudgeTaskVerifier:
                 f"Couldn't get judge reasoning from judge output:\n{judge_output}\n\nEncountered the following exception: {e}"
             )
             judge_reasoning = None
-        try:
-            judgement = re.findall(r"JUDGEMENT\n(.*)", judge_output, flags=re.S)[0]
-        except Exception as e:
-            print(
-                f"Couldn't get judge judgement from judge output:\n{judge_output}\n\nEncountered the following exception: {e}"
-            )
-            raise e
+
+        judgement = None
+        count, max_attempts = 0, 5
+        while judgement is None:
+            count += 1
+            try:
+                judgement = re.findall(r"JUDGE?MENT\n(.*)", judge_output, flags=re.S)[0]
+            except Exception as e:
+                print(
+                    f"[bold yellow]Couldn't get judge judgement from judge output:\n{judge_output}\nRetrying ({count}/{max_attempts})..."
+                )
+                if count == max_attempts:
+                    print(
+                        f"[bold][red]Max attempts ({max_attempts}) exceeded.\n\nEncountered the following exception: {e}"
+                    )
+                    raise e
+
         # check if judgement is valid (either "Correct" or "Incorrect")
         if judgement == "Correct":
             is_correct = True

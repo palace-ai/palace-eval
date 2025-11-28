@@ -22,15 +22,25 @@ from palace.paradigms import (
     ReActParadigm,
     ReflectionParadigm,
 )
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.constants import (
+    ALOHA_STAGING_URL,
+    GPTJRC_PROD_API_URL,
+    TS_STAGING_URL,
+)
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import print
-from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
-
-_DEFAULT_MCP_AGENTS_URL = (
-    "http://localhost:8090/mcp/sse"
-    # "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
+from palace.utils.secrets import (
+    ALOHA_STAGING_TOKEN,
+    GPTJRC_PROD_TOKEN,
+    TS_STAGING_TOKEN,
 )
+
+_DEFAULT_MCP_AGENTS = {
+    "http://localhost:8090/mcp/sse": None,
+    "http://localhost:8000/sse": None,
+    ALOHA_STAGING_URL: ALOHA_STAGING_TOKEN,
+    TS_STAGING_URL: TS_STAGING_TOKEN,
+}
 _DEFAULT_OPENAI_AGENTS_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
 _DEFAULT_OPENAI_AGENTS_TOKEN = GPTJRC_PROD_TOKEN
 
@@ -105,9 +115,6 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         return
 
     agents = []
-    # local_agents = []
-    # mcp_agents = []
-    # openai_agents = []
 
     if "Local" in local_or_remote:
         # set paradigms
@@ -162,14 +169,16 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
 
     if "Remote (via MCP)" in local_or_remote:
         # set url
-        mcp_agents_url = questionary.text(
-            "MCP Agents URL:", default=_DEFAULT_MCP_AGENTS_URL
+        url = questionary.select(
+            "MCP Agents URL:",
+            choices=[url for url in _DEFAULT_MCP_AGENTS] + ["Custom URL"],
         ).ask()
+        if url == "Custom URL":  # custom mcp server can't require a token
+            url = questionary.text("MCP Agents URL:").ask()
+        token = _DEFAULT_MCP_AGENTS[url]
 
         # retrieve remote agents from url
-        with MCPClientPool.get_connection(
-            mcp_agents_url, ALOHA_STAGING_TOKEN
-        ) as mcp_client:
+        with MCPClientPool.get_connection(url, token) as mcp_client:
             available_mcp_agents = [tool.name for tool in mcp_client.list_tools().tools]
         if len(available_mcp_agents) == 0:
             raise ValueError("No agents found in the provided MCP server URL.")
@@ -180,8 +189,8 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         # add MCP agents
         agents += [
             MCPAgent(
-                url=mcp_agents_url,
-                token=ALOHA_STAGING_TOKEN,
+                url=url,
+                token=token,
                 name=agent,
             )
             for agent in mcp_agents
