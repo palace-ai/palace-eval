@@ -168,6 +168,39 @@ const EvaluationDashboard = () => {
                 }));
     }, [filteredData]);
 
+    const accuracyStepsScatter = useMemo(() => {
+        return   Object.values(
+                filteredData.map((item, idx) => ({
+            x: item.accuracy,
+            y: Object.values(item["detailed_report"])
+                        .reduce( (acc, it)=> { acc.total+=it["n_steps"]; acc.count+=1; return acc;} ,
+                        {total:0.0,count:0, average: function(){return this.total/this.count}}
+                        )
+                        .average(),
+            name: `${item.agent || `${item.model} x ${item.paradigm}`} (${item.tasklist})`,
+            agent: item.agent || `${item.model} x ${item.paradigm}`,
+            tasklist: item.tasklist
+                        }))
+            .reduce((acc, item) => {
+                if (!acc[item.agent]) {
+                acc[item.agent] = { agent: item.agent, sumX: 0, sumY: 0, count: 0, name: item.name, tasklist: item.tasklist};
+                }
+                acc[item.agent].sumX += item.x;
+                acc[item.agent].sumY += item.y;
+                acc[item.agent].count += 1;
+                return acc;
+                }, {})
+         ).map(({ agent, sumX, sumY, count, name, tasklist}) => ({
+                x: sumX / count,
+                y: sumY / count,
+                name: name,
+                agent: agent,
+                tasklist: tasklist, 
+                accuracy: sumX / count, 
+                n_steps: sumY / count
+                }));
+    }, [filteredData]);
+
     const modelTaskRadarData = useMemo(() => {
         const models = [...new Set(data.map(item => item.model))];
         const tasklists = [...new Set(data.map(item => item.tasklist))];
@@ -552,6 +585,83 @@ const EvaluationDashboard = () => {
                             </div>
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {[...new Set(accuracyTimeScatter.map(item => item.tasklist))].map(tasklist => (
+                                    <div key={tasklist} className="flex items-center">
+                                    <div 
+                                        className="w-3 h-3 rounded-full mr-1" 
+                                        style={{ backgroundColor: getTasklistColor(tasklist) }}
+                                    />
+                                    <span className="text-xs">{tasklist}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Accuracy vs n_steps Scatter Plot */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <Scale className="w-5 h-5 mr-2 text-indigo-500" />
+                                Accuracy vs Number of Steps Trade-off
+                            </h3>
+                            <div className="w-full h-[500px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                <ScatterChart data={accuracyStepsScatter}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis
+                                    type="number"
+                                    dataKey="x"
+                                    name="Accuracy"
+                                    domain={[0, 1]}
+                                    tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                                    />
+                                    <YAxis
+                                    type="number"
+                                    dataKey="y"
+                                    name="Steps"
+                                    />
+                                    <Tooltip
+                                    cursor={{ strokeDasharray: '3 3' }}
+                                    formatter={(value, name, props) => {
+                                        if (name === 'x' || name === 'accuracy') {
+                                        return [`${(value * 100).toFixed(1)}%`, 'Accuracy'];
+                                        } else if (name === 'y' || name === 'n_steps') {
+                                        return [`${value.toFixed(1)}`, 'Steps'];
+                                        }
+                                        return [value, name];
+                                    }}
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                        const data = payload[0].payload;
+                                        return (
+                                            <div className="bg-white p-3 border border-gray-200 rounded-md shadow-md">
+                                            <p className="font-semibold">{data.agent}</p>
+                                            <p className="text-sm">Task: {data.tasklist}</p>
+                                            <p className="text-sm">Accuracy: <span className="font-medium">{(data.accuracy * 100).toFixed(1)}%</span></p>
+                                            <p className="text-sm">Steps: <span className="font-medium">{data.n_steps.toFixed(1)}</span></p>
+                                            </div>
+                                        );
+                                        }
+                                        return null;
+                                    }}
+                                    />
+                                    <Scatter 
+                                        name="Evaluation Runs"
+                                        data={accuracyStepsScatter}
+                                        fill="#8884d8"
+                                        opacity={0.7}
+                                        radius={8}
+                                    >
+                                        {accuracyStepsScatter.map((entry, index) => (
+                                        <Cell 
+                                            key={`cell-${index}`} 
+                                            fill={getTasklistColor(entry.tasklist)} 
+                                        />
+                                        ))}
+                                    </Scatter>
+                                </ScatterChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {[...new Set(accuracyStepsScatter.map(item => item.tasklist))].map(tasklist => (
                                     <div key={tasklist} className="flex items-center">
                                     <div 
                                         className="w-3 h-3 rounded-full mr-1" 
