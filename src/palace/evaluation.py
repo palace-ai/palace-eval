@@ -141,19 +141,22 @@ class Evaluation:
                     )
                     > 0
                 ):
+                    n_tool_hallucinations = sum(
+                        [
+                            task_report.get("n_tool_hallucinations", 0)
+                            for task_report in report.values()
+                        ]
+                    )
+                    n_toolcalls = sum(
+                        [
+                            task_report.get("n_toolcalls", 0)
+                            for task_report in report.values()
+                        ]
+                    )
                     tool_hallucination_rate = {
-                        "tool_hallucination_rate": sum(
-                            [
-                                task_report.get("n_tool_hallucinations", 0)
-                                for task_report in report.values()
-                            ]
-                        )
-                        / sum(
-                            [
-                                task_report.get("n_toolcalls", 0)
-                                for task_report in report.values()
-                            ]
-                        )
+                        "tool_hallucination_rate": n_tool_hallucinations / n_toolcalls
+                        if n_toolcalls > 0
+                        else 0
                     }
 
                 print()
