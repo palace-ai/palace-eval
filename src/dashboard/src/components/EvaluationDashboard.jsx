@@ -80,10 +80,10 @@ const EvaluationDashboard = () => {
 
     const filteredData = useMemo(() => {
         return data.filter(item => {
-            return (filters.model === 'all' || item.model === filters.model) &&
-                   (filters.paradigm === 'all' || item.paradigm === filters.paradigm) &&
-                   (filters.environment === 'all' || item.environment === filters.environment) &&
-                   (filters.tasklist === 'all' || item.tasklist === filters.tasklist);
+            return (filters.model === 'all' || filters.model.includes('all' ) || filters.model.includes(item.model) ) &&
+                   (filters.paradigm === 'all' || filters.paradigm.includes('all' ) || filters.paradigm.includes(item.paradigm) ) &&
+                   (filters.environment === 'all' || filters.environment.includes('all' )  || filters.environment.includes(item.environment)) &&
+                   (filters.tasklist === 'all' || filters.tasklist.includes('all' )  || filters.tasklist.includes(item.tasklist));
         });
     }, [data, filters]);
 
@@ -384,22 +384,71 @@ const EvaluationDashboard = () => {
                                 <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {['model', 'paradigm', 'environment', 'tasklist'].map(field => (
-                                    <div key={field}>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{field}</label>
-                                        <select
-                                            value={filters[field]}
-                                            onChange={(e) => setFilters(prev => ({ ...prev, [field]: e.target.value }))}
-                                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        >
-                                            <option value="all">All {field}s</option>
-                                            {getUniqueValues(field).map(value => (
-                                                <option key={value} value={value}>{value}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                {['model', 'paradigm', 'environment', 'tasklist'].map((field) => (
+                                <div key={field}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                                        {field}
+                                </label>
+                                <div className="space-y-2 border border-gray-300 rounded-lg p-2">
+                                        {/* "All" option */}
+                                        <div className="flex items-center">
+                                        <input
+                                        type="checkbox"
+                                        id={`${field}-all`}
+                                        checked={(filters[field] || []).includes("all")}
+                                        onChange={(e) => {
+                                        if (e.target.checked) {
+                                                setFilters((prev) => ({
+                                                ...prev,
+                                                [field]: ["all"],
+                                                }));
+                                        } else {
+                                                setFilters((prev) => ({
+                                                ...prev,
+                                                [field]: [],
+                                                }));
+                                        }
+                                        }}
+                                        className="mr-2"
+                                        />
+                                        <label htmlFor={`${field}-all`} className="text-sm">
+                                        All {field}s
+                                        </label>
+                                        </div>
+
+                                        {/* Unique values */}
+                                        {getUniqueValues(field).map((value) => (
+                                        <div key={value} className="flex items-center">
+                                        <input
+                                        type="checkbox"
+                                        id={`${field}-${value}`}
+                                        checked={(filters[field] || []).includes(value)}
+                                        onChange={(e) => {
+                                                const currentValues = filters[field] || [];
+                                                if (e.target.checked) {
+                                                setFilters((prev) => ({
+                                                ...prev,
+                                                [field]: [...currentValues.filter((v) => v !== "all"), value],
+                                                }));
+                                                } else {
+                                                setFilters((prev) => ({
+                                                ...prev,
+                                                [field]: currentValues.filter((v) => v !== value),
+                                                }));
+                                                }
+                                        }}
+                                        className="mr-2"
+                                        />
+                                        <label htmlFor={`${field}-${value}`} className="text-sm">
+                                        {value}
+                                        </label>
+                                        </div>
+                                        ))}
+                                </div>
+                                </div>
                                 ))}
-                            </div>
+                                </div>
+
                         </div>
 
                         {/* Summary Stats */}
