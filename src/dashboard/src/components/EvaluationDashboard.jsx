@@ -173,8 +173,19 @@ const EvaluationDashboard = () => {
                 filteredData.map((item, idx) => ({
             x: item.accuracy,
             y: Object.values(item["detailed_report"])
-                        .reduce( (acc, it)=> { acc.total+=it["n_steps"]; acc.count+=1; return acc;} ,
-                        {total:0.0,count:0, average: function(){return this.total/this.count}}
+                        .reduce( (acc, it)=> { 
+                                 if(Object.hasOwn(it, "n_steps")){
+                                  acc.total+=it["n_steps"]; acc.count+=1; 
+                                 }
+                                 return acc;
+                                } ,
+                                {
+                                total:0.0,
+                                count:0, 
+                                average: function(){ 
+                                        if(this.count==0) {return 0.0}
+                                        else {return this.total/this.count}}
+                                }
                         )
                         .average(),
             name: `${item.agent || `${item.model} x ${item.paradigm}`} (${item.tasklist})`,
@@ -198,7 +209,8 @@ const EvaluationDashboard = () => {
                 tasklist: tasklist, 
                 accuracy: sumX / count, 
                 n_steps: sumY / count
-                }));
+                })
+        );
     }, [filteredData]);
 
     const modelTaskRadarData = useMemo(() => {
