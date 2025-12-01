@@ -1,4 +1,5 @@
 import itertools
+import json
 import sys
 
 import questionary
@@ -35,12 +36,27 @@ from palace.utils.secrets import (
     TS_STAGING_TOKEN,
 )
 
-_DEFAULT_MCP_AGENTS = {
-    "http://localhost:8090/mcp/sse": None,
-    "http://localhost:8000/sse": None,
-    ALOHA_STAGING_URL: ALOHA_STAGING_TOKEN,
-    TS_STAGING_URL: TS_STAGING_TOKEN,
-}
+_DEFAULT_MCP_SERVERS = [
+    {
+        "url": "http://localhost:8090/mcp/sse",
+    },
+    {
+        "url": "http://localhost:8000/sse",
+    },
+    {
+        "name": "ALOHA Staging",
+        "url": ALOHA_STAGING_URL,
+        "token": ALOHA_STAGING_TOKEN,
+    },
+    {
+        "name": "ThematicSpaces Staging",
+        "url": TS_STAGING_URL,
+        "token": TS_STAGING_TOKEN,
+        "output_processor": lambda output: json.loads(output.content[0].text)[
+            "metadata"
+        ]["context"],
+    },
+]
 _DEFAULT_OPENAI_AGENTS_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
 _DEFAULT_OPENAI_AGENTS_TOKEN = GPTJRC_PROD_TOKEN
 
@@ -171,11 +187,21 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         # set url
         url = questionary.select(
             "MCP Agents URL:",
-            choices=[url for url in _DEFAULT_MCP_AGENTS] + ["Custom URL"],
+            choices=[
+                questionary.Choice(
+                    title=f"{server['url']}{f' ({server.get("name")})' if 'name' in server else ''}",
+                    value=server["url"],
+                )
+                for server in _DEFAULT_MCP_SERVERS
+            ]
+            + ["Custom URL"],
         ).ask()
         if url == "Custom URL":  # custom mcp server can't require a token
             url = questionary.text("MCP Agents URL:").ask()
-        token = _DEFAULT_MCP_AGENTS[url]
+        mcp_server = next(
+            server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
+        )
+        token = mcp_server.get("token")
 
         # retrieve remote agents from url
         with MCPClientPool.get_connection(url, token) as mcp_client:
@@ -192,6 +218,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 url=url,
                 token=token,
                 name=agent,
+                output_processor=mcp_server.get("output_processor"),
             )
             for agent in mcp_agents
         ]
