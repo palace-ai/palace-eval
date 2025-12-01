@@ -56,7 +56,7 @@ def main():
     # load system prompts
     system_prompts: dict[str, str] = {}
     for path in (Path(__file__).parent / "system_prompts").iterdir():
-        if path.suffix == ".pdf":
+        if path.suffix == ".txt":
             with open(path) as f:
                 system_prompts[path.stem] = f.read()
 
@@ -77,10 +77,13 @@ def main():
     log_path.unlink(missing_ok=True)
 
     tasks = []
-    for p, path in enumerate(
-        (Path(__file__).parent / "files" / args.fileset).iterdir()
-    ):
-        print(f"[bold]({p + 1}) {path.name}")
+    count = 0
+    for path in (Path(__file__).parent / "files" / args.fileset).iterdir():
+        if path.suffix != ".pdf":
+            continue
+
+        count += 1
+        print(f"[bold]({count}) {path.name}")
 
         # extract pdf
         _, full_text = fetch_pdf_content(path)

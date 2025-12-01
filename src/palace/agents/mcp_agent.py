@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Callable
 
 from mcp.types import CallToolResult, TextContent
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -13,9 +13,16 @@ from palace.mcp_utils.mcp_client import MCPClientPool
 class MCPAgent(Agent):
     """A class to connect to a remote agent deployed via MCP and call it as a black box."""
 
-    def __init__(self, url: str, token: str | None = None, name: str | None = None):
+    def __init__(
+        self,
+        url: str,
+        token: str | None = None,
+        name: str | None = None,
+        output_processor: Callable[[CallToolResult], str] | None = None,
+    ):
         self.url = url
         self.token = token
+        self.output_processor = output_processor
         self._environment = UnknownEnvironment()
 
         with MCPClientPool.get_connection(url, token) as mcp_client:
@@ -84,14 +91,23 @@ class MCPAgent(Agent):
                 print(f"Remote agent returned the following exception: \n{e}")
                 raise e
 
-        try:
-            assert isinstance(output.content[0], TextContent)
-            answer = output.content[0].text
-            assert isinstance(answer, str) and answer.strip() != ""
-        except Exception:
-            raise ValueError(
-                f"MCPAgent answer not found in output content. Got: {output.content}"
-            )
+        if self.output_processor is not None:
+            try:
+                answer = self.output_processor(output)
+            except Exception:
+                print(
+                    f"[bold][red]Error while applying output_processor '{self.output_processor}':"
+                )
+                raise
+        else:
+            try:
+                assert isinstance(output.content[0], TextContent)
+                answer = output.content[0].text
+                assert isinstance(answer, str) and answer.strip() != ""
+            except Exception:
+                raise ValueError(
+                    f"MCPAgent answer not found in output content. Got: {output.content}"
+                )
 
         try:
             assert isinstance(output.content[1], TextContent)
