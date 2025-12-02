@@ -1,5 +1,4 @@
 import itertools
-import json
 import sys
 
 import questionary
@@ -52,9 +51,12 @@ _DEFAULT_MCP_SERVERS = [
         "name": "ThematicSpaces Staging",
         "url": TS_STAGING_URL,
         "token": TS_STAGING_TOKEN,
-        "output_processor": lambda output: json.loads(output.content[0].text)[
-            "metadata"
-        ]["context"],
+        "params": {
+            "main": "query",
+            "custom": {
+                "thematic_space": "cb305107-63f4-479d-962c-27496e35aa99",
+            },
+        },
     },
 ]
 _DEFAULT_OPENAI_AGENTS_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
@@ -218,6 +220,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 url=url,
                 token=token,
                 name=agent,
+                params=mcp_server.get("params"),
                 output_processor=mcp_server.get("output_processor"),
             )
             for agent in mcp_agents

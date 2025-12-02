@@ -18,10 +18,24 @@ class MCPAgent(Agent):
         url: str,
         token: str | None = None,
         name: str | None = None,
+        params: dict[str, Any] | None = None,
         output_processor: Callable[[CallToolResult], str] | None = None,
     ):
+        """Initialize the MCPAgent.
+
+        Args:
+            url (str): The URL of the MCP server where the agent is deployed.
+            token (str | None): The authentication token for the MCP server.
+            name (str | None): The name of the agent/tool to connect to. If None, and there is only one agent/tool available, it will be used.
+            params (dict[str, Any] | None): Custom parameters to pass to the agent/tool. If None, the first input parameter defined in the agent's input schema will be used. Valid keys are "main" for the name of the main input parameter, and "custom" for any additional parameters.
+            output_processor (Callable[[CallToolResult], str] | None): A function to process the output of the agent/tool call. If None, the first text content of the output will be used as the answer.
+
+        Raises:
+            ValueError: If no agents/tools are found at the given URL, or if the specified name is not found, or if multiple agents/tools are found but no name is provided.
+        """
         self.url = url
         self.token = token
+        self.params = params
         self.output_processor = output_processor
         self._environment = UnknownEnvironment()
 
@@ -44,17 +58,20 @@ class MCPAgent(Agent):
         else:  # name is None and there is exactly one agent
             self._name = available_agents[0].name
 
-        try:
-            self._input_parameter = list(
-                [a for a in available_agents if a.name == self._name][0]
-                .inputSchema["properties"]
-                .keys()
-            )[0]
-        except Exception as e:
-            raise ValueError(
-                f"Can't find the input parameter for the agent {self._name} at {url}. \
-                    Are you sure the agent has an inputSchema={{'properties': ...}} defined?"
-            ) from e
+        if self.params is not None and "main" in self.params:
+            self._input_parameter = self.params["main"]
+        else:
+            try:
+                self._input_parameter = list(
+                    [a for a in available_agents if a.name == self._name][0]
+                    .inputSchema["properties"]
+                    .keys()
+                )[0]
+            except Exception as e:
+                raise ValueError(
+                    f"Can't find the input parameter for the agent {self._name} at {url}. \
+                        Are you sure the agent has an inputSchema={{'properties': ...}} defined?"
+                ) from e
 
     @property
     def name(self) -> str:
@@ -81,15 +98,17 @@ class MCPAgent(Agent):
     )
     def _run_with_retry(self, task: str) -> tuple[str, dict[str, Any] | None]:
         """Run the agent with retries on failure."""
-        with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
-            try:
-                print(f"Calling remote agent {self.name} with task: {task}")
-                output: CallToolResult = mcp_client.call_tool(
-                    self.name, {self._input_parameter: task}
-                )
-            except Exception as e:
-                print(f"Remote agent returned the following exception: \n{e}")
-                raise e
+
+        params = {self._input_parameter: task}
+        if self.params is not None and "custom" in self.params:
+            params |= self.params["custom"]
+
+        try:
+            with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
+                output: CallToolResult = mcp_client.call_tool(self.name, params)
+        except Exception as e:
+            print(f"Remote agent returned the following exception: \n{e}")
+            raise e
 
         if self.output_processor is not None:
             try:
