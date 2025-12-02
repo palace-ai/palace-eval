@@ -18,10 +18,10 @@ const EvaluationDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [filters, setFilters] = useState({
-        model: 'all',
-        paradigm: 'all',
-        environment: 'all',
-        tasklist: 'all'
+        model: ['all'],
+        paradigm: ['all'],
+        environment: ['all'],
+        tasklist: ['all']
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [questionsPerPage] = useState(15);
@@ -80,10 +80,10 @@ const EvaluationDashboard = () => {
 
     const filteredData = useMemo(() => {
         return data.filter(item => {
-            return (filters.model === 'all' || filters.model.includes('all' ) || filters.model.includes(item.model) ) &&
-                   (filters.paradigm === 'all' || filters.paradigm.includes('all' ) || filters.paradigm.includes(item.paradigm) ) &&
-                   (filters.environment === 'all' || filters.environment.includes('all' )  || filters.environment.includes(item.environment)) &&
-                   (filters.tasklist === 'all' || filters.tasklist.includes('all' )  || filters.tasklist.includes(item.tasklist));
+            return (filters.model.includes('all' ) || filters.model.includes(item.model) ) &&
+                   (filters.paradigm.includes('all' ) || filters.paradigm.includes(item.paradigm) ) &&
+                   (filters.environment.includes('all' )  || filters.environment.includes(item.environment)) &&
+                   (filters.tasklist.includes('all' )  || filters.tasklist.includes(item.tasklist));
         });
     }, [data, filters]);
 
