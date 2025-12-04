@@ -10,7 +10,7 @@
       "attachment": "input"
     },
     "inline_attachment": true,
-    "category": "Long context QA"
+    "category": "Long Context QA"
   },
   {
     "name": "BABILong-128k",
@@ -23,7 +23,7 @@
       "attachment": "input"
     },
     "inline_attachment": true,
-    "category": "Long context QA"
+    "category": "Long Context QA"
   },
   {
     "name": "CURIE-protein",

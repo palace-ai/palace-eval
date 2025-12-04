@@ -22,15 +22,43 @@ from palace.paradigms import (
     ReActParadigm,
     ReflectionParadigm,
 )
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.constants import (
+    ALOHA_STAGING_URL,
+    GPTJRC_PROD_API_URL,
+    TS_STAGING_URL,
+)
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import print
-from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
-
-_DEFAULT_MCP_AGENTS_URL = (
-    "http://localhost:8090/mcp/sse"
-    # "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
+from palace.utils.secrets import (
+    ALOHA_STAGING_TOKEN,
+    GPTJRC_PROD_TOKEN,
+    TS_STAGING_TOKEN,
 )
+
+_DEFAULT_MCP_SERVERS = [
+    {
+        "url": "http://localhost:8090/mcp/sse",
+    },
+    {
+        "url": "http://localhost:8000/sse",
+    },
+    {
+        "name": "ALOHA Staging",
+        "url": ALOHA_STAGING_URL,
+        "token": ALOHA_STAGING_TOKEN,
+    },
+    {
+        "name": "ThematicSpaces Staging",
+        "url": TS_STAGING_URL,
+        "token": TS_STAGING_TOKEN,
+        "params": {
+            "main": "query",
+            "custom": {
+                "thematic_space": "cb305107-63f4-479d-962c-27496e35aa99",
+            },
+        },
+    },
+]
 _DEFAULT_OPENAI_AGENTS_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
 _DEFAULT_OPENAI_AGENTS_TOKEN = GPTJRC_PROD_TOKEN
 
@@ -105,9 +133,6 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         return
 
     agents = []
-    # local_agents = []
-    # mcp_agents = []
-    # openai_agents = []
 
     if "Local" in local_or_remote:
         # set paradigms
@@ -162,14 +187,26 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
 
     if "Remote (via MCP)" in local_or_remote:
         # set url
-        mcp_agents_url = questionary.text(
-            "MCP Agents URL:", default=_DEFAULT_MCP_AGENTS_URL
+        url = questionary.select(
+            "MCP Agents URL:",
+            choices=[
+                questionary.Choice(
+                    title=f"{server['url']}{f' ({server.get("name")})' if 'name' in server else ''}",
+                    value=server["url"],
+                )
+                for server in _DEFAULT_MCP_SERVERS
+            ]
+            + ["Custom URL"],
         ).ask()
+        if url == "Custom URL":  # custom mcp server can't require a token
+            url = questionary.text("MCP Agents URL:").ask()
+        mcp_server = next(
+            server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
+        )
+        token = mcp_server.get("token")
 
         # retrieve remote agents from url
-        with MCPClientPool.get_connection(
-            mcp_agents_url, ALOHA_STAGING_TOKEN
-        ) as mcp_client:
+        with MCPClientPool.get_connection(url, token) as mcp_client:
             available_mcp_agents = [tool.name for tool in mcp_client.list_tools().tools]
         if len(available_mcp_agents) == 0:
             raise ValueError("No agents found in the provided MCP server URL.")
@@ -180,9 +217,11 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         # add MCP agents
         agents += [
             MCPAgent(
-                url=mcp_agents_url,
-                token=ALOHA_STAGING_TOKEN,
+                url=url,
+                token=token,
                 name=agent,
+                params=mcp_server.get("params"),
+                output_processor=mcp_server.get("output_processor"),
             )
             for agent in mcp_agents
         ]

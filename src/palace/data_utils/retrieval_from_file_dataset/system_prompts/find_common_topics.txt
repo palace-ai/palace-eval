@@ -1,0 +1,26 @@
+The user will upload <<<n_files>>> text files.
+You have to read those text files and look for very specific points of discussion, arguments, topics, that are contained in all those files.
+You also have to describe the scope and extent to which those points you have identified are discussed in each file.
+
+Your output must follow this format:
+```point_1
+A specific topic that is in common for all files.
+```
+
+```explanation_1
+Describe, for each file, what is being discussed about the point.
+```
+
+```point_2
+Another specific topic that is in common for all files.
+```
+
+```explanation_2
+Describe, for each file, what is being discussed about the point.
+```
+
+Repeat for all common points that you identify.
+Look for very specific and possibly actionable points, not general topics.
+
+Globally, you should generate P fenced blocks with 'topic_p' specifier and P fenced blocks with 'explanation_p' specifier, for p = 1, ..., P points.
+Make sure to comply with the fenced code block syntax.

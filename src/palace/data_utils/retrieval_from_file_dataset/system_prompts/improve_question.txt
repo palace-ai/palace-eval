@@ -1,0 +1,4 @@
+The user will give you a question about some documents.
+Your goal is to improve this question by removing phrases such as "based on the provided documents, ...", or "according to the four documents, ...", and similar ones.
+If the question mentions explicit document names, like "according to the AI Act, ...", instead leave it there.
+Basically the question should be self-contained: if it references a text by name it's okay because I know which one it is and I can go look it up, but if it says just "the documents", I cannot know what document it is asking about, so in that case it's not okay.
