@@ -4,76 +4,104 @@
 
 A framework to evaluate the agentic capabilities of LLMs.
 
+<img src="assets/readme_images/logo.png" width="300" alt="logo.png">
+
 ## Description
 
-**PALACE** is an evaluation platform that can quantitatively assess the performance of AI agents across several different benchmarks.
+**PALACE** is a **P**latform for **A**utomated **L**LMs **A**gentic **C**apabilities **E**valuation.
+It can quantitatively assess the performance of AI agents across several different benchmarks.
 It works both for locally-defined and executed agents as well as remote agents deployed via MCP.
 The benchmark tasklists evaluate the capability of the agents in tasks requiring the use of tools, mainly web browsing, to gather the required information, as well as reason with that information to reach the user objective.
 The framework allows to easily add new tasklists from HuggingFace and align them to the same format.
 
-The framework is composed of two main parts: the evaluation part and agent engine part. In the future, the agent engine part will be detached from this project, and it will focus exclusively on evaluation.
+The framework is composed of two main parts: the evaluation part and agent engine part. Over time, the agent engine part is being detached from this project, which will focus exclusively on evaluation.
+If you are interested in agent definition, you may be interested in the [ABW](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents-by-workflow) project.
 
-The output of an evaluation run is a JSONL file containing all the collected information. This information can be used to build user-friendly results visualizations. Currently, an interactive web dashboard is available to get insights about the results (not part of this repository but may be added in the future).
+In PALACE, the output of an evaluation run is a JSONL file containing all the collected information. This information can be used to build user-friendly results visualizations. An interactive web dashboard is available within this repository to get insights about the results.
 
 ![img](assets/readme_images/dashboard.png)
 
 ## Installation
 
 **PALACE** is provided as a Python package. It can be downloaded and installed normally (it may be released on PyPI in the future).
-After cloning the project with:
+
+Here are the steps:
+
+1. Clone the project:
 
 ```bash
 $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.git palace
 ```
 
-you may install it with:
+2. _(Optional, but recommended)_ Create a virtual environment:
+
+```bash
+$ conda create -n palace python=3.13.*
+$ conda activate palace
+```
+
+3. Install (this will also install all required dependencies):
 
 ```bash
 $ python3 -m pip install palace
 ```
 
-It is recommended to install it into a virtual environment.
-
-When you install it, all required dependencies should be downloaded automatically.
-
-The `tasklist` folder is initially empty. To download the included benchmark tasklists run:
+4. _(Optional)_ Download the included benchmark tasklists:
 
 ```bash
 $ python3 -m palace.data_utils.download
 ```
 
-You can also add your custom tasklists, by creating a `tasklists/custom/<tasklist_name>/tasks.json` file and a `tasklists/metadata/<tasklist_name>/info.json` file.
+That's it! You are ready to use PALACE.
 
 ## Usage
 
-The main entry point of this package is via its global CLI command `palace-run`. Simply type it in your terminal (be sure to be within the Python environment where the package is installed):
+### CLI
+
+The main entry point of this package is the global CLI command `palace-run`. Simply type it in your terminal (be sure to activate the Python environment where the package is installed):
 
 ```bash
 $ palace-run
 ```
 
 This command should open up the main CLI, and you should be initially be presented with something like this:
-![img](assets/readme_images/cli.png)
+<img src="assets/readme_images/cli.png" width="600" alt="cli.png">
 
-Subsequently, you will be prompted with a series of questions where you can configure the evaluation run. Use the up and down arrow keys to navigate the menu options, Space to select an option (for some choice you can select multiple options), and Enter to confirm the selection.
+Subsequently, you will be prompted with a series of questions where you can configure the evaluation run. Use the up and down arrow keys to navigate the menu options, Space to select options, and Enter to confirm the selection.
 These are the current evaluation parameters:
 
-- Agent type to test (local, remote, or both),
-- If remote agents is selected, the URL of the MCP server where the agent is deployed,
-- If remote agents is selected, the names of the remote agents to evaluate,
-- If local agents is selected, the reasoning paradigms to evaluate,
-- If local agents is selected, the LLMs to evaluate,
-- If local agents is selected, whether you want to run the LLMs underlying the agents on the local machine (a high-memory GPU is required) or on GPT@JRC,
-- If local agents is selected, the environments (set of tools) to evaluate, including remote MCP environments,
+- Location of the agent to evaluate (local, remote via MCP, or remote via OpenAI-compatible API),
+- If remote agents is selected,
+  - the URL of the MCP server or OpenAI-compatible API where the agent is deployed,
+  - the remote agents to evaluate,
+- If local agents is selected,
+  - the reasoning paradigms to evaluate,
+  - the LLMs to evaluate,
+  - whether you want to run the LLMs underlying the agents on the local machine (a high-memory GPU is required) or on GPT@JRC,
+  - the environments (set of tools) to evaluate, including remote MCP environments,
 - The benchmark tasklists to use for the evaluation,
 - Number of tasks to evaluate for each tasklist (this is to prevent extremely long testing times),
 - Number of runs to perform for each configuration (it can be useful to lower the variance, since it's not deterministic),
 - The name for the evaluation run.
 
 After selecting all parameters, the evaluation run will start, and you will see the first configuration being evaluated:
-![img](assets/readme_images/cli2.png)
+<img src="assets/readme_images/cli2.png" width="600" alt="cli2.png">
 
 The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl`.
+
+### Dashboard
+
+Once you have results, you can visualize them in a user-friendly way with the integrated web dashboard.
+To do that, move to the `palace/src/dashboard/` folder, then run
+
+```bash
+$ npm install
+npm run dev
+```
+
+The dashboard will be live at `http://localhost:5173`, where you can upload the evaluation results files (JSONL) and get nice visualizations.
+
+<img src="assets/readme_images/dashboard-intro.png" width="600" alt="dashboard-intro.png">
 
 ### MCP Server
 
@@ -87,9 +115,60 @@ $ palace-mcpstart
 
 on another terminal and leave it running.
 
-## Containers
+## Tasklists
 
-_(This is experimental and not advised.)_
+Benchmark datasets in PALACE have a standard format.
+A dataset is internally called _tasklist_, and it mainly consists of a JSON file `tasks.json` containing the actual _tasks_.
+Additionally, a tasklist may have a `task_files` folder containing files referenced in the tasks.
+The directory structure is the following:
+
+```
+<tasklist_name>
+├─ task_files
+│  ├─ file_1
+│  ├─ ...
+│  └─ file_n
+└─ tasks.json
+```
+
+A task is a JSON object containing the following fields (fields with an asterisk are mandatory):
+
+- **(\*) id**: Unique identifier for the task.
+- **(\*) objective**: The main goal or prompt for the task.
+- **expected**: The expected answer or outcome.
+- **(\*) category**: The category of the task (e.g., 'QA', 'Claim Verification').
+- **references**: Supporting references or information.
+- **difficulty**: Difficulty level of the task.
+- **document**: Related document.
+- **attachment**: Filename or path to an attachment.
+- **custom_verificator**: Custom verification logic or script.
+
+In addition, the `tasklists/metadata` folder in the project root contains metadata information about tasklists.
+The directory structure for metadata is the following:
+
+```
+metadata
+└─ <tasklist_name>
+   └─ info.json
+```
+
+The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`.
+Most fields have a specific meaning when downloading tasklists from HuggingFace.
+For custom datasets, the only really meaningful field is `category`.
+
+### Adding a custom tasklist
+
+To add a custom tasklist, create:
+
+- a new file `tasklists/custom/<tasklist_name>/tasks.json`, containing a list of tasks, in the above-mentioned task format;
+- a new file `tasklists/metadata/<tasklist_name>/info.json`, containing tasklist metadata in the above-mentioned format;
+- optionally, a new folder `tasklists/custom/<tasklist_name>/task_files`, containing files referenced in the `reference` field of the tasks.
+
+Your custom tasklist will be automatically available to be used for evaluation in PALACE.
+
+## Containers (experimental)
+
+_(This section is experimental and not advised.)_
 
 You can build and run the images in the `images` folder as containers.
 
@@ -109,4 +188,4 @@ The MCP server will be ready to serve requests on port 8080.
 
 ## Support
 
-If you have any issues, you can open an issue on GitLab if they are enabled, or you can contact me at massimiliano.altieri@ec.europa.eu.
+If you have any issues, you can open an issue on the [GitLab repository](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval), or you can contact me at massimiliano.altieri@ec.europa.eu.

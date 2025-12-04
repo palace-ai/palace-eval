@@ -1,0 +1,25 @@
+The user will upload <<<n_files>>> text files and a topic that all files have in common.
+You have to read those text files and create a very specific question about the provided topic.
+The question should only be answerable if you have access to ALL files, so it should require information that is contained in all files simultaneuously. It should not be general knowledge.
+Avoid overloading the question with multiple sub-questions: it should inquire about a very specific single thing.
+The question should be open (requiring a discursive answer rather than just a yes or no), but at the same time the expected answer must be verifiable and non ambiguous. An expert, knowledgeadble about the provided files and with access to all files, should clearly be able to verify whether the provided answer is correct or not.
+The correct answer to the question must be impossible to know without having access to all reference texts.
+Try to generate a question of <<<difficulty_modifier>>> for someone who has access to all reference texts.
+In addition to the question, you have to also provide: the correct answer, a numbered list of verbatim references to the portions of text that answer that question, and a difficulty score for the question.
+
+You have to format your output as follows (including the fenced code blocks with language specifier, and don't add any extra formatting):
+```question
+Place your question here
+```
+
+```answer
+Place the correct answer to the question here
+```
+
+```references
+Place the verbatim references to the portions of text that answer the question here
+```
+
+```difficulty
+Place the difficulty score for the question here, as an integer from 0 to 100
+```

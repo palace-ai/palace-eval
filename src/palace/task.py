@@ -131,7 +131,7 @@ class Task:
     def verify(self, result: str) -> tuple[bool, str | None]:
         """Verify the task using category-specific logic."""
 
-        if self.category in ["QA", "Claim Verification"]:
+        if self.category in ["QA", "Long Context QA", "Claim Verification"]:
             if self.expected is None:
                 raise ValueError("Cannot verify 'QA' task without an expected answer.")
             judge_prompt = open(CODE_ROOT / "prompts" / "judge_qa.txt").read()
