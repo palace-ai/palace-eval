@@ -14,3 +14,6 @@ REACT_AGENT_ALOHA_URL = (
 TS_STAGING_URL = (
     "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/arag/sse"
 )
+ABW_SERVE_STAGING_URL = (
+    "https://serve-agent-mcp-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/mcp/sse"
+)

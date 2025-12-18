@@ -25,6 +25,7 @@ from palace.paradigms import (
     ReflectionParadigm,
 )
 from palace.utils.constants import (
+    ABW_SERVE_STAGING_URL,
     ALOHA_STAGING_URL,
     GPTJRC_PROD_API_URL,
     TS_STAGING_URL,
@@ -49,6 +50,10 @@ _DEFAULT_MCP_SERVERS = [
     {
         "name": "Default local abw-serve",
         "url": "http://localhost:8090/mcp/sse",
+    },
+    {
+        "name": "ABW-serve Staging",
+        "url": ABW_SERVE_STAGING_URL,
     },
     {
         "name": "ALOHA Staging",
