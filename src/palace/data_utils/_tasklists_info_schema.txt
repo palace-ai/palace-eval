@@ -13,7 +13,7 @@
         },
         "attachment_path": "(optional) the path containing the attachments/files for this tasklist (e.g., '2023/validation' for GAIA)",
         "inline_attachment": "(optional) True if the 'filenames' of the attachments are actually binary representations of the files themselves",
-        "category": (optional) "if specified, only 'QA' or 'Claim Verification' have effect for now",
+        "category": "the category of the tasks",
         "label_mapping": (optional, only useful for Claim Verification) {
             "SUPPORTS": "True",  # map a value in the dataset labels to another value for omogeneity across tasklists
             "REFUTES": "False",

@@ -218,10 +218,10 @@ class Evaluation:
         )
         with open(tasklist_path / "tasks.json") as f:
             json_tasks = json.load(f)
-        tasks: list[Task] = [Task.from_dict(task) for task in json_tasks]
-        for task in tasks:
-            if task.category is None:
-                task.category = tasklist_info["category"]
+        tasks: list[Task] = [
+            Task.from_dict(task | {"category": tasklist_info["category"]})
+            for task in json_tasks
+        ]
 
         # filter out tasks that are not text-based
         if self.text_tasks_only:
@@ -300,16 +300,14 @@ class Evaluation:
                     )
                     continue
             else:
+                print(f"[bold]Agent response:[/] {result}")
                 is_correct, reasoning = task.verify(result)
                 if is_correct:
-                    print("[bold green]:white_check_mark: Correct")
+                    print("[bold green]:white_check_mark: Correct[/]")
                 else:
-                    print(
-                        f"[bold red]:cross_mark: Incorrect[/] (it was [blue]{task.expected}[/])"
-                    )
+                    print("[bold red]:cross_mark: Incorrect[/]")
                 if reasoning is not None:
                     print(f"[italic]Reasoning: {reasoning}[/]")
-                print(f"[bold]Agent response:[/] {result}")
 
             # prepare report
             elapsed_time = time.time() - start_time

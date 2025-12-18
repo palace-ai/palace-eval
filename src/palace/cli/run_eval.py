@@ -1,6 +1,8 @@
 import itertools
+import json
 import sys
 
+import emoji
 import questionary
 
 from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
@@ -37,10 +39,16 @@ from palace.utils.secrets import (
 
 _DEFAULT_MCP_SERVERS = [
     {
-        "url": "http://localhost:8090/mcp/sse",
+        "name": "Default local Palace",
+        "url": "http://localhost:8080/sse",
     },
     {
+        "name": "Default local agentpoc",
         "url": "http://localhost:8000/sse",
+    },
+    {
+        "name": "Default local abw-serve",
+        "url": "http://localhost:8090/mcp/sse",
     },
     {
         "name": "ALOHA Staging",
@@ -80,8 +88,7 @@ def main():
           
 """)
     print(
-        """This is a simple evaluation script for the [bold]Palace[/] agents evaluation framework.
-It will evaluate the performance of different models and paradigms on various environments.
+        """This is the main user interface for the [bold]Palace[/] agents evaluation framework.
 Please make sure you have the required dependencies installed.
 You can find the documentation at [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval[/].
 If you have any questions, please contact us at [blue]massimiliano.altieri@ec.europa.eu[/].""",
@@ -117,7 +124,11 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     ]
 
     available_tasklists = sorted(
-        [t.name for t in (PROJECT_ROOT / "tasklists" / "metadata").iterdir()]
+        [
+            {"name": t.name, "category": json.load(open(t / "info.json"))["category"]}
+            for t in (PROJECT_ROOT / "tasklists" / "metadata").iterdir()
+        ],
+        key=lambda x: (x["category"], x["name"]),
     )
 
     local_or_remote = questionary.checkbox(
@@ -127,6 +138,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             questionary.Choice("Remote (via OpenAI-compatible API)"),
             questionary.Choice("Local"),
         ],
+        validate=lambda choices: True
+        if len(choices) > 0
+        else "You must select at least one!",
     ).ask()
     if len(local_or_remote) == 0:
         print("You have selected nothing to test. Have a nice day :)")
@@ -134,11 +148,21 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
 
     agents = []
 
+    custom_style = questionary.Style(
+        [
+            ("blue", "fg:blue"),
+            ("bold", "bold"),
+        ]
+    )
+
     if "Local" in local_or_remote:
         # set paradigms
         paradigm = questionary.checkbox(
             "Select Reasoning Paradigms to test for local agents:",
             choices=[questionary.Choice(p.name) for p in _PARADIGMS],
+            validate=lambda choices: True
+            if len(choices) > 0
+            else "You must select at least one!",
         ).ask()
         paradigms = [p for p in _PARADIGMS if p.name in paradigm]
         if len(paradigms) == 0:
@@ -148,6 +172,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         models = questionary.checkbox(
             "Select Models to test for local agents:",
             choices=_MODELS,
+            validate=lambda choices: True
+            if len(choices) > 0
+            else "You must select at least one!",
         ).ask()
         if len(models) == 0:
             raise ValueError("No models selected")
@@ -164,6 +191,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         environments = questionary.checkbox(
             "Select Environments to test for local agents:",
             choices=[e.name for e in _ENVIRONMENTS],
+            validate=lambda choices: True
+            if len(choices) > 0
+            else "You must select at least one!",
         ).ask()
         environments = [e for e in _ENVIRONMENTS if e.name in environments]
         if len(environments) == 0:
@@ -186,20 +216,53 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         ]
 
     if "Remote (via MCP)" in local_or_remote:
+        # check actually available mcp servers
+        for server in _DEFAULT_MCP_SERVERS:
+            try:
+                with MCPClientPool.get_connection(
+                    server["url"], server.get("token")
+                ) as mcp_client:
+                    mcp_client.list_tools()
+            except Exception:
+                server["available"] = False
+            else:
+                server["available"] = True
+
         # set url
         url = questionary.select(
             "MCP Agents URL:",
             choices=[
                 questionary.Choice(
-                    title=f"{server['url']}{f' ({server.get("name")})' if 'name' in server else ''}",
+                    title=[
+                        (
+                            "",
+                            f"{emoji.emojize(':green_circle:')} "
+                            if server.get("available")
+                            else f"{emoji.emojize(':red_circle:')} ",
+                        ),
+                        (
+                            "class:blue",
+                            f"[{server.get('name')}] " if "name" in server else "",
+                        ),
+                        ("class:bold", f"{server['url']}"),
+                    ],
                     value=server["url"],
                 )
                 for server in _DEFAULT_MCP_SERVERS
             ]
-            + ["Custom URL"],
+            + [
+                questionary.Choice(
+                    title=[
+                        ("", f"{emoji.emojize(':white_circle:')} "),
+                        ("class:blue", "[Custom URL] "),
+                        ("class:bold", "http://..."),
+                    ],
+                    value="Custom URL",
+                )
+            ],
         ).ask()
         if url == "Custom URL":  # custom mcp server can't require a token
-            url = questionary.text("MCP Agents URL:").ask()
+            url = questionary.text("Custom URL:").ask()
         mcp_server = next(
             server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
         )
@@ -211,7 +274,11 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         if len(available_mcp_agents) == 0:
             raise ValueError("No agents found in the provided MCP server URL.")
         mcp_agents = questionary.checkbox(
-            "Select MCP Agents:", choices=available_mcp_agents
+            "Select MCP Agents:",
+            choices=available_mcp_agents,
+            validate=lambda choices: True
+            if len(choices) > 0
+            else "You must select at least one!",
         ).ask()
 
         # add MCP agents
@@ -244,7 +311,11 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             )
 
         openai_agents = questionary.checkbox(
-            "Select OpenAI-compatible Agents:", choices=available_openai_agents
+            "Select OpenAI-compatible Agents:",
+            choices=available_openai_agents,
+            validate=lambda choices: True
+            if len(choices) > 0
+            else "You must select at least one!",
         ).ask()
 
         # add OpenAI-compatible agents
@@ -260,7 +331,23 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     # set tasklists
     tasklists = questionary.checkbox(
         "Select Tasklists to use as benchmarks:",
-        choices=available_tasklists,
+        choices=[
+            questionary.Choice(
+                title=[
+                    (
+                        "class:blue",
+                        f"[{tasklist['category']}] ",
+                    ),
+                    ("class:bold", tasklist["name"]),
+                ],
+                value=tasklist["name"],
+            )
+            for tasklist in available_tasklists
+        ],
+        style=custom_style,
+        validate=lambda choices: True
+        if len(choices) > 0
+        else "You must select at least one!",
     ).ask()
     if len(tasklists) == 0:
         raise ValueError("No tasklists selected")

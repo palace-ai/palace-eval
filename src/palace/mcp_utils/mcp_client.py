@@ -146,7 +146,7 @@ class MCPClient:
                             raise
 
             except Exception as e:
-                print(f"[red]Exception in MCPClient: Error in connection: {e}")
+                # print(f"[red]Exception in MCPClient: Error in connection: {e}")
                 self._async.signal_ready()  # Always signal ready to avoid deadlock
             finally:
                 # No manual cleanup needed - async with handles it
