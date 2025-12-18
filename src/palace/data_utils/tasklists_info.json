@@ -37,6 +37,7 @@
       "difficulty": "difficulty_level",
       "attachment": "text"
     },
+    "category": "Protein Pred.",
     "inline_attachment": true,
     "custom_verificator": "def verify(pred, truth):\n    import json\n    return pred == json.loads(truth)['sequence']"
   },
