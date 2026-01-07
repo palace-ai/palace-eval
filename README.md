@@ -33,7 +33,7 @@ Here are the steps:
 $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.git palace
 ```
 
-2. _(Optional, but recommended)_ **Create a virtual environment:**
+2. _(Optional, but highly recommended)_ **Create a virtual environment:**
 
 ```bash
 $ conda create -n palace python=3.13.*
@@ -50,17 +50,37 @@ $ python3 -m pip install palace
 
    4.1. Open file `palace/.configure.env` and **set** all relevant information.
 
-   4.2. Then,
+   4.2. Then rename the file:
 
 ```bash
 $ mv palace/.configure.env palace/.env
 ```
 
-4. _(Optional)_ **Download the included benchmark tasklists:**
+5. _(Optional)_ **Download the included benchmark tasklists:**
 
-```bash
-$ python3 -m palace.data_utils.download
-```
+   5.1. To get *HuggingFace-based tasklists*, simply run the global command:
+   ```bash
+   $ palace-download
+   ```
+
+   5.2. To get *custom tasklists*, they will soon be downloadable easily from HuggingFace.
+   Until then, you have to generate them one by one.
+   - *Sycophancy-Binary* and *Sycophancy-OpenEnded*:
+   ```bash
+   $ python -m palace.data_utils.sycophancy_dataset.create_dataset
+   ```
+   - *DeepConsult*:
+   ```bash
+   $ python -m palace.data_utils.deepconsult_dataset.create_dataset
+   ```
+   - *DocRetrieval-multi*:
+      - Step 1: Place the desired documents as PDF files in a new folder within `palace/data_utils/docretrieval_dataset/files`.
+   For example, we recommend using the included `palace/data_utils/docretrieval_dataset/files/ai` folder and placing the following PDF documents in it: *AI Continent Action Plan*, *AI in Science Strategy*, *Apply AI Strategy*, and *Guidelines on GPAI Models*.
+      - Step 2: Generate the dataset with:
+      ```bash
+      $ python -m palace.data_utils.docretrieval_dataset.create_dataset X
+      ```
+      replacing `X` with the name of your folder. The final dataset name will be *DocRetrieval-multi-X*, where `X` is the name of the folder. Following the example above, the dataset will be named *DocRetrieval-multi-ai*.
 
 That's it! You are ready to use PALACE.
 
@@ -106,7 +126,7 @@ To do that, move to the `palace/src/dashboard/` folder, then run
 
 ```bash
 $ npm install
-npm run dev
+$ npm run dev
 ```
 
 The dashboard will be live at `http://localhost:5173`, where you can upload the evaluation results files (JSONL) and get nice visualizations.
@@ -164,6 +184,24 @@ metadata
 The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`.
 Most fields have a specific meaning when downloading tasklists from HuggingFace.
 For custom datasets, the only really meaningful field is `category`.
+
+### Supported tasklists
+
+PALACE comes pre-packaged with a list of vetted tasklists, although new custom tasklists can be easily added.
+The list of included tasklists is the following:
+- **BABILong-32k**: long-context reasoning over 32k tokens *(from HuggingFace RMT-team/babilong)*
+- **BABILong-128k**: long-context reasoning over 128k tokens *(from HuggingFace RMT-team/babilong)*
+- **HotpotQA**: multi-hop question answering *(from HuggingFace hotpotqa/hotpot_qa)*
+- **SimpleQA**: straightforward questions asking for short, factual answers *(from HuggingFace basicv8vc/SimpleQA)*
+- **Fever**: fact-checking *(from HuggingFace fever/fever)*
+- **CURIE-protein**: protein sequence reconstruction *(from HuggingFace nhop/curie)*
+- **HLE**: graduate-level questions across diverse fields *(from HuggingFace cais/hle)*
+- **GAIA**: real-world tasks requiring web access *(from HuggingFace gaia-benchmark/GAIA)*
+- **AssistantBench**: real-world tasks requiring web access *(from HuggingFace AssistantBench/AssistantBench)*
+- **Sycophancy-Binary**: A-B sycophancy quiz *(custom dataset)*
+- **Sycophancy-OpenEnded**: open-ended sycophancy quiz *(custom dataset)*
+- **DeepConsult**: report generation *(custom dataset)*
+- **DocRetrieval-multi**: questions spanning multiple documents *(custom dataset)*
 
 ### Adding a custom tasklist
 

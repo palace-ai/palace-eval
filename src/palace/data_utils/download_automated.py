@@ -270,9 +270,9 @@ def _backup_get_filename(s: str) -> str:
     return f"{filename}.{extension}"
 
 
-if __name__ == "__main__":
+def download_all():
     with open(
-        PROJECT_ROOT / "src" / "palace" / "data_utils" / "tasklists_info.json"
+        PROJECT_ROOT / "src" / "palace" / "data_utils" / "automated_tasklists_info.json"
     ) as f:
         tasklists_info = json.load(f)
 
