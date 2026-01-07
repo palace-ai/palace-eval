@@ -1,19 +1,17 @@
-GPTJRC_PROD_URL = "https://gpt.jrc.ec.europa.eu/"
-GPTJRC_PROD_API_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
-GPTJRC_STAGING_URL = "https://staging-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/"
-GPTJRC_STAGING_API_URL = "https://gpt-api-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/v1"
+import os
 
-ALOHA_PROD_URL = ""
-ALOHA_STAGING_URL = (
-    "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/jrc-gpt/sse"
-)
+from dotenv import load_dotenv
 
-REACT_AGENT_ALOHA_URL = (
-    "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/react-agent/sse"
-)
-TS_STAGING_URL = (
-    "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/arag/sse"
-)
-ABW_SERVE_STAGING_URL = (
-    "https://serve-agent-mcp-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/mcp/sse"
-)
+from palace.utils.paths import PROJECT_ROOT
+
+load_dotenv(PROJECT_ROOT / ".env")
+
+GPTJRC_PROD_URL = os.getenv("GPTJRC_PROD_URL")
+GPTJRC_PROD_API_URL = os.getenv("GPTJRC_PROD_API_URL")
+GPTJRC_STAGING_URL = os.getenv("GPTJRC_STAGING_URL")
+GPTJRC_STAGING_API_URL = os.getenv("GPTJRC_STAGING_API_URL")
+ALOHA_PROD_URL = os.getenv("ALOHA_PROD_URL")
+ALOHA_STAGING_URL = os.getenv("ALOHA_STAGING_URL")
+REACT_AGENT_ALOHA_URL = os.getenv("REACT_AGENT_ALOHA_URL")
+TS_STAGING_URL = os.getenv("TS_STAGING_URL")
+ABW_SERVE_STAGING_URL = os.getenv("ABW_SERVE_STAGING_URL")

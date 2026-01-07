@@ -47,6 +47,9 @@ class Judge:
                 judge_model_id, gpu_memory_utilization=0.3
             )
         if judge_inference == "remote":
+            assert GPTJRC_PROD_API_URL is not None, (
+                "GPTJRC_PROD_API_URL is not set in the environment variables."
+            )
             self.judge_model = OpenAICompatibleModel(
                 judge_model,
                 GPTJRC_PROD_API_URL,

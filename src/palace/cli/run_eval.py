@@ -31,7 +31,7 @@ from palace.utils.constants import (
     TS_STAGING_URL,
 )
 from palace.utils.paths import PROJECT_ROOT
-from palace.utils.printing import print
+from palace.utils.printing import loading, print
 from palace.utils.secrets import (
     ALOHA_STAGING_TOKEN,
     GPTJRC_PROD_TOKEN,
@@ -205,12 +205,18 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             raise ValueError("No environments selected")
 
         # add local agents
+        if GPTJRC_PROD_API_URL is None and not local_llm:
+            raise ValueError(
+                "GPTJRC_PROD_API_URL is not set in the environment variables."
+            )
         agents += [
             LocalAgent(
                 model=HuggingfaceModel(model)
                 if local_llm
                 else OpenAICompatibleModel(
-                    model, GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
+                    model,
+                    GPTJRC_PROD_API_URL,  # type: ignore
+                    GPTJRC_PROD_TOKEN,
                 ),
                 paradigm=paradigm,
                 environment=environment,
@@ -222,16 +228,20 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
 
     if "Remote (via MCP)" in local_or_remote:
         # check actually available mcp servers
-        for server in _DEFAULT_MCP_SERVERS:
-            try:
-                with MCPClientPool.get_connection(
-                    server["url"], server.get("token")
-                ) as mcp_client:
-                    mcp_client.list_tools()
-            except Exception:
-                server["available"] = False
-            else:
-                server["available"] = True
+        with loading() as ld:
+            for server in _DEFAULT_MCP_SERVERS:
+                ld.status(
+                    f"Checking availability of MCP servers... [dim]({server['url']})"
+                )
+                try:
+                    with MCPClientPool.get_connection(
+                        server["url"], server.get("token")
+                    ) as mcp_client:
+                        mcp_client.list_tools()
+                except Exception:
+                    server["available"] = False
+                else:
+                    server["available"] = True
 
         # set url
         url = questionary.select(
@@ -268,6 +278,8 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         ).ask()
         if url == "Custom URL":  # custom mcp server can't require a token
             url = questionary.text("Custom URL:").ask()
+            if not url.startswith("http"):
+                raise ValueError("Invalid URL provided.")
         mcp_server = next(
             server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
         )

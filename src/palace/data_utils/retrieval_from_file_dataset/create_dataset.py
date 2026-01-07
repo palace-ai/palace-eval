@@ -137,6 +137,9 @@ def main():
     print(list(system_prompts.keys()), box=True, box_title="Loaded system prompts")
 
     # initialize model
+    assert GPTJRC_PROD_API_URL is not None, (
+        "GPTJRC_PROD_API_URL is not set in the environment variables."
+    )
     model = OpenAICompatibleModel(
         "openai/gpt-oss-120b", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
     )

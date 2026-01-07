@@ -39,6 +39,9 @@ with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_STAGING_TOKEN) as mcp_cl
                     papers[subject][field].append(paper)
 
 # initialize model for question-answer pair generation
+assert GPTJRC_PROD_API_URL is not None, (
+    "GPTJRC_PROD_API_URL is not set in the environment variables."
+)
 model = OpenAICompatibleModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
 
 # for each paper, generate the question-answer pair and put it in the dict

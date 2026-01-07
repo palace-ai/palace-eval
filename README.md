@@ -27,26 +27,36 @@ In PALACE, the output of an evaluation run is a JSONL file containing all the co
 
 Here are the steps:
 
-1. Clone the project:
+1. **Clone the project:**
 
 ```bash
 $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.git palace
 ```
 
-2. _(Optional, but recommended)_ Create a virtual environment:
+2. _(Optional, but recommended)_ **Create a virtual environment:**
 
 ```bash
 $ conda create -n palace python=3.13.*
 $ conda activate palace
 ```
 
-3. Install (this will also install all required dependencies):
+3. **Install** (this will also install all required dependencies):
 
 ```bash
 $ python3 -m pip install palace
 ```
 
-4. _(Optional)_ Download the included benchmark tasklists:
+4. **Configure secrets and other variables:**
+
+   4.1. Open file `palace/.configure.env` and **set** all relevant information.
+
+   4.2. Then,
+
+```bash
+$ mv palace/.configure.env palace/.env
+```
+
+4. _(Optional)_ **Download the included benchmark tasklists:**
 
 ```bash
 $ python3 -m palace.data_utils.download
@@ -136,7 +146,6 @@ A task is a JSON object containing the following fields (fields with an asterisk
 - **(\*) id**: Unique identifier for the task.
 - **(\*) objective**: The main goal or prompt for the task.
 - **expected**: The expected answer or outcome.
-- **(\*) category**: The category of the task (e.g., 'QA', 'Claim Verification').
 - **references**: Supporting references or information.
 - **difficulty**: Difficulty level of the task.
 - **document**: Related document.

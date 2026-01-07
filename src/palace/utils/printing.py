@@ -40,7 +40,8 @@ def print(
     file_path: Optional[Path] = None,
     file_only: bool = False,
     builtin: bool = False,
-) -> None:
+    as_str: bool = False,
+) -> None | str:
     """Wraps the builtin `print` with additional styling and functionalities.
 
     Args:
@@ -246,6 +247,8 @@ def print(
         formatted_text = "\n".join(boxed_output)
 
     # Use builtin print to avoid recursion
+    if as_str:
+        return formatted_text
     if file_path is not None:
         _write_to_file(file_path, formatted_text, end=end)
     if not file_only:
@@ -384,20 +387,17 @@ class LoadingIcon:
                 time.sleep(self.animation_interval)
             builtin_print("\r" + " " * self.last_length + "\r", end="", flush=True)
         else:
-            sys.stdout.write("\033[s")
+            print("\033[s", end="")
             while not self.done:
                 elapsed_time = time.time() - self.start_time
+                print("\033[u" + " " * self.last_length + "\033[u", end="")
                 with self.lock:
                     desc = self.description
-                    output = (
-                        f"\033[u{next(self.spinner)}  ({elapsed_time:.1f}s)  {desc}"
-                    )
+                    output = f"\033[u{next(self.spinner)}  ({elapsed_time:.1f}s)  {print(desc, as_str=True)}"
                     self.last_length = len(output) - 1
-                sys.stdout.write(output)
-                sys.stdout.flush()
+                print(output, end="")
                 time.sleep(self.animation_interval)
-            sys.stdout.write("\033[u" + " " * self.last_length + "\033[u")
-            sys.stdout.flush()
+            print("\033[u" + " " * self.last_length + "\033[u", end="")
 
 
 @contextmanager
@@ -466,7 +466,7 @@ def loading():
             "⠀⠀",
         ]
     )
-    animation_interval = 0.075
+    animation_interval = 0.07
 
     loading_icon_obj = LoadingIcon(spinner, animation_interval)
     thread = threading.Thread(target=loading_icon_obj.animate)

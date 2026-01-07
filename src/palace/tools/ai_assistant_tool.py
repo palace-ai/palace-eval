@@ -6,6 +6,9 @@ from palace.utils.secrets import GPTJRC_PROD_TOKEN
 
 class AIAssistantTool(Tool):
     def __init__(self):
+        assert GPTJRC_PROD_API_URL is not None, (
+            "GPTJRC_PROD_API_URL is not set in the environment variables."
+        )
         self.model = OpenAICompatibleModel(
             "gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
         )
