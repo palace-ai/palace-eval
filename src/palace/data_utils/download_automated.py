@@ -252,24 +252,6 @@ def _get_filename(s: str) -> str:
     return f"{filename}.{extension}"
 
 
-def _backup_get_filename(s: str) -> str:
-    string_type = _string_type(s)
-    if string_type == "base64":
-        s = _extract_base64_payload(s)
-
-    data = s.decode("utf-8")  # type: ignore
-    full_hash = hashlib.sha256(data).hexdigest()
-    filename = full_hash[:24]  # Use the first 24 characters of the hash as the filename
-
-    guess = filetype.guess(data)
-    if string_type == "base64":
-        extension = guess.extension if guess else "bin"
-    else:
-        extension = "txt"
-
-    return f"{filename}.{extension}"
-
-
 def download_all():
     with open(
         PROJECT_ROOT / "src" / "palace" / "data_utils" / "automated_tasklists_info.json"
