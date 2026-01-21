@@ -4,7 +4,6 @@ import sys
 
 import emoji
 import questionary
-
 from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
 from palace.environments import (
     AssistantEnvironment,
@@ -132,6 +131,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         [
             {"name": t.name, "category": json.load(open(t / "info.json"))["category"]}
             for t in (PROJECT_ROOT / "tasklists" / "metadata").iterdir()
+            if t.is_dir()
         ],
         key=lambda x: (x["category"], x["name"]),
     )
