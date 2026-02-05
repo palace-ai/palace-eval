@@ -51,4 +51,4 @@ Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/age
 [project.scripts]
 palace-run = "palace.cli.run_eval:main"
 palace-mcpstart = "palace.cli.start_mcp_server:main"
-palace-download = "palace.data_utils.download_automated:download_all"
+palace-download = "palace.data_utils.download.download:download_all"

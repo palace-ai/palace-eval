@@ -158,7 +158,8 @@ The directory structure is the following:
 │  ├─ file_1
 │  ├─ ...
 │  └─ file_n
-└─ tasks.json
+│  tasks.json
+└─ info.json
 ```
 
 A task is a JSON object containing the following fields (fields with an asterisk are mandatory):
@@ -172,15 +173,7 @@ A task is a JSON object containing the following fields (fields with an asterisk
 - **attachment**: Filename or path to an attachment.
 - **custom_verificator**: Custom verification logic or script.
 
-In addition, the `tasklists/metadata` folder in the project root contains metadata information about tasklists.
-The directory structure for metadata is the following:
-
-```
-metadata
-└─ <tasklist_name>
-   └─ info.json
-```
-
+In addition, the `<tasklist_name>/info.json` file contains metadata information about the tasklist.
 The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`.
 Most fields have a specific meaning when downloading tasklists from HuggingFace.
 For custom datasets, the only really meaningful field is `category`.
@@ -208,7 +201,7 @@ The list of included tasklists is the following:
 To add a custom tasklist, create:
 
 - a new file `tasklists/custom/<tasklist_name>/tasks.json`, containing a list of tasks, in the above-mentioned task format;
-- a new file `tasklists/metadata/<tasklist_name>/info.json`, containing tasklist metadata in the above-mentioned format;
+- a new file `tasklists/custom/<tasklist_name>/info.json`, containing tasklist metadata in the above-mentioned format;
 - optionally, a new folder `tasklists/custom/<tasklist_name>/task_files`, containing files referenced in the `reference` field of the tasks.
 
 Your custom tasklist will be automatically available to be used for evaluation in PALACE.

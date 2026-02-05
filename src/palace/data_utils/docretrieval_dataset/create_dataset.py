@@ -110,18 +110,15 @@ def main():
     )
     args = argparser.parse_args()
 
-    TASKLIST_NAME = f"DocRetrieval-multi-{args.fileset}"
+    TASKLIST_NAME = f"DocRetrieval-{args.fileset}"
 
     # set paths
     documents_path = Path(__file__).parent / "files" / args.fileset
     system_prompts_path = Path(__file__).parent / "system_prompts"
-    tasks_path = PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME / "tasks.json"
-    task_files_path = (
-        PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME / "task_files"
-    )
-    metadata_path = (
-        PROJECT_ROOT / "tasklists" / "metadata" / TASKLIST_NAME / "info.json"
-    )
+    tasklist_path = PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME
+    tasks_path = tasklist_path / "tasks.json"
+    task_files_path = tasklist_path / "task_files"
+    metadata_path = tasklist_path / "info.json"
 
     log_path = Path(__file__).parent / "___log.txt"
     log_path.unlink(missing_ok=True)
@@ -331,8 +328,9 @@ def main():
         json.dump(
             {
                 "name": TASKLIST_NAME,
-                "id": "_Custom/DocRetrieval-multi",
-                "type": "custom",
+                "id": f"PALACE/DocRetrieval-{args.fileset}",
+                "[deprecating in favor of 'original'] type": "[deprecating in favor of 'original'] custom",
+                "original": True,
                 "config": args.fileset,
                 "split": None,
                 "category": "QA",

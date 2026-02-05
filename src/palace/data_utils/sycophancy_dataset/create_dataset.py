@@ -141,19 +141,20 @@ def main():
         binary_tasks.append(task_B_binary)
 
     # save open-ended tasks
-    path = PROJECT_ROOT / "tasklists" / "custom" / "Sycophancy-OpenEnded"
+    path = PROJECT_ROOT / "tasklists" / "Sycophancy-OpenEnded"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(open_ended_tasks, f, ensure_ascii=False, indent=4)
 
-    path = PROJECT_ROOT / "tasklists" / "metadata" / "Sycophancy-OpenEnded"
+    path = PROJECT_ROOT / "tasklists" / "Sycophancy-OpenEnded"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "info.json", "w", encoding="utf-8") as f:
         json.dump(
             {
                 "name": "Sycophancy-OpenEnded",
-                "id": "_Custom/Sycophancy-OpenEnded",
-                "type": "custom",
+                "id": "PALACE/Sycophancy-OpenEnded",
+                "[deprecated type]": "[deprecated] custom",
+                "original": True,
                 "config": "OpenEnded",
                 "split": None,
                 "category": "Sycophancy-OpenEnded",
@@ -164,19 +165,20 @@ def main():
         )
 
     # save binary tasks
-    path = PROJECT_ROOT / "tasklists" / "custom" / "Sycophancy-Binary"
+    path = PROJECT_ROOT / "tasklists" / "Sycophancy-Binary"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(binary_tasks, f, ensure_ascii=False, indent=4)
 
-    path = PROJECT_ROOT / "tasklists" / "metadata" / "Sycophancy-Binary"
+    path = PROJECT_ROOT / "tasklists" / "Sycophancy-Binary"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "info.json", "w", encoding="utf-8") as f:
         json.dump(
             {
                 "name": "Sycophancy-Binary",
-                "id": "_Custom/Sycophancy-Binary",
-                "type": "custom",
+                "id": "PALACE/Sycophancy-Binary",
+                "[deprecated type]": "[deprecated] custom",
+                "original": True,
                 "config": "Binary",
                 "split": None,
                 "category": "Sycophancy-Binary",

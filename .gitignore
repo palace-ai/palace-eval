@@ -8,12 +8,8 @@
 build/
 results/*
 !results/.gitkeep
-tasklists/automated/*
-!tasklists/automated/.gitkeep
-tasklists/custom/*
-!tasklists/custom/.gitkeep
-tasklists/metadata/*
-!tasklists/metadata/.gitkeep
+tasklists/*
+!tasklists/.gitkeep
 
 # all prohibited by gitlab pattern
 *.3gp

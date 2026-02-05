@@ -67,28 +67,25 @@ def main():
             }
         )
 
-    # save tasks
-    tasklist_path = PROJECT_ROOT / "tasklists" / "custom" / "DeepConsult"
+    # save tasks and metadata
+    tasklist_path = PROJECT_ROOT / "tasklists" / "DeepConsult"
     tasklist_path.mkdir(parents=True, exist_ok=True)
     json.dump(tasks, open(tasklist_path / "tasks.json", "w"), indent=2)
     print(f"Saved {len(tasks)} tasks to {tasklist_path / 'tasks.json'}")
-
-    # save metadata
-    metadata_path = PROJECT_ROOT / "tasklists" / "metadata" / "DeepConsult"
-    metadata_path.mkdir(parents=True, exist_ok=True)
     json.dump(
         {
             "name": "DeepConsult",
-            "id": "_Custom/DeepConsult",
-            "type": "custom",
+            "id": "PALACE/DeepConsult",
+            "[deprecating in favor of 'original'] type": "[deprecating in favor of 'original'] custom",
+            "original": True,
             "config": None,
             "split": None,
             "category": "Report Generation",
         },
-        open(metadata_path / "info.json", "w"),
+        open(tasklist_path / "info.json", "w"),
         indent=2,
     )
-    print(f"Saved metadata to {metadata_path / 'info.json'}")
+    print(f"Saved metadata to {tasklist_path / 'info.json'}")
 
 
 if __name__ == "__main__":

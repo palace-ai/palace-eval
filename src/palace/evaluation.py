@@ -203,19 +203,12 @@ class Evaluation:
         tasklist: str,
     ):
         report: dict[str, dict] = {}
+        tasklist_path = PROJECT_ROOT / "tasklists" / tasklist
 
         # load tasklist and metadata
-        with open(
-            PROJECT_ROOT / "tasklists" / "metadata" / tasklist / "info.json"
-        ) as f:
+        with open(tasklist_path / "info.json") as f:
             tasklist_info = json.load(f)
 
-        tasklist_path = (
-            PROJECT_ROOT
-            / "tasklists"
-            / ("automated" if tasklist_info["type"] == "automated" else "custom")
-            / tasklist
-        )
         with open(tasklist_path / "tasks.json") as f:
             json_tasks = json.load(f)
         tasks: list[Task] = [

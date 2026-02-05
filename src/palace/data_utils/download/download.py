@@ -1,3 +1,4 @@
+import argparse
 import base64
 import hashlib
 import json
@@ -5,30 +6,40 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import filetype
 from datasets import load_dataset
-from huggingface_hub import hf_hub_download, login
+from huggingface_hub import get_collection, hf_hub_download, login
+from huggingface_hub.utils.tqdm import disable_progress_bars
 
 from palace.utils.paths import PROJECT_ROOT
-from palace.utils.printing import print
+from palace.utils.printing import loading, print
 from palace.utils.secrets import HUGGINGFACE_TOKEN
 
+PALACE_HF_COLLECTION = "jrc-ai/palace"
+
 login(token=HUGGINGFACE_TOKEN)
+disable_progress_bars()
 
 
 def download_tasklist(
     name: str,
     id: str,
     split: list[str] | str,
-    column_names: dict[str, str],
-    config: Optional[str] = None,
-    attachment_path: Optional[str] = None,
-    inline_attachment: Optional[bool] = None,
-    category: Optional[str] = None,
-    label_mapping: Optional[dict[str, str]] = None,
-    custom_verificator: Optional[str] = None,
+    config: str = "default",
+    column_names: dict[str, str] = {
+        "id": "id",
+        "objective": "objective",
+        "expected": "expected",
+        "difficulty": "difficulty",
+        "attachment": "attachment",
+        "custom_verificator": "custom_verificator",
+    },
+    attachment_path: str | None = "task_files",
+    inline_attachment: bool | None = None,
+    category: str | None = None,
+    label_mapping: dict[str, str] | None = None,
+    custom_verificator: str | None = None,
 ) -> None:
     if isinstance(split, list):
         for s in split:
@@ -36,8 +47,8 @@ def download_tasklist(
                 name=f"{name}-{s}",
                 id=id,
                 split=s,
-                column_names=column_names,
                 config=config,
+                column_names=column_names,
                 attachment_path=attachment_path,
                 inline_attachment=inline_attachment,
                 category=category,
@@ -55,14 +66,15 @@ def download_tasklist(
         raise ValueError(
             f"If custom_verificator is specified, it must follow the signature 'def verify(pred, truth) -> bool', found {custom_verificator}."
         )
-
     dataset = load_dataset(path=id, name=config, split=split)
     df_dataset = dataset.to_pandas()  # type: ignore
     tasks = []
     for i, row in df_dataset.iterrows():  # type: ignore
         # Get attachment name
         attachment = (
-            row[column_names["attachment"]] if "attachment" in column_names else ""
+            row[column_names["attachment"]]
+            if "attachment" in column_names and column_names["attachment"] in row
+            else ""
         )
         if inline_attachment:
             attachment = _get_filename(attachment)
@@ -73,11 +85,14 @@ def download_tasklist(
             "objective": row[column_names["objective"]],
             "expected": row[column_names["expected"]],
             "difficulty": f"{name}_{row[column_names['difficulty']]}"
-            if "difficulty" in column_names
+            if "difficulty" in column_names and column_names["difficulty"] in row
             else "",
             "attachment": attachment,
             "custom_verificator": custom_verificator
             if custom_verificator is not None and custom_verificator != ""
+            else row[column_names["custom_verificator"]]
+            if "custom_verificator" in column_names
+            and column_names["custom_verificator"] in row
             else "",
         }
         # Add task to list if it doesn't already exist
@@ -89,21 +104,17 @@ def download_tasklist(
         for task in tasks:
             task["expected"] = label_mapping[task["expected"]]
 
-    # Save tasklist tasks
-    tasks_path = PROJECT_ROOT / "tasklists" / "automated" / name
-    os.makedirs(tasks_path, exist_ok=True)
-    with open(tasks_path / "tasks.json", "w", encoding="utf-8") as f:
+    # Save tasklist tasks and metadata
+    tasklist_path = PROJECT_ROOT / "tasklists" / name
+    os.makedirs(tasklist_path, exist_ok=True)
+    with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
-
-    # Save tasklist metadata
-    metadata_path = PROJECT_ROOT / "tasklists" / "metadata" / name
-    os.makedirs(metadata_path, exist_ok=True)
-    with open(metadata_path / "info.json", "w", encoding="utf-8") as f:
+    with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
         json.dump(
             {
                 "name": name,
                 "id": id,
-                "type": "automated",
+                "original": False,
                 "config": config,
                 "split": split,
                 "category": category,
@@ -114,8 +125,11 @@ def download_tasklist(
         )
 
     # Download and save task files (attachments)
-    if column_names.get("attachment") is not None:
-        attachments_dir = Path(tasks_path / "task_files")
+    if (
+        column_names.get("attachment") is not None
+        and column_names["attachment"] in df_dataset.columns  # type: ignore
+    ):
+        attachments_dir = Path(tasklist_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
         for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][  # type: ignore
@@ -128,8 +142,7 @@ def download_tasklist(
                         repo_id=id,
                         filename=os.path.join(attachment_path, attachment),  # type: ignore
                         repo_type="dataset",
-                        local_dir=os.path.join(tasks_path, "task_files"),
-                        local_dir_use_symlinks=False,
+                        local_dir=os.path.join(tasklist_path, "task_files"),
                         force_download=True,
                     )
 
@@ -140,18 +153,13 @@ def download_tasklist(
                     print(f"Error downloading {attachment}: {e}")
 
                 try:
-                    shutil.rmtree(
-                        os.path.join(tasks_path, "task_files/2023")
-                    )  # this needs to be generalized
-                    shutil.rmtree(os.path.join(tasks_path, "task_files/.cache"))
-                    print(f"Removed empty subdirectories under {tasks_path}")
+                    shutil.rmtree(os.path.join(tasklist_path, "task_files/.cache"))
                 except OSError as e:
                     print(f"Error removing subdirectories: {e}")
 
             # attachment is present within the dataframe, either as plain text or as a raw byte string to decode
             else:
                 attachment_type = _string_type(attachment)
-                # print(f"\nAttachment ({attachment_type}):\n{attachment[:100]}")
                 if attachment_type == "base64":
                     attachment = _extract_base64_payload(attachment)
                     attachment = base64.b64decode(attachment)
@@ -163,8 +171,6 @@ def download_tasklist(
                     encoding="utf-8" if attachment_type == "text" else None,
                 ) as f:
                     f.write(attachment)
-
-    print(f"Tasklist successfully saved to {tasks_path}.")
 
 
 def _string_type(s):
@@ -184,26 +190,13 @@ def _string_type(s):
         ):  # Looks like Base64
             s = _extract_base64_payload(s)
             decoded = base64.b64decode(s + "==", validate=False)  # era validate=True
-            print("Looks like base64")
             reencoded = base64.b64encode(decoded).decode("utf-8")
-            print(f"{s[:50]} <---> {reencoded[:50]}")
             if reencoded == s:
                 return "base64"  # Valid Base64
     except Exception as e:
         print(e)
 
     return "text"  # Not Base64, valid UTF-8 → plain text
-
-
-def _is_base64(s):
-    # Check if the string is valid base64
-    try:
-        if isinstance(s, str):
-            # Check if the string can be decoded from base64 and re-encoded to the same string
-            return base64.b64encode(base64.b64decode(s)).decode("utf-8") == s
-        return False
-    except Exception:
-        return False
 
 
 def _extract_base64_payload(base64_string: str) -> str:
@@ -253,13 +246,94 @@ def _get_filename(s: str) -> str:
 
 
 def download_all():
-    with open(
-        PROJECT_ROOT / "src" / "palace" / "data_utils" / "automated_tasklists_info.json"
-    ) as f:
-        tasklists_info = json.load(f)
+    argparser = argparse.ArgumentParser(
+        description="Download PALACE datasets from Hugging Face."
+    )
+    argparser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip downloading datasets that already exist locally.",
+    )
+    args = argparser.parse_args()
 
-    for tasklist_info in tasklists_info:
+    # Download private (from palace hf)
+    collection = get_collection(PALACE_HF_COLLECTION)
+    collection = [
+        {"id": item.item_id, "name": item.item_id.replace("jrc-ai/", "")}
+        for item in collection.items
+        if item.item_type == "dataset"
+    ]
+    print(collection)
+    print(
+        f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
+    )
+
+    # If --skip-existing is set, filter out items that already exist locally
+    if args.skip_existing:
+        exists = [
+            item
+            for item in collection
+            if (PROJECT_ROOT / "tasklists" / item["name"]).exists()
+        ]
+        collection = [item for item in collection if item not in exists]
         print(
-            f"Downloading [bold]{tasklist_info['name']}[/]\n[dim]{json.dumps(tasklist_info, indent=4)}[/]"
+            f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
         )
-        download_tasklist(**tasklist_info)
+
+    print(f"   [cyan]Downloading [bold]{len(collection)}[/bold] items...")
+    for item in collection:
+        with loading() as ld:
+            ld.description = (
+                f"[cyan]Downloading [bold]{item['name']} (from {item['id']})[/bold]..."
+            )
+
+            # Get dataset metadata
+            metadata = hf_hub_download(
+                repo_id=item["id"], filename="info.json", repo_type="dataset"
+            )
+            with open(metadata) as f:
+                metadata = json.load(f)
+
+            download_tasklist(
+                name=item["name"],
+                id=item["id"],
+                split="test",
+                category=metadata.get("category", ""),
+            )
+        print(f"   :check_box_with_check:[cyan]  {item['name']}")
+
+    # Download public
+    with open(Path(__file__).parent / "public_datasets_info.json") as f:
+        tasklists_info = json.load(f)
+    print(
+        f":small_blue_diamond: [blue]Starting to download [bold]{len(tasklists_info)}[/bold] items from public Hugging Face datasets"
+    )
+
+    # convert items with list splits into multiple items with single splits
+    tasklists_info = [
+        item
+        if isinstance(item["split"], str)
+        else {**item, "split": s, "name": f"{item['name']}-{s}"}
+        for item in tasklists_info
+        for s in (item["split"] if isinstance(item["split"], list) else [item["split"]])
+    ]
+    print(json.dumps(tasklists_info, indent=2))
+
+    # If --skip-existing is set, filter out items that already exist locally
+    if args.skip_existing:
+        exists = [
+            info
+            for info in tasklists_info
+            if (PROJECT_ROOT / "tasklists" / info["name"]).exists()
+        ]
+        tasklists_info = [info for info in tasklists_info if info not in exists]
+        print(
+            f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
+        )
+
+    print(f"   [cyan]Downloading [bold]{len(tasklists_info)}[/bold] items...")
+    for tasklist_info in tasklists_info:
+        with loading() as ld:
+            ld.description = f"[cyan]Downloading [bold]{tasklist_info['name']} (from {tasklist_info['id']})[/bold]..."
+            download_tasklist(**tasklist_info)
+        print(f"   :check_box_with_check:[cyan]  {tasklist_info['name']}")

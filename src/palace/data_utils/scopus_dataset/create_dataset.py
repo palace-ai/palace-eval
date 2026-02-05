@@ -106,7 +106,7 @@ for subject, subject_papers in papers.items():
             tasks.append(task)
 
 # save the tasklist
-tasklist_path = PROJECT_ROOT / "tasklists" / "automated" / "Scopus"
+tasklist_path = PROJECT_ROOT / "tasklists" / "Scopus"
 os.makedirs(tasklist_path, exist_ok=True)
 
 with open(tasklist_path / "tasks.json", "w") as f:

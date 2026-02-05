@@ -1,6 +1,5 @@
 import itertools
 import re
-import sys
 import threading
 import time
 from builtins import print as builtin_print
@@ -253,112 +252,6 @@ def print(
         _write_to_file(file_path, formatted_text, end=end)
     if not file_only:
         builtin_print(formatted_text, end=end, flush=True)
-
-
-# @contextmanager
-# def loading_icon_v1():
-#     spinner = itertools.cycle(
-#         [
-#             "⢀⠀",
-#             "⡀⠀",
-#             "⠄⠀",
-#             "⢂⠀",
-#             "⡂⠀",
-#             "⠅⠀",
-#             "⢃⠀",
-#             "⡃⠀",
-#             "⠍⠀",
-#             "⢋⠀",
-#             "⡋⠀",
-#             "⠍⠁",
-#             "⢋⠁",
-#             "⡋⠁",
-#             "⠍⠉",
-#             "⠋⠉",
-#             "⠋⠉",
-#             "⠉⠙",
-#             "⠉⠙",
-#             "⠉⠩",
-#             "⠈⢙",
-#             "⠈⡙",
-#             "⢈⠩",
-#             "⡀⢙",
-#             "⠄⡙",
-#             "⢂⠩",
-#             "⡂⢘",
-#             "⠅⡘",
-#             "⢃⠨",
-#             "⡃⢐",
-#             "⠍⡐",
-#             "⢋⠠",
-#             "⡋⢀",
-#             "⠍⡁",
-#             "⢋⠁",
-#             "⡋⠁",
-#             "⠍⠉",
-#             "⠋⠉",
-#             "⠋⠉",
-#             "⠉⠙",
-#             "⠉⠙",
-#             "⠉⠩",
-#             "⠈⢙",
-#             "⠈⡙",
-#             "⠈⠩",
-#             "⠀⢙",
-#             "⠀⡙",
-#             "⠀⠩",
-#             "⠀⢘",
-#             "⠀⡘",
-#             "⠀⠨",
-#             "⠀⢐",
-#             "⠀⡐",
-#             "⠀⠠",
-#             "⠀⢀",
-#             "⠀⡀",
-#             "⠀⠀",
-#             "⠀⠀",
-#             "⠀⠀",
-#             "⠀⠀",
-#         ]
-#     )
-#     animation_interval = 0.075
-#     done = False
-#     start_time = time.time()
-
-#     def animate():
-#         if IN_NOTEBOOK:
-#             while not done:
-#                 elapsed_time = time.time() - start_time
-#                 builtin_print(
-#                     f"\r{next(spinner)}  {elapsed_time:.1f}s", end="", flush=True
-#                 )
-#                 time.sleep(animation_interval)
-#         else:
-#             sys.stdout.write("\033[s")
-#             while not done:
-#                 elapsed_time = time.time() - start_time
-#                 sys.stdout.write(f"\033[u{next(spinner)}  {elapsed_time:.1f}s")
-#                 sys.stdout.flush()
-#                 time.sleep(animation_interval)
-#             sys.stdout.write("\033[u \033[u")
-#             sys.stdout.flush()
-
-#     # Start the animation in a separate thread
-#     thread = threading.Thread(target=animate)
-#     thread.start()
-
-#     try:
-#         yield  # This is where the calling code will execute
-#     finally:
-#         # Signal the animation to stop
-#         done = True
-#         # Wait for the animation thread to finish
-#         thread.join()
-#         if IN_NOTEBOOK:
-#             builtin_print("\r", end="", flush=True)  # Clear the spinner in Jupyter
-#         else:
-#             sys.stdout.write("\r")
-#             sys.stdout.flush()
 
 
 class LoadingIcon:
