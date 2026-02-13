@@ -23,7 +23,7 @@ class Judge:
             The model to use for judging.
         judge_prompt : str
             The system prompt to use for the judge model.
-            It must instruct the judge model to provide a judgement in the format:
+            It MUST instruct the judge model to provide a judgement in the format:
             ```
             <keyword1>
             value for keyword1
@@ -33,6 +33,10 @@ class Judge:
             </keyword2>
             ...
             ```
+        output_keywords : list[str]
+            The list of keywords to extract from the judge model's output.
+            It MUST match the keywords in the judge prompt.
+            Defaults to ["reasoning", "judgement"].
         judge_inference : str
             The inference method for the judge model. Can be "local" or "remote". Defaults to "remote".
         """

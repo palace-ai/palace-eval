@@ -15,7 +15,7 @@ The benchmark tasklists evaluate the capability of the agents in tasks requiring
 The framework allows to easily add new tasklists from HuggingFace and align them to the same format.
 
 The framework is composed of two main parts: the evaluation part and agent engine part. Over time, the agent engine part is being detached from this project, which will focus exclusively on evaluation.
-If you are interested in agent definition, you may be interested in the [ABW](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents-by-workflow) project.
+If you are interested in agent definition, you may be interested in the [ABW](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/agents-by-workflow) project.
 
 In PALACE, the output of an evaluation run is a JSONL file containing all the collected information. This information can be used to build user-friendly results visualizations. An interactive web dashboard is available within this repository to get insights about the results.
 
@@ -28,70 +28,52 @@ In PALACE, the output of an evaluation run is a JSONL file containing all the co
 Here are the steps:
 
 1. **Clone the project:**
-
-```bash
-$ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.git palace
-```
+   ```bash
+   $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.git palace
+   ```
 
 2. _(Optional, but highly recommended)_ **Create a virtual environment:**
-
-```bash
-$ conda create -n palace python=3.13.*
-$ conda activate palace
-```
+   ```bash
+   $ conda create -n palace python=3.13.*
+   $ conda activate palace
+   ```
 
 3. **Install** (this will also install all required dependencies):
-
-```bash
-$ python3 -m pip install palace
-```
+   ```bash
+   $ python3 -m pip install palace
+   ```
 
 4. **Configure secrets and other variables:**
 
-   4.1. Open file `palace/.configure.env` and **set** all relevant information.
+   4.1. Open file `palace/.env.example` and **set** all relevant information.
 
    4.2. Then rename the file:
+   ```bash
+   $ mv palace/.env.example palace/.env
+   ```
 
-```bash
-$ mv palace/.configure.env palace/.env
-```
-
-5. _(Optional)_ **Download the included benchmark tasklists:**
-
-   5.1. To get *HuggingFace-based tasklists*, simply run the global command:
+5. _(Optional)_ **Download the included benchmark tasklists**, by simply running the global command:
    ```bash
    $ palace-download
    ```
 
-   5.2. To get *custom tasklists*, they will soon be downloadable easily from HuggingFace.
-   Until then, you have to generate them one by one.
-   - *Sycophancy-Binary* and *Sycophancy-OpenEnded*:
-   ```bash
-   $ python -m palace.data_utils.sycophancy_dataset.create_dataset
-   ```
-   - *DeepConsult*:
-   ```bash
-   $ python -m palace.data_utils.deepconsult_dataset.create_dataset
-   ```
-   - *DocRetrieval-multi*:
-      - Step 1: Place the desired documents as PDF files in a new folder within `palace/data_utils/docretrieval_dataset/files`.
-   For example, we recommend using the included `palace/data_utils/docretrieval_dataset/files/ai` folder and placing the following PDF documents in it: *AI Continent Action Plan*, *AI in Science Strategy*, *Apply AI Strategy*, and *Guidelines on GPAI Models*.
-      - Step 2: Generate the dataset with:
-      ```bash
-      $ python -m palace.data_utils.docretrieval_dataset.create_dataset X
-      ```
-      replacing `X` with the name of your folder. The final dataset name will be *DocRetrieval-multi-X*, where `X` is the name of the folder. Following the example above, the dataset will be named *DocRetrieval-multi-ai*.
+   This command will both download custom tasklists stored on the [PALACE Hugging Face Collection](https://huggingface.co/collections/jrc-ai/palace), and also download public Hugging Face datasets and convert them to the PALACE format.
 
 That's it! You are ready to use PALACE.
 
 ## Usage
 
+There are a total of **3** supported ways to use PALACE: (1) via the **interactive CLI**, (2) via the **direct command**, or (3) **programmatically**.
+
+*For power-users:* PALACE is built with modularity in mind, so it's also possible to extend the key base classes and achieve additional functionalities. If you intend to do so, you are encouraged to contribute to the project directly and open pull requests!
+
 ### CLI
 
-The main entry point of this package is the global CLI command `palace-run`. Simply type it in your terminal (be sure to activate the Python environment where the package is installed):
+The easiest way to start using PALACE right away is using the global CLI command `palace-cli`.
+Simply type it in your terminal (be sure to activate the Python environment where the package is installed):
 
 ```bash
-$ palace-run
+$ palace-cli
 ```
 
 This command should open up the main CLI, and you should be initially be presented with something like this:
@@ -119,6 +101,61 @@ After selecting all parameters, the evaluation run will start, and you will see 
 
 The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl`.
 
+### Direct Command
+
+If you want to run batch evaluations, it may be more convenient to use the direct global command (uninteractive) `palace-run`.
+
+For now, the direct command only supports agents and models that are deployed via an OpenAI-compatible API.
+Besides that, you pass the same information that you would pass to the CLI.
+
+For an explanation of the command run:
+```bash
+$ palace-run --help
+```
+
+As an example, consider the following command:
+```bash
+$ palace-run \
+   --run-name=MyEval \
+   --output-folder=/path/to/palace-results \
+   --url=https://api.mistral.ai/v1 \
+   --token=abc123def456 \
+   --name=mistral-medium-latest \
+   --tasklist=ValuesEval24 \
+   --limit=50
+```
+
+Or a shorter example:
+```bash
+$ palace-run -u https://api.mistral.ai/v1 -k abc123def456 -m mistral-medium-latest -t ValuesEval24 -l 20
+```
+
+### Programmatic API
+
+The programmatic API allows you to integrate PALACE as a library dependency into other Python software.
+
+For now, the programmatic API only supports agents and models that are deployed via an OpenAI-compatible API.
+Besides that, you pass the same information that you would pass to the CLI.
+
+Using PALACE programmatically is as easy as calling a function:
+
+```python
+import palace
+
+palace.evaluate(
+   run_name="My Evaluation",         # evaluation run name
+   output_folder="palace_results",   # folder where to save results
+   url="https://api.mistral.ai/v1",  # your API URL
+   token="abc123def456",             # your API token
+   name="mistral-medium-latest",     # model or agent name
+   tasklist="GAIA",                  # PALACE tasklist to use
+   task_amount_limit=100,            # optional; useful for very large tasklists
+   runs_per_configuration=5,         # optional; useful to smooth out variance
+)
+```
+
+The outputs of the evaluation are saved to `<output_folder>/<run_name>.jsonl`.
+
 ### Dashboard
 
 Once you have results, you can visualize them in a user-friendly way with the integrated web dashboard.
@@ -129,7 +166,7 @@ $ npm install
 $ npm run dev
 ```
 
-The dashboard will be live at `http://localhost:5173`, where you can upload the evaluation results files (JSONL) and get nice visualizations.
+The dashboard will be live probably at `http://localhost:5173` (you can check the correct URL in the terminal), where you can upload the evaluation results files (JSONL) and get nice visualizations.
 
 <img src="assets/readme_images/dashboard-intro.png" width="600" alt="dashboard-intro.png">
 
@@ -186,7 +223,7 @@ The list of included tasklists is the following:
 - **BABILong-128k**: long-context reasoning over 128k tokens *(from HuggingFace RMT-team/babilong)*
 - **HotpotQA**: multi-hop question answering *(from HuggingFace hotpotqa/hotpot_qa)*
 - **SimpleQA**: straightforward questions asking for short, factual answers *(from HuggingFace basicv8vc/SimpleQA)*
-- **Fever**: fact-checking *(from HuggingFace fever/fever)*
+- **Fever**: fact-checking *(from HuggingFace fever/fever)* (⚠️ possibly deprecated)
 - **CURIE-protein**: protein sequence reconstruction *(from HuggingFace nhop/curie)*
 - **HLE**: graduate-level questions across diverse fields *(from HuggingFace cais/hle)*
 - **GAIA**: real-world tasks requiring web access *(from HuggingFace gaia-benchmark/GAIA)*

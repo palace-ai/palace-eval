@@ -1,6 +1,7 @@
 **/__pycache__/
 **/___*
 **/*.egg-info/
+**/*.ipynb
 **/*.png
 !assets/**/*.png
 .env

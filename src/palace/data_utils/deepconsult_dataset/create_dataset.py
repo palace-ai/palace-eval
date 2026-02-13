@@ -75,7 +75,7 @@ def main():
     json.dump(
         {
             "name": "DeepConsult",
-            "id": "PALACE/DeepConsult",
+            "id": "jrc-ai/DeepConsult",
             "[deprecating in favor of 'original'] type": "[deprecating in favor of 'original'] custom",
             "original": True,
             "config": None,

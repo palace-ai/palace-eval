@@ -4,7 +4,6 @@ import sys
 
 import emoji
 import questionary
-
 from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
 from palace.environments import (
     AssistantEnvironment,
@@ -98,7 +97,7 @@ Please make sure you have the required dependencies installed.
 You can find the documentation at [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval[/].
 If you have any questions, please contact us at [blue]massimiliano.altieri@ec.europa.eu[/].""",
         box=True,
-        box_title="Welcome to the Palace CLI!",
+        box_title=":waving_hand: Welcome to the Palace CLI!",
         wrap_width=108,
     )
     print()
@@ -144,9 +143,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             questionary.Choice("Remote (via OpenAI-compatible API)"),
             questionary.Choice("Local"),
         ],
-        validate=lambda choices: True
-        if len(choices) > 0
-        else "You must select at least one!",
+        validate=lambda choices: (
+            True if len(choices) > 0 else "You must select at least one!"
+        ),
     ).ask()
     if len(local_or_remote) == 0:
         print("You have selected nothing to test. Have a nice day :)")
@@ -166,9 +165,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         paradigm = questionary.checkbox(
             "Select Reasoning Paradigms to test for local agents:",
             choices=[questionary.Choice(p.name) for p in _PARADIGMS],
-            validate=lambda choices: True
-            if len(choices) > 0
-            else "You must select at least one!",
+            validate=lambda choices: (
+                True if len(choices) > 0 else "You must select at least one!"
+            ),
         ).ask()
         paradigms = [p for p in _PARADIGMS if p.name in paradigm]
         if len(paradigms) == 0:
@@ -178,9 +177,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         models = questionary.checkbox(
             "Select Models to test for local agents:",
             choices=_MODELS,
-            validate=lambda choices: True
-            if len(choices) > 0
-            else "You must select at least one!",
+            validate=lambda choices: (
+                True if len(choices) > 0 else "You must select at least one!"
+            ),
         ).ask()
         if len(models) == 0:
             raise ValueError("No models selected")
@@ -197,9 +196,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         environments = questionary.checkbox(
             "Select Environments to test for local agents:",
             choices=[e.name for e in _ENVIRONMENTS],
-            validate=lambda choices: True
-            if len(choices) > 0
-            else "You must select at least one!",
+            validate=lambda choices: (
+                True if len(choices) > 0 else "You must select at least one!"
+            ),
         ).ask()
         environments = [e for e in _ENVIRONMENTS if e.name in environments]
         if len(environments) == 0:
@@ -294,9 +293,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         mcp_agents = questionary.checkbox(
             "Select MCP Agents:",
             choices=available_mcp_agents,
-            validate=lambda choices: True
-            if len(choices) > 0
-            else "You must select at least one!",
+            validate=lambda choices: (
+                True if len(choices) > 0 else "You must select at least one!"
+            ),
         ).ask()
 
         # add MCP agents
@@ -331,9 +330,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         openai_agents = questionary.checkbox(
             "Select OpenAI-compatible Agents:",
             choices=available_openai_agents,
-            validate=lambda choices: True
-            if len(choices) > 0
-            else "You must select at least one!",
+            validate=lambda choices: (
+                True if len(choices) > 0 else "You must select at least one!"
+            ),
         ).ask()
 
         # add OpenAI-compatible agents
@@ -363,9 +362,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             for tasklist in available_tasklists
         ],
         style=custom_style,
-        validate=lambda choices: True
-        if len(choices) > 0
-        else "You must select at least one!",
+        validate=lambda choices: (
+            True if len(choices) > 0 else "You must select at least one!"
+        ),
     ).ask()
     if len(tasklists) == 0:
         raise ValueError("No tasklists selected")

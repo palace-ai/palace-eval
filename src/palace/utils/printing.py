@@ -169,15 +169,28 @@ def print(
 
     raw = sep.join(str(val) for val in values)
     text = emoji.emojize(raw, language="alias")
+    # Many terminals don't combine multi-codepoint emoji sequences, causing
+    # glyphs to overflow into adjacent cells. Insert hair spaces after
+    # combining characters so the next character remains visible.
+    text = text.replace("\ufe0f", "\ufe0f\u200a")
+    text = re.sub("([\U0001f3fb-\U0001f3ff])", "\\1\u200a", text)  # skin tones
+    text = re.sub("([\U0001f1e6-\U0001f1ff])", "\\1\u200a", text)  # regional indicators
     formatted_text, active_styles = _apply_styles(text)
 
     if box:
 
         def _real_len(s):
-            return wcswidth(re.sub(r"\x1b\[[0-9;]*m", "", s))
+            clean_s = re.sub(r"\x1b\[[0-9;]*m", "", s)
+            clean_s = clean_s.replace("\ufe0f", "").replace("\u200d", "")
+            # Skin tone modifiers: wcswidth=0 but render as 2 cells
+            clean_s = re.sub("[\U0001f3fb-\U0001f3ff]", "全", clean_s)
+            # Regional indicators: wcswidth=1 but render as 1 cell (already correct)
+            # Combining keycap: zero-width, renders as 0 cells
+            clean_s = clean_s.replace("\u20e3", "")
+            return wcswidth(clean_s)
 
         def _split_visible_chunks(string, chunk_len):
-            tokens = re.findall(r"\033\[[0-9;]*m|.", string)
+            tokens = re.findall(r"\033\[[0-9;]*m|.", string, re.DOTALL)
             chunks, chunk, width, current_sgr = [], "", 0, ""
             for t in tokens:
                 if t.startswith("\033["):
@@ -212,12 +225,16 @@ def print(
         )
 
         if box_title:
-            styled_title, _ = _apply_styles(emoji.emojize(box_title, language="alias"))
+            title_text = emoji.emojize(box_title, language="alias")
+            title_text = title_text.replace("\ufe0f", "\ufe0f\u200a")
+            title_text = re.sub("([\U0001f3fb-\U0001f3ff])", "\\1\u200a", title_text)
+            title_text = re.sub("([\U0001f1e6-\U0001f1ff])", "\\1\u200a", title_text)
+            styled_title, _ = _apply_styles(title_text)
             box_title = f" {styled_title} "
         else:
             box_title = ""
         box_width = max(
-            max_length, wcswidth(re.sub(r"\x1b\[[0-9;]*m", "", box_title)) - 2
+            max_length, _real_len(box_title) - 2
         )
 
         horizontal_line = "─" * (box_width + 4)

@@ -8,13 +8,12 @@ from pathlib import Path
 from typing import Optional
 
 import pymupdf
-from tenacity import Retrying, stop_after_attempt
-
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import print
 from palace.utils.secrets import GPTJRC_PROD_TOKEN
+from tenacity import Retrying, stop_after_attempt
 
 
 def fetch_pdf_content(path: Path, limit_length: Optional[int] = None):

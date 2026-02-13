@@ -2,6 +2,7 @@ import itertools
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 import pandas as pd
@@ -27,11 +28,13 @@ class Evaluation:
         task_amount_limit: Optional[int] = None,
         runs_per_configuration: int = 1,
         text_tasks_only: bool = True,
+        output_path: Path | None = None,
     ):
         self.name = name
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.text_tasks_only = text_tasks_only
+        self.output_path = output_path or PROJECT_ROOT / "results"
 
     def evaluate_all(
         self,
@@ -167,7 +170,7 @@ class Evaluation:
                     + f"[blue]{correct_tasks}[/] / [blue]{len(report)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completely successfully.\n"
                     + f"Total time: [blue]{total_time}[/]",
                     box=True,
-                    box_title="Evaluation report:",
+                    box_title="Evaluation Report",
                 )
 
                 run_results = {
@@ -186,9 +189,9 @@ class Evaluation:
                 results.append(run_results)
 
                 # append results to jsonl file
-                os.makedirs(PROJECT_ROOT / "results/", exist_ok=True)
+                os.makedirs(self.output_path, exist_ok=True)
                 with open(
-                    PROJECT_ROOT / "results" / f"{self.name}.jsonl",
+                    self.output_path / f"{self.name}.jsonl",
                     "a",
                     encoding="utf-8",
                 ) as f:
@@ -212,7 +215,13 @@ class Evaluation:
         with open(tasklist_path / "tasks.json") as f:
             json_tasks = json.load(f)
         tasks: list[Task] = [
-            Task.from_dict(task | {"category": tasklist_info["category"]})
+            Task.from_dict(
+                task
+                | {
+                    "category": tasklist_info["category"],
+                    "category_fields": tasklist_info.get("category_fields", {}),
+                }
+            )
             for task in json_tasks
         ]
 
@@ -262,7 +271,7 @@ class Evaluation:
                 box=True,
                 box_title=f":memo: Task {i + 1}",
             )
-            print(f"[bold]Expected response:[/] {task.expected}")
+            print(task.expected, box=True, box_title=":fleur_de_lis: Expected Answer")
 
             start_time = time.time()
             with loading():
@@ -293,14 +302,14 @@ class Evaluation:
                     )
                     continue
             else:
-                print(f"[bold]Agent response:[/] {result}")
+                print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
                 is_correct, reasoning = task.verify(result)
                 if is_correct:
                     print("[bold green]:white_check_mark: Correct[/]")
                 else:
                     print("[bold red]:cross_mark: Incorrect[/]")
                 if reasoning is not None:
-                    print(f"[italic]Reasoning: {reasoning}[/]")
+                    print(reasoning, box=True, box_title=":judge: Reasoning")
 
             # prepare report
             elapsed_time = time.time() - start_time

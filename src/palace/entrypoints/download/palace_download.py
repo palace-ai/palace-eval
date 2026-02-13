@@ -11,7 +11,6 @@ import filetype
 from datasets import load_dataset
 from huggingface_hub import get_collection, hf_hub_download, login
 from huggingface_hub.utils.tqdm import disable_progress_bars
-
 from palace.utils.paths import PROJECT_ROOT
 from palace.utils.printing import loading, print
 from palace.utils.secrets import HUGGINGFACE_TOKEN
@@ -35,6 +34,7 @@ def download_tasklist(
         "attachment": "attachment",
         "custom_verificator": "custom_verificator",
     },
+    keep_custom_columns: bool = False,
     attachment_path: str | None = "task_files",
     inline_attachment: bool | None = None,
     category: str | None = None,
@@ -67,9 +67,9 @@ def download_tasklist(
             f"If custom_verificator is specified, it must follow the signature 'def verify(pred, truth) -> bool', found {custom_verificator}."
         )
     dataset = load_dataset(path=id, name=config, split=split)
-    df_dataset = dataset.to_pandas()  # type: ignore
+    dataset = dataset.to_list()  # type: ignore
     tasks = []
-    for i, row in df_dataset.iterrows():  # type: ignore
+    for i, row in enumerate(dataset):
         # Get attachment name
         attachment = (
             row[column_names["attachment"]]
@@ -95,6 +95,13 @@ def download_tasklist(
             and column_names["custom_verificator"] in row
             else "",
         }
+
+        # Add any additional columns from the original dataset if keep_custom_columns is True
+        if keep_custom_columns:
+            for k, v in row.items():
+                if k not in column_names.values():
+                    task[k] = v  # type: ignore
+
         # Add task to list if it doesn't already exist
         if task["id"] not in [t["id"] for t in tasks]:
             tasks.append(task)
@@ -127,13 +134,18 @@ def download_tasklist(
     # Download and save task files (attachments)
     if (
         column_names.get("attachment") is not None
-        and column_names["attachment"] in df_dataset.columns  # type: ignore
+        and column_names["attachment"] in dataset[0]
     ):
         attachments_dir = Path(tasklist_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
-        for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][  # type: ignore
-            column_names["attachment"]
+        # for attachment in df_dataset[df_dataset[column_names["attachment"]] != ""][  # type: ignore
+        #     column_names["attachment"]
+        # ]:
+        for attachment in [
+            row[column_names["attachment"]]
+            for row in dataset
+            if row.get(column_names["attachment"], "") != ""
         ]:
             # attachment is present as a file name to download
             if not inline_attachment:
@@ -212,6 +224,10 @@ def _get_filename(s: str) -> str:
     Produces a deterministic filename based on sha256 of the binary content,
     and picks an extension using filetype.guess for binary data, or 'txt' for text.
     """
+    # Check s is not empty
+    if not s or (isinstance(s, str) and s.strip() == ""):
+        return ""
+
     # Handle bytes input
     if isinstance(s, (bytes, bytearray)):
         data_bytes = bytes(s)
@@ -245,9 +261,15 @@ def _get_filename(s: str) -> str:
     return f"{filename}.{extension}"
 
 
-def download_all():
+def main():
     argparser = argparse.ArgumentParser(
         description="Download PALACE datasets from Hugging Face."
+    )
+    argparser.add_argument(
+        "-t",
+        "--tasklists",
+        nargs="+",
+        help="Names of the tasklists to download. If not specified, all tasklists are downloaded.",
     )
     argparser.add_argument(
         "--skip-existing",
@@ -263,10 +285,16 @@ def download_all():
         for item in collection.items
         if item.item_type == "dataset"
     ]
-    print(collection)
     print(
         f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
     )
+
+    # filter by --tasklists argument if provided
+    if args.tasklists:
+        collection = [item for item in collection if item["name"] in args.tasklists]
+        print(
+            f"   [cyan]Filtered to [bold]{len(collection)}[/bold] items based on --tasklists argument."
+        )
 
     # If --skip-existing is set, filter out items that already exist locally
     if args.skip_existing:
@@ -298,6 +326,7 @@ def download_all():
                 name=item["name"],
                 id=item["id"],
                 split="test",
+                keep_custom_columns=True,
                 category=metadata.get("category", ""),
             )
         print(f"   :check_box_with_check:[cyan]  {item['name']}")
@@ -317,7 +346,15 @@ def download_all():
         for item in tasklists_info
         for s in (item["split"] if isinstance(item["split"], list) else [item["split"]])
     ]
-    print(json.dumps(tasklists_info, indent=2))
+
+    # filter by --tasklists argument if provided
+    if args.tasklists:
+        tasklists_info = [
+            info for info in tasklists_info if info["name"] in args.tasklists
+        ]
+        print(
+            f"   [cyan]Filtered to [bold]{len(tasklists_info)}[/bold] items based on --tasklists argument."
+        )
 
     # If --skip-existing is set, filter out items that already exist locally
     if args.skip_existing:

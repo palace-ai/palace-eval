@@ -152,7 +152,7 @@ def main():
         json.dump(
             {
                 "name": "Sycophancy-OpenEnded",
-                "id": "PALACE/Sycophancy-OpenEnded",
+                "id": "jrc-ai/Sycophancy-OpenEnded",
                 "[deprecated type]": "[deprecated] custom",
                 "original": True,
                 "config": "OpenEnded",
@@ -176,7 +176,7 @@ def main():
         json.dump(
             {
                 "name": "Sycophancy-Binary",
-                "id": "PALACE/Sycophancy-Binary",
+                "id": "jrc-ai/Sycophancy-Binary",
                 "[deprecated type]": "[deprecated] custom",
                 "original": True,
                 "config": "Binary",
