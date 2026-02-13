@@ -83,7 +83,9 @@ def download_tasklist(
         task = {
             "id": f"{name}_{row[column_names['id']] if 'id' in column_names else i}",
             "objective": row[column_names["objective"]],
-            "expected": row[column_names["expected"]],
+            "expected": row[column_names["expected"]]
+            if "expected" in column_names and column_names["expected"] in row
+            else "",
             "difficulty": f"{name}_{row[column_names['difficulty']]}"
             if "difficulty" in column_names and column_names["difficulty"] in row
             else "",
@@ -329,7 +331,7 @@ def main():
                 keep_custom_columns=True,
                 category=metadata.get("category", ""),
             )
-        print(f"   :check_box_with_check:[cyan]  {item['name']}")
+        print(f"   :check_box_with_check:[cyan] {item['name']}")
 
     # Download public
     with open(Path(__file__).parent / "public_datasets_info.json") as f:

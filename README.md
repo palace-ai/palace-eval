@@ -29,7 +29,7 @@ Here are the steps:
 
 1. **Clone the project:**
    ```bash
-   $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval.git palace
+   $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib.git palace
    ```
 
 2. _(Optional, but highly recommended)_ **Create a virtual environment:**
@@ -209,9 +209,10 @@ A task is a JSON object containing the following fields (fields with an asterisk
 - **document**: Related document.
 - **attachment**: Filename or path to an attachment.
 - **custom_verificator**: Custom verification logic or script.
+- Any category-specific fields as defined in `category_fields` in `info.json`.
 
 In addition, the `<tasklist_name>/info.json` file contains metadata information about the tasklist.
-The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`.
+The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`, `category_fields`.
 Most fields have a specific meaning when downloading tasklists from HuggingFace.
 For custom datasets, the only really meaningful field is `category`.
 
@@ -265,4 +266,4 @@ The MCP server will be ready to serve requests on port 8080.
 
 ## Support
 
-If you have any issues, you can open an issue on the [GitLab repository](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval), or you can contact me at massimiliano.altieri@ec.europa.eu.
+If you have any issues, you can open an issue on the [GitLab repository](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib), or you can contact me at massimiliano.altieri@ec.europa.eu.

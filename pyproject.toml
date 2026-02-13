@@ -45,8 +45,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval"
-Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval"
+Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
+Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
 
 [project.scripts]
 palace-cli = "palace.entrypoints.palace_cli:main"

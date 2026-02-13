@@ -94,7 +94,7 @@ def main():
     print(
         """This is the main user interface for the [bold]Palace[/] agents evaluation framework.
 Please make sure you have the required dependencies installed.
-You can find the documentation at [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/agents/agents-eval[/].
+You can find the documentation at [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib[/].
 If you have any questions, please contact us at [blue]massimiliano.altieri@ec.europa.eu[/].""",
         box=True,
         box_title=":waving_hand: Welcome to the Palace CLI!",
