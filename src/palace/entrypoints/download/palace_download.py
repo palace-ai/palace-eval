@@ -118,20 +118,31 @@ def download_tasklist(
     os.makedirs(tasklist_path, exist_ok=True)
     with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
-    with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "name": name,
-                "id": id,
-                "original": False,
-                "config": config,
-                "split": split,
-                "category": category,
-            },
-            f,
-            ensure_ascii=False,
-            indent=4,
+
+    # Download tasklist metadata if available, otherwise create it
+    try:
+        metadata = hf_hub_download(
+            repo_id=id, filename="info.json", repo_type="dataset"
         )
+        with open(metadata) as f:
+            metadata = json.load(f)
+        with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=4)
+    except Exception:
+        with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "name": name,
+                    "id": id,
+                    "original": False,
+                    "config": config,
+                    "split": split,
+                    "category": category,
+                },
+                f,
+                ensure_ascii=False,
+                indent=4,
+            )
 
     # Download and save task files (attachments)
     if (

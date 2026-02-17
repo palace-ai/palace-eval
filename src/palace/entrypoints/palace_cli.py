@@ -315,7 +315,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             "OpenAI-compatible Agents URL:", default=_DEFAULT_OPENAI_AGENTS_URL
         ).ask()
         token = (
-            questionary.text("OpenAI-compatible Agents Token:").ask()
+            questionary.password("OpenAI-compatible Agents Token:").ask()
             if openai_agents_url != _DEFAULT_OPENAI_AGENTS_URL
             else _DEFAULT_OPENAI_AGENTS_TOKEN
         )
