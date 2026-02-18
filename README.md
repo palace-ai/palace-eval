@@ -52,7 +52,7 @@ Here are the steps:
    $ mv palace/.env.example palace/.env
    ```
 
-5. _(Optional)_ **Download the included benchmark tasklists**, by simply running the global command:
+5. **Download the included benchmark tasklists**, by simply running the global command:
    ```bash
    $ palace-download
    ```
