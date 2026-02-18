@@ -40,7 +40,7 @@ Here are the steps:
 
 3. **Install** (this will also install all required dependencies):
    ```bash
-   $ python3 -m pip install palace
+   $ python3 -m pip install -e palace
    ```
 
 4. **Configure secrets and other variables:**
