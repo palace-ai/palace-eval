@@ -53,3 +53,6 @@ palace-cli = "palace.entrypoints.palace_cli:main"
 palace-run = "palace.entrypoints.palace_run:run"
 palace-mcpstart = "palace.entrypoints.palace_mcpstart:main"
 palace-download = "palace.entrypoints.download.palace_download:main"
+
+[tool.setuptools.package-data]
+palace = ["prompts/*.md"]

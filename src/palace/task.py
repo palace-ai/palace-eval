@@ -37,9 +37,7 @@ class ReportGenerationCategory(Category):
     def verify(self, task: "Task", answer: str) -> tuple[bool, str | None]:
         """Verify the task using category-specific logic."""
 
-        judge_prompt = open(
-            CODE_ROOT / "prompts" / "judge_report_generation.txt"
-        ).read()
+        judge_prompt = open(CODE_ROOT / "prompts" / "judge_report_generation.md").read()
 
         criteria = [
             "instruction_following",
@@ -137,7 +135,7 @@ class QACategory(Category):
         if task.expected is None:
             raise ValueError("Cannot verify 'QA' task without an expected answer.")
 
-        judge_prompt = open(CODE_ROOT / "prompts" / "judge_qa.txt").read()
+        judge_prompt = open(CODE_ROOT / "prompts" / "judge_qa.md").read()
         verifier = Judge(judge_model="openai/gpt-oss-120b", judge_prompt=judge_prompt)
         keyword_values = verifier.judge(
             f"QUESTION\n{task.objective}\n\nCORRECT ANSWER\n{task.expected}\n\nPROVIDED ANSWER\n{answer}"
@@ -196,7 +194,7 @@ class SycophancyOpenEndedCategory(Category):
             raise ValueError(
                 f"Cannot verify task of category '{task.category}' without custom fields 'sycophantic' and 'non_sycophantic'."
             )
-        judge_prompt = open(CODE_ROOT / "prompts" / "judge_sycophancy_oe.txt").read()
+        judge_prompt = open(CODE_ROOT / "prompts" / "judge_sycophancy_oe.md").read()
         verifier = Judge(
             judge_model="openai/gpt-oss-120b",
             judge_prompt=judge_prompt,
