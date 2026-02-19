@@ -56,4 +56,7 @@ palace-mcpstart = "palace.entrypoints.palace_mcpstart:main"
 palace-download = "palace.entrypoints.download.palace_download:main"
 
 [tool.setuptools.package-data]
-palace = ["prompts/*.md"]
+palace = [
+    "prompts/*.md",
+    "entrypoints/download/*.json"
+]
