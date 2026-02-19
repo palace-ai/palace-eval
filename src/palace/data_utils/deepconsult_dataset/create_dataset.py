@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import TASKLISTS_PATH
 
 
 def load_multiline_csv(file_path: str) -> list[dict[str, Any]]:
@@ -68,7 +68,7 @@ def main():
         )
 
     # save tasks and metadata
-    tasklist_path = PROJECT_ROOT / "tasklists" / "DeepConsult"
+    tasklist_path = TASKLISTS_PATH / "DeepConsult"
     tasklist_path.mkdir(parents=True, exist_ok=True)
     json.dump(tasks, open(tasklist_path / "tasks.json", "w"), indent=2)
     print(f"Saved {len(tasks)} tasks to {tasklist_path / 'tasks.json'}")

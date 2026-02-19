@@ -7,10 +7,6 @@
 .env
 .vscode
 build/
-results/*
-!results/.gitkeep
-tasklists/*
-!tasklists/.gitkeep
 
 # all prohibited by gitlab pattern
 *.3gp

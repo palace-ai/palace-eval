@@ -10,7 +10,7 @@ from typing import Optional
 import pymupdf
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import print
 from palace.utils.secrets import GPTJRC_PROD_TOKEN
 from tenacity import Retrying, stop_after_attempt
@@ -114,7 +114,7 @@ def main():
     # set paths
     documents_path = Path(__file__).parent / "files" / args.fileset
     system_prompts_path = Path(__file__).parent / "system_prompts"
-    tasklist_path = PROJECT_ROOT / "tasklists" / "custom" / TASKLIST_NAME
+    tasklist_path = TASKLISTS_PATH / TASKLIST_NAME
     tasks_path = tasklist_path / "tasks.json"
     task_files_path = tasklist_path / "task_files"
     metadata_path = tasklist_path / "info.json"

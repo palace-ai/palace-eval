@@ -11,7 +11,7 @@ import filetype
 from datasets import load_dataset
 from huggingface_hub import get_collection, hf_hub_download, login
 from huggingface_hub.utils.tqdm import disable_progress_bars
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
 from palace.utils.secrets import HUGGINGFACE_TOKEN
 
@@ -114,7 +114,7 @@ def download_tasklist(
             task["expected"] = label_mapping[task["expected"]]
 
     # Save tasklist tasks and metadata
-    tasklist_path = PROJECT_ROOT / "tasklists" / name
+    tasklist_path = TASKLISTS_PATH / name
     os.makedirs(tasklist_path, exist_ok=True)
     with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
@@ -312,9 +312,7 @@ def main():
     # If --skip-existing is set, filter out items that already exist locally
     if args.skip_existing:
         exists = [
-            item
-            for item in collection
-            if (PROJECT_ROOT / "tasklists" / item["name"]).exists()
+            item for item in collection if (TASKLISTS_PATH / item["name"]).exists()
         ]
         collection = [item for item in collection if item not in exists]
         print(
@@ -372,9 +370,7 @@ def main():
     # If --skip-existing is set, filter out items that already exist locally
     if args.skip_existing:
         exists = [
-            info
-            for info in tasklists_info
-            if (PROJECT_ROOT / "tasklists" / info["name"]).exists()
+            info for info in tasklists_info if (TASKLISTS_PATH / info["name"]).exists()
         ]
         tasklists_info = [info for info in tasklists_info if info not in exists]
         print(

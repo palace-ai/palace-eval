@@ -9,7 +9,7 @@ import pandas as pd
 
 from palace.agents import Agent
 from palace.task import Task
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import loading, print
 
 agent_run_stats: list[dict[str, Any]] = [
@@ -34,7 +34,7 @@ class Evaluation:
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.text_tasks_only = text_tasks_only
-        self.output_path = output_path or PROJECT_ROOT / "results"
+        self.output_path = output_path or RESULTS_PATH
 
     def evaluate_all(
         self,
@@ -206,7 +206,7 @@ class Evaluation:
         tasklist: str,
     ):
         report: dict[str, dict] = {}
-        tasklist_path = PROJECT_ROOT / "tasklists" / tasklist
+        tasklist_path = TASKLISTS_PATH / tasklist
 
         # load tasklist and metadata
         with open(tasklist_path / "info.json") as f:

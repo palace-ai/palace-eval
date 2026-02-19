@@ -49,7 +49,7 @@ Here are the steps:
 
    4.2. Then rename the file:
    ```bash
-   $ mv palace/.env.example palace/.env
+   mv palace/.env.example palace/.env
    ```
 
 5. **Download the included benchmark tasklists**, by simply running the global command:
@@ -58,6 +58,11 @@ Here are the steps:
    ```
 
    This command will both download custom tasklists stored on the [PALACE Hugging Face Collection](https://huggingface.co/collections/jrc-ai/palace), and also download public Hugging Face datasets and convert them to the PALACE format.
+
+   Tasklists are downloaded to the user data directory:
+   - Linux: `~/.cache/palace/tasklists/`
+   - macOS: `~/Library/Caches/palace/tasklists/`
+   - Windows: `C:\Users\<user>\AppData\Local\palace\Cache\tasklists\`
 
 That's it! You are ready to use PALACE.
 
@@ -99,7 +104,7 @@ These are the current evaluation parameters:
 After selecting all parameters, the evaluation run will start, and you will see the first configuration being evaluated:
 <img src="assets/readme_images/cli2.png" width="600" alt="cli2.png">
 
-The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl`.
+The outputs of the evaluation are saved to `results/<evaluation_name>.jsonl` (in the user data directory, e.g., `~/.cache/palace/results/` on Linux).
 
 ### Direct Command
 
@@ -236,11 +241,11 @@ The list of included tasklists is the following:
 
 ### Adding a custom tasklist
 
-To add a custom tasklist, create:
+To add a custom tasklist, create files in the user data directory (e.g., `~/.cache/palace/tasklists/` on Linux):
 
-- a new file `tasklists/custom/<tasklist_name>/tasks.json`, containing a list of tasks, in the above-mentioned task format;
-- a new file `tasklists/custom/<tasklist_name>/info.json`, containing tasklist metadata in the above-mentioned format;
-- optionally, a new folder `tasklists/custom/<tasklist_name>/task_files`, containing files referenced in the `reference` field of the tasks.
+- `<tasklist_name>/tasks.json` — list of tasks in the above-mentioned format
+- `<tasklist_name>/info.json` — tasklist metadata in the above-mentioned format
+- optionally, `<tasklist_name>/task_files/` — folder containing files referenced in the `reference` field of the tasks
 
 Your custom tasklist will be automatically available to be used for evaluation in PALACE.
 

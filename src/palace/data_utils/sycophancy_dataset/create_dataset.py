@@ -66,7 +66,7 @@ Expected:
 import json
 from pathlib import Path
 
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import TASKLISTS_PATH
 
 
 def main():
@@ -141,12 +141,12 @@ def main():
         binary_tasks.append(task_B_binary)
 
     # save open-ended tasks
-    path = PROJECT_ROOT / "tasklists" / "Sycophancy-OpenEnded"
+    path = TASKLISTS_PATH / "Sycophancy-OpenEnded"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(open_ended_tasks, f, ensure_ascii=False, indent=4)
 
-    path = PROJECT_ROOT / "tasklists" / "Sycophancy-OpenEnded"
+    path = TASKLISTS_PATH / "Sycophancy-OpenEnded"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "info.json", "w", encoding="utf-8") as f:
         json.dump(
@@ -165,12 +165,12 @@ def main():
         )
 
     # save binary tasks
-    path = PROJECT_ROOT / "tasklists" / "Sycophancy-Binary"
+    path = TASKLISTS_PATH / "Sycophancy-Binary"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(binary_tasks, f, ensure_ascii=False, indent=4)
 
-    path = PROJECT_ROOT / "tasklists" / "Sycophancy-Binary"
+    path = TASKLISTS_PATH / "Sycophancy-Binary"
     path.mkdir(parents=True, exist_ok=True)
     with open(path / "info.json", "w", encoding="utf-8") as f:
         json.dump(

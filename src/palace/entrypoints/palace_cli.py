@@ -15,7 +15,7 @@ from palace.environments import (
 from palace.environments.empty_environment import EmptyEnvironment
 from palace.evaluation import Evaluation
 from palace.mcp_utils.mcp_client import MCPClientPool
-from palace.models import HuggingfaceModel, OpenAICompatibleModel
+from palace.models import OpenAICompatibleModel  # , HuggingfaceModel
 from palace.paradigms import (
     ActParadigm,
     NonAgenticParadigm,
@@ -29,7 +29,7 @@ from palace.utils.constants import (
     GPTJRC_PROD_API_URL,
     TS_STAGING_URL,
 )
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
 from palace.utils.secrets import (
     ALOHA_STAGING_TOKEN,
@@ -130,7 +130,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     available_tasklists = sorted(
         [
             {"name": t.name, "category": json.load(open(t / "info.json"))["category"]}
-            for t in (PROJECT_ROOT / "tasklists").iterdir()
+            for t in (TASKLISTS_PATH).iterdir()
             if t.is_dir()
         ],
         key=lambda x: (x["category"], x["name"]),
@@ -187,7 +187,13 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         # set local or remote llm
         local_llm = questionary.select(
             "Where do you want to run the LLMs for local agents?",
-            choices=["Locally (make sure you have enough GPU memory)", "GPT@JRC"],
+            choices=[
+                questionary.Choice(
+                    "Locally (make sure you have enough GPU memory)",
+                    disabled="NO LONGER SUPPORTED",
+                ),
+                questionary.Choice("GPT@JRC", checked=True),
+            ],
             default="GPT@JRC",
         ).ask()
         local_llm: bool = local_llm != "GPT@JRC"
@@ -211,9 +217,10 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             )
         agents += [
             LocalAgent(
-                model=HuggingfaceModel(model)
-                if local_llm
-                else OpenAICompatibleModel(
+                # model=HuggingfaceModel(model)
+                # if local_llm
+                # else
+                OpenAICompatibleModel(
                     model,
                     GPTJRC_PROD_API_URL,  # type: ignore
                     GPTJRC_PROD_TOKEN,

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from palace.utils.paths import PROJECT_ROOT
+from palace.utils.paths import TASKLISTS_PATH
 
 TASKLIST_NAME = "ValuesEval24"
 VALUES_DESCRIPTIONS = {
@@ -52,10 +52,10 @@ for idx, row in dataset.iterrows():
     tasks.append(task)
 
 # save tasks
-Path(PROJECT_ROOT / "tasklists" / TASKLIST_NAME).mkdir(parents=True, exist_ok=True)
+Path(TASKLISTS_PATH / TASKLIST_NAME).mkdir(parents=True, exist_ok=True)
 json.dump(
     tasks,
-    open(PROJECT_ROOT / "tasklists" / TASKLIST_NAME / "tasks.json", "w"),
+    open(TASKLISTS_PATH / TASKLIST_NAME / "tasks.json", "w"),
     indent=4,
     ensure_ascii=False,
 )
@@ -90,7 +90,7 @@ info = {
 }
 json.dump(
     info,
-    open(PROJECT_ROOT / "tasklists" / TASKLIST_NAME / "info.json", "w"),
+    open(TASKLISTS_PATH / TASKLIST_NAME / "info.json", "w"),
     indent=4,
     ensure_ascii=False,
 )

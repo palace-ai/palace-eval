@@ -1,6 +1,6 @@
 import re
 
-from palace.models.huggingface_model import HuggingfaceModel
+# from palace.models.huggingface_model import HuggingfaceModel
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.printing import print
@@ -46,10 +46,11 @@ class Judge:
         # initialize judge model
         assert judge_inference in ["local", "remote"]
         if judge_inference == "local":
-            judge_model_id = "/mnt/storage2/hf_models/Qwen2.5-3B-Instruct"
-            self.judge_model = HuggingfaceModel(
-                judge_model_id, gpu_memory_utilization=0.3
-            )
+            raise NotImplementedError("Local judge inference is no longer supported.")
+            # judge_model_id = "/mnt/storage2/hf_models/Qwen2.5-3B-Instruct"
+            # self.judge_model = HuggingfaceModel(
+            #     judge_model_id, gpu_memory_utilization=0.3
+            # )
         if judge_inference == "remote":
             assert GPTJRC_PROD_API_URL is not None, (
                 "GPTJRC_PROD_API_URL is not set in the environment variables."

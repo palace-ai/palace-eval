@@ -4,7 +4,7 @@ import os
 from palace.mcp_utils.mcp_client import MCPClientPool
 from palace.models.openai_compatible_model import OpenAICompatibleModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
-from palace.utils.paths import CODE_ROOT, PROJECT_ROOT
+from palace.utils.paths import PACKAGE_ROOT, TASKLISTS_PATH
 from palace.utils.printing import loading
 from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
 
@@ -12,7 +12,7 @@ SCOPUS_MCP_URL = "http://localhost:8000/sse"
 
 # load research topics from json file
 with open(
-    CODE_ROOT / "data_utils" / "scopus_dataset" / "research_topics_small.json"
+    PACKAGE_ROOT / "data_utils" / "scopus_dataset" / "research_topics_small.json"
 ) as f:
     research_topics = json.load(f)
 
@@ -87,7 +87,7 @@ Nothing else can be in your response.""",
 
 # save the dataset to file
 with open(
-    CODE_ROOT / "data_utils" / "scopus_dataset" / "scopus_dataset.json", "w"
+    PACKAGE_ROOT / "data_utils" / "scopus_dataset" / "scopus_dataset.json", "w"
 ) as f:
     json.dump(papers, f, indent=4)
 
@@ -106,7 +106,7 @@ for subject, subject_papers in papers.items():
             tasks.append(task)
 
 # save the tasklist
-tasklist_path = PROJECT_ROOT / "tasklists" / "Scopus"
+tasklist_path = TASKLISTS_PATH / "Scopus"
 os.makedirs(tasklist_path, exist_ok=True)
 
 with open(tasklist_path / "tasks.json", "w") as f:
