@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+from typing import Callable
 
 from palace.agents.openai_api_agent import OpenAIAPIAgent
 from palace.evaluation import Evaluation
@@ -14,6 +15,7 @@ def evaluate(
     tasklist: str,
     limit: int | None = None,
     runs_per_configuration: int = 1,
+    on_task_complete: Callable[[int, int], None] | None = None,
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -36,6 +38,7 @@ def evaluate(
         task_amount_limit=limit,
         runs_per_configuration=runs_per_configuration,
         output_path=Path(output_folder),
+        on_task_complete=on_task_complete,
     )
     evaluation.evaluate_all([agent], tasklists=[tasklist])
 

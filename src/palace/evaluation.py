@@ -3,7 +3,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import pandas as pd
 
@@ -29,12 +29,14 @@ class Evaluation:
         runs_per_configuration: int = 1,
         text_tasks_only: bool = True,
         output_path: Path | None = None,
+        on_task_complete: Callable[[int, int], None] | None = None,
     ):
         self.name = name
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.text_tasks_only = text_tasks_only
         self.output_path = output_path or RESULTS_PATH
+        self.on_task_complete = on_task_complete
 
     def evaluate_all(
         self,
@@ -325,5 +327,10 @@ class Evaluation:
             if run_stats is not None:
                 for k, v in run_stats.items():
                     report[task.id][k] = v
+
+            # call the on_task_complete callback, if provided
+            self.on_task_complete(
+                i + 1, len(tasks)
+            ) if self.on_task_complete is not None else None
 
         return report
