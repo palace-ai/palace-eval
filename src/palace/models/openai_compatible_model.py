@@ -86,11 +86,11 @@ class OpenAICompatibleModel(Model):
             print(f"[bold yellow]Critical unknown error while generating text:\n{e}[/]")
             return "The model could not generate text due to an unknown error. Please try again."
 
+    # Exponential backoff (total 40m10s)
+    # x > 10s > x > 20s > x > 40s > x > 1m20s > x > 2m40s > x > 5m > x > 10m > x > 10m > x > 10m > x
     @retry(
-        stop=stop_after_attempt(5),  # Max 5 attempts
-        wait=wait_exponential(
-            multiplier=10, max=60
-        ),  # Exponential backoff (10s -> 20s -> 40s -> 60s)
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=10, max=600),
         retry=retry_if_exception_type((RateLimitError, TimeoutException, OpenAIError)),
         before_sleep=lambda retry_state: print(
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore

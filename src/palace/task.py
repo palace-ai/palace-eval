@@ -118,12 +118,12 @@ REPORT B
             for criterion in criteria
         )
         # compute per-criterion score sheet for provided vs. expected
-        return_string += "\n\nScore sheet for provided report (-5 to 5):"
+        return_string += "\n\nScore sheet for provided report (-10 to 10):"
         for criterion in criteria:
             coefficient_AB = 1 if keyword_values_AB[f"{criterion}_best"] == "B" else -1
             coefficient_BA = 1 if keyword_values_BA[f"{criterion}_best"] == "A" else -1
             return_string += f"\n{criterion}: {coefficient_AB * int(keyword_values_AB[f'{criterion}_gap_score']) + coefficient_BA * int(keyword_values_BA[f'{criterion}_gap_score'])}"
-        return_string += f"\noverall (-{len(criteria) * 5} to {len(criteria) * 5}): {score_provided - score_expected}"
+        return_string += f"\noverall (-{len(criteria) * 10} to {len(criteria) * 10}): {score_provided - score_expected}"
         return score_provided > score_expected, return_string
 
 
