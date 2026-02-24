@@ -15,7 +15,7 @@ from palace.environments import (
 from palace.environments.empty_environment import EmptyEnvironment
 from palace.evaluation import Evaluation
 from palace.mcp_utils.mcp_client import MCPClientPool
-from palace.models import OpenAICompatibleModel  # , HuggingfaceModel
+from palace.models import APIModel
 from palace.paradigms import (
     ActParadigm,
     NonAgenticParadigm,
@@ -220,10 +220,11 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 # model=HuggingfaceModel(model)
                 # if local_llm
                 # else
-                OpenAICompatibleModel(
+                APIModel(
                     model,
                     GPTJRC_PROD_API_URL,  # type: ignore
                     GPTJRC_PROD_TOKEN,
+                    api_type="openai" if "claude-" not in model else "anthropic",
                 ),
                 paradigm=paradigm,
                 environment=environment,
@@ -326,7 +327,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             if openai_agents_url != _DEFAULT_OPENAI_AGENTS_URL
             else _DEFAULT_OPENAI_AGENTS_TOKEN
         )
-        available_openai_agents = OpenAICompatibleModel.list_models(
+        available_openai_agents = APIModel.list_models(
             url=openai_agents_url, token=token
         )
         if len(available_openai_agents) == 0:
@@ -348,6 +349,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 url=openai_agents_url,
                 token=token,
                 name=agent,
+                api_type="openai" if "claude-" not in agent else "anthropic",
             )
             for agent in openai_agents
         ]

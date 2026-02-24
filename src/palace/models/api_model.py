@@ -1,3 +1,4 @@
+from anthropic import Anthropic
 from openai import OpenAI, OpenAIError, RateLimitError
 from tenacity import (
     retry,
@@ -21,7 +22,7 @@ _huggingface_to_gptjrc_model_names_map = {
 }
 
 
-class OpenAICompatibleModel(Model):
+class APIModel(Model):
     @classmethod
     def list_models(cls, url: str, token: str | None = None) -> list[str]:
         """List available models from the OpenAI-compatible API server."""
@@ -37,6 +38,7 @@ class OpenAICompatibleModel(Model):
         model_id: str,
         url: str,
         token: str | None = None,
+        api_type: str = "openai",
     ):
         """
         A class to interact with OpenAI-compatible models.
@@ -44,13 +46,30 @@ class OpenAICompatibleModel(Model):
         Arguments:
             url (str): The URL of the OpenAI compatible API server.
             token (str): The API token for authentication.
-            model_id (str): The model ID to use as found on Huggingface. Defaults to `llama-3.3-70b-instruct`.
+            api_type (str): The API type to use. Allowed values are `openai` and `anthropic`.
+                Defaults to `openai`.
         """
+        assert api_type in {"openai", "anthropic"}, (
+            "api_type must be either 'openai' or 'anthropic'"
+        )
+        self.api_type = api_type
+
         if model_id in _huggingface_to_gptjrc_model_names_map:
             self.model_id = _huggingface_to_gptjrc_model_names_map[model_id]
         else:
             self.model_id = model_id
-        self.client = OpenAI(api_key=token, base_url=url)
+
+        if self.api_type == "openai":
+            self.client = OpenAI(base_url=url, api_key=token)
+        else:
+            self.client = Anthropic(
+                base_url=url.removesuffix(
+                    "/v1"
+                ),  # GPTJRC's Anthropic-compatible API doesn't want the /v1 suffix in the base URL
+                default_headers={
+                    "Authorization": f"Bearer {token}"
+                },  # GPTJRC's Anthropic-compatible API uses Bearer token instead of api_key parameter
+            )
 
     @property
     def name(self):
@@ -96,17 +115,24 @@ class OpenAICompatibleModel(Model):
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore
         ),
     )
-    def generate_with_retry(
-        self,
-        messages: list[dict[str, str]],
-        **_,
-    ) -> str:
+    def generate_with_retry(self, messages: list[dict[str, str]], **_) -> str:
         try:
-            chat_completion = self.client.chat.completions.create(
-                model=self.model_id,
-                messages=messages,  # type: ignore
-                stream=False,
-            )  # type: ignore
-            return chat_completion.choices[0].message.content
+            if self.api_type == "anthropic":
+                chat_completion = self.client.messages.create(  # type: ignore
+                    model=self.model_id,
+                    messages=messages,  # type: ignore
+                    max_tokens=16384,
+                    stream=False,
+                )  # type: ignore
+                return chat_completion.content[0].text
+            elif self.api_type == "openai":
+                chat_completion = self.client.chat.completions.create(  # type: ignore
+                    model=self.model_id,
+                    messages=messages,  # type: ignore
+                    stream=False,
+                )
+                return chat_completion.choices[0].message.content
+            else:
+                raise ValueError(f"Unsupported API type: {self.api_type}")
         except (TimeoutException, OpenAIError, Exception):
             raise

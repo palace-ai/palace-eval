@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import pymupdf
-from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.models.api_model import APIModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import print
@@ -30,9 +30,7 @@ def fetch_pdf_content(path: Path, limit_length: Optional[int] = None):
     return title, full_text
 
 
-def generate_common_topics(
-    model: OpenAICompatibleModel, system_prompt: str, files: list[Path]
-):
+def generate_common_topics(model: APIModel, system_prompt: str, files: list[Path]):
     common_topics = model.generate(
         [
             {
@@ -61,7 +59,7 @@ def generate_common_topics(
     return topics, explanations
 
 
-def improve_question(question: str, model: OpenAICompatibleModel) -> str:
+def improve_question(question: str, model: APIModel) -> str:
     system_prompt = open(
         Path(__file__).parent / "system_prompts" / "improve_question.txt"
     ).read()
@@ -136,9 +134,7 @@ def main():
     assert GPTJRC_PROD_API_URL is not None, (
         "GPTJRC_PROD_API_URL is not set in the environment variables."
     )
-    model = OpenAICompatibleModel(
-        "openai/gpt-oss-120b", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
-    )
+    model = APIModel("openai/gpt-oss-120b", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
 
     tasks = []
 

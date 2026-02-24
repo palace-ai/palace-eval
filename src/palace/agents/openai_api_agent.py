@@ -3,7 +3,7 @@ from typing import Any
 from palace.agents import Agent
 from palace.environments.base_environment import Environment
 from palace.environments.unknown_environment import UnknownEnvironment
-from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.models.api_model import APIModel
 
 
 class OpenAIAPIAgent(Agent):
@@ -18,10 +18,23 @@ class OpenAIAPIAgent(Agent):
         name: str,
         url: str,
         token: str | None = None,
+        api_type: str = "openai",
     ):
+        """
+        Initialize an OpenAIAPIAgent.
+        Arguments:
+            name (str): The name of the agent. This should correspond to a model ID available on the OpenAI-compatible API server.
+            url (str): The URL of the OpenAI-compatible API server.
+            token (str, optional): The API token for authentication. Defaults to None.
+            api_type (str): The API type to use. Allowed values are `openai` and `anthropic`. Defaults to `openai`.
+        """
+
+        if api_type not in ["openai", "anthropic"]:
+            raise ValueError("api_type must be either 'openai' or 'anthropic'")
         self._name = name
         self.url = url
         self.token = token
+        self.api_type = api_type
         self._environment = UnknownEnvironment()
 
     @property
@@ -41,8 +54,8 @@ class OpenAIAPIAgent(Agent):
         return self._environment
 
     def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
-        agent = OpenAICompatibleModel(
-            model_id=self.name, url=self.url, token=self.token
+        agent = APIModel(
+            model_id=self.name, url=self.url, token=self.token, api_type=self.api_type
         )
         try:
             output = agent.generate([{"role": "user", "content": task}])

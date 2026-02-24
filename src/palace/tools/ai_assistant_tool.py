@@ -1,4 +1,4 @@
-from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.models.api_model import APIModel
 from palace.tools import Tool
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.secrets import GPTJRC_PROD_TOKEN
@@ -9,9 +9,7 @@ class AIAssistantTool(Tool):
         assert GPTJRC_PROD_API_URL is not None, (
             "GPTJRC_PROD_API_URL is not set in the environment variables."
         )
-        self.model = OpenAICompatibleModel(
-            "gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN
-        )
+        self.model = APIModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
 
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""

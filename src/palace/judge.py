@@ -1,7 +1,6 @@
 import re
 
-# from palace.models.huggingface_model import HuggingfaceModel
-from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.models.api_model import APIModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.printing import print
 from palace.utils.secrets import GPTJRC_PROD_TOKEN
@@ -55,7 +54,7 @@ class Judge:
             assert GPTJRC_PROD_API_URL is not None, (
                 "GPTJRC_PROD_API_URL is not set in the environment variables."
             )
-            self.judge_model = OpenAICompatibleModel(
+            self.judge_model = APIModel(
                 judge_model,
                 GPTJRC_PROD_API_URL,
                 GPTJRC_PROD_TOKEN,

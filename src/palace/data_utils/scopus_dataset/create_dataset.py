@@ -2,7 +2,7 @@ import json
 import os
 
 from palace.mcp_utils.mcp_client import MCPClientPool
-from palace.models.openai_compatible_model import OpenAICompatibleModel
+from palace.models.api_model import APIModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.paths import PACKAGE_ROOT, TASKLISTS_PATH
 from palace.utils.printing import loading
@@ -42,7 +42,7 @@ with MCPClientPool.get_connection(SCOPUS_MCP_URL, ALOHA_STAGING_TOKEN) as mcp_cl
 assert GPTJRC_PROD_API_URL is not None, (
     "GPTJRC_PROD_API_URL is not set in the environment variables."
 )
-model = OpenAICompatibleModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
+model = APIModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
 
 # for each paper, generate the question-answer pair and put it in the dict
 count = 0
