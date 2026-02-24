@@ -45,7 +45,7 @@ for idx, row in dataset.iterrows():
         "id": f"{TASKLIST_NAME}_{row['Text-ID']}_{row['Sentence-ID']}",
         "objective": row["Text"],
         "labels": {
-            value: "Present" if row[value] == 1 else "Absent"
+            value: "Present" if row[value] > 0 else "Absent"
             for value in VALUES_DESCRIPTIONS.keys()
         },
     }
@@ -64,6 +64,7 @@ json.dump(
 info = {
     "name": TASKLIST_NAME,
     "id": f"jrc-ai/{TASKLIST_NAME}",
+    "version": "1.1.0",
     "original": True,
     "config": "default",
     "split": None,

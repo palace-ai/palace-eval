@@ -269,6 +269,20 @@ $ docker run -d -p 8080:8080 mcp-server:latest
 
 The MCP server will be ready to serve requests on port 8080.
 
+## FAQ
+
+- **"I want to evaluate my model / agent that I have locally with PALACE."**
+
+   You can either (i) deploy it on GPT@JRC and evaluate it from there, or (ii) deploy it locally, clone PALACE, install it, and evaluate it.
+
+- **"But I want the online PALACE instance (Gradin) to do it, and save the results to Vault."**
+
+   Deploy the model on GPT@JRC and it will be evaluated automatically, or tell me and I will go to the admin Gradin page and manually set your OpenAI endpoint (it must be public).
+
+- **"My endpoint is local. How can I save scores to Vault?"**
+
+   Install PALACE locally and run it. We will manually add your model and your scores to Vault.
+
 ## Support
 
 If you have any issues, you can open an issue on the [GitLab repository](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib), or you can contact me at massimiliano.altieri@ec.europa.eu.
