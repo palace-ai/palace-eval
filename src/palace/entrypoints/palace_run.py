@@ -32,6 +32,7 @@ def evaluate(
         url=url,
         token=token,
         name=name,
+        api_type="openai" if "claude-" not in name else "anthropic",
     )
     evaluation = Evaluation(
         name=run_name,
