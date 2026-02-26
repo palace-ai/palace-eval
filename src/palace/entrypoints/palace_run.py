@@ -32,8 +32,9 @@ def evaluate(
         url=url,
         token=token,
         name=name,
-        api_type="openai" if "claude-" not in name else "anthropic",
+        api_type="openai" if "claude" not in name.lower() else "anthropic",
     )
+    print(f"\n\n\n{'openai' if 'claude' not in name.lower() else 'anthropic'}\n\n\n")
     evaluation = Evaluation(
         name=run_name,
         task_amount_limit=limit,

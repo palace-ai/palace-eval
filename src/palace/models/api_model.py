@@ -61,7 +61,7 @@ class APIModel(Model):
 
         if self.api_type == "openai":
             self.client = OpenAI(base_url=url, api_key=token)
-        else:
+        elif self.api_type == "anthropic":
             self.client = Anthropic(
                 base_url=url.removesuffix(
                     "/v1"
@@ -70,6 +70,8 @@ class APIModel(Model):
                     "Authorization": f"Bearer {token}"
                 },  # GPTJRC's Anthropic-compatible API uses Bearer token instead of api_key parameter
             )
+        else:
+            raise ValueError(f"Unsupported API type: {api_type}")
 
     @property
     def name(self):
@@ -117,7 +119,14 @@ class APIModel(Model):
     )
     def generate_with_retry(self, messages: list[dict[str, str]], **_) -> str:
         try:
-            if self.api_type == "anthropic":
+            if self.api_type == "openai":
+                chat_completion = self.client.chat.completions.create(  # type: ignore
+                    model=self.model_id,
+                    messages=messages,  # type: ignore
+                    stream=False,
+                )
+                return chat_completion.choices[0].message.content
+            elif self.api_type == "anthropic":
                 chat_completion = self.client.messages.create(  # type: ignore
                     model=self.model_id,
                     messages=messages,  # type: ignore
@@ -125,13 +134,6 @@ class APIModel(Model):
                     stream=False,
                 )  # type: ignore
                 return chat_completion.content[0].text
-            elif self.api_type == "openai":
-                chat_completion = self.client.chat.completions.create(  # type: ignore
-                    model=self.model_id,
-                    messages=messages,  # type: ignore
-                    stream=False,
-                )
-                return chat_completion.choices[0].message.content
             else:
                 raise ValueError(f"Unsupported API type: {self.api_type}")
         except (TimeoutException, OpenAIError, Exception):

@@ -349,7 +349,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 url=openai_agents_url,
                 token=token,
                 name=agent,
-                api_type="openai" if "claude-" not in agent else "anthropic",
+                api_type="openai" if "claude" not in agent.lower() else "anthropic",
             )
             for agent in openai_agents
         ]
