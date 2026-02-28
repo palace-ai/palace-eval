@@ -81,6 +81,7 @@ def main():
             "config": None,
             "split": None,
             "category": "Report Generation",
+            "task_type": "Report Generation",
         },
         open(tasklist_path / "info.json", "w"),
         indent=2,

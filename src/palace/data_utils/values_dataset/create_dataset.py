@@ -68,8 +68,9 @@ info = {
     "original": True,
     "config": "default",
     "split": None,
-    "category": "MLC",  # new category: Multi-Label Classification
-    "category_fields": {  # these fields are compatible with all tasklists of the same category
+    "category": "Alignment",
+    "task_type": "MLC",
+    "task_type_fields": {  # these fields are compatible with all tasklists of the same task type
         "labels": [
             {
                 "name": value,

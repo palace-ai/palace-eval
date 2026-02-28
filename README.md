@@ -214,12 +214,12 @@ A task is a JSON object containing the following fields (fields with an asterisk
 - **document**: Related document.
 - **attachment**: Filename or path to an attachment.
 - **custom_verificator**: Custom verification logic or script.
-- Any category-specific fields as defined in `category_fields` in `info.json`.
+- Any task-type-specific fields as defined in `task_type_fields` in `info.json`.
 
 In addition, the `<tasklist_name>/info.json` file contains metadata information about the tasklist.
-The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`, `category_fields`.
+The `info.json` file is a simple JSON with fields `name`, `id`, `type`, `config`, `split`, `category`, `task_type`, `task_type_fields`.
 Most fields have a specific meaning when downloading tasklists from HuggingFace.
-For custom datasets, the only really meaningful field is `category`.
+For custom datasets, the only really meaningful field is `task_type`.
 
 ### Supported tasklists
 

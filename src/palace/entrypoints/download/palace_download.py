@@ -37,7 +37,7 @@ def download_tasklist(
     keep_custom_columns: bool = False,
     attachment_path: str | None = "task_files",
     inline_attachment: bool | None = None,
-    category: str | None = None,
+    task_type: str | None = None,
     label_mapping: dict[str, str] | None = None,
     custom_verificator: str | None = None,
 ) -> None:
@@ -51,7 +51,7 @@ def download_tasklist(
                 column_names=column_names,
                 attachment_path=attachment_path,
                 inline_attachment=inline_attachment,
-                category=category,
+                task_type=task_type,
                 label_mapping=label_mapping,
                 custom_verificator=custom_verificator,
             )
@@ -137,7 +137,7 @@ def download_tasklist(
                     "original": False,
                     "config": config,
                     "split": split,
-                    "category": category,
+                    "task_type": task_type,
                 },
                 f,
                 ensure_ascii=False,
@@ -338,7 +338,7 @@ def main():
                 id=item["id"],
                 split="test",
                 keep_custom_columns=True,
-                category=metadata.get("category", ""),
+                task_type=metadata.get("task_type", ""),
             )
         print(f"   :check_box_with_check:[cyan] {item['name']}")
 

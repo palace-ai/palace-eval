@@ -112,4 +112,4 @@ os.makedirs(tasklist_path, exist_ok=True)
 with open(tasklist_path / "tasks.json", "w") as f:
     json.dump(tasks, f, indent=4)
 with open(tasklist_path / "info.json", "w") as f:
-    json.dump({"name": "Scopus", "category": "QA"}, f, indent=4)
+    json.dump({"name": "Scopus", "task_type": "QA"}, f, indent=4)

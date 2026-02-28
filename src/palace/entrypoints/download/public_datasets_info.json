@@ -10,7 +10,8 @@
       "attachment": "input"
     },
     "inline_attachment": true,
-    "category": "Long Context QA"
+    "category": "Long Context",
+    "task_type": "QA"
   },
   {
     "name": "BABILong-128k",
@@ -23,7 +24,8 @@
       "attachment": "input"
     },
     "inline_attachment": true,
-    "category": "Long Context QA"
+    "category": "Long Context",
+    "task_type": "QA"
   },
   {
     "name": "CURIE-protein",
@@ -37,7 +39,8 @@
       "difficulty": "difficulty_level",
       "attachment": "text"
     },
-    "category": "Protein Pred.",
+    "category": "Expert Reasoning",
+    "task_type": "QA",
     "inline_attachment": true,
     "custom_verificator": "def verify(pred, truth):\n    import json\n    return pred == json.loads(truth)['sequence']"
   },
@@ -52,7 +55,8 @@
       "expected": "answer",
       "difficulty": "level"
     },
-    "category": "QA"
+    "category": "Agentic",
+    "task_type": "QA"
   },
   {
     "name": "GAIA",
@@ -67,7 +71,8 @@
       "attachment": "file_name"
     },
     "attachment_path": "2023/validation",
-    "category": "QA"
+    "category": "Agentic",
+    "task_type": "QA"
   },
   {
     "name": "SimpleQA",
@@ -77,7 +82,8 @@
       "objective": "problem",
       "expected": "answer"
     },
-    "category": "QA"
+    "category": "General Knowledge",
+    "task_type": "QA"
   },
   {
     "name": "AssistantBench",
@@ -89,10 +95,11 @@
       "expected": "answer",
       "difficulty": "difficulty"
     },
-    "category": "QA"
+    "category": "Agentic",
+    "task_type": "QA"
   },
   {
-    "name": "HLE",
+    "name": "Humanity's Last Exam",
     "id": "cais/hle",
     "split": "test",
     "column_names": {
@@ -102,6 +109,7 @@
       "attachment": "image"
     },
     "inline_attachment": true,
-    "category": "QA"
+    "category": "Expert Reasoning",
+    "task_type": "QA"
   }
 ]
