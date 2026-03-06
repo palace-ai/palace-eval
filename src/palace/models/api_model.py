@@ -1,4 +1,4 @@
-from anthropic import Anthropic
+from anthropic import Anthropic, omit
 from openai import OpenAI, OpenAIError, RateLimitError
 from tenacity import (
     retry,
@@ -127,11 +127,22 @@ class APIModel(Model):
                 )
                 return chat_completion.choices[0].message.content
             elif self.api_type == "anthropic":
+                system_prompt = None
+                if messages[0]["role"] == "system":
+                    system_prompt = messages.pop(0)
+                    print(
+                        f"[bold yellow][WARN] System prompt was set for an Anthropic API model, but might not be used by the GPT@JRC backend: {system_prompt['content']}[/]"
+                    )
                 chat_completion = self.client.messages.create(  # type: ignore
                     model=self.model_id,
                     messages=messages,  # type: ignore
-                    max_tokens=16384,
+                    max_tokens=2048,
                     stream=False,
+                    system=system_prompt[
+                        "content"
+                    ]  # BUG: `system` parameter doesn't seem to be used by GPT@JRC backend
+                    if system_prompt is not None
+                    else omit,
                 )  # type: ignore
                 return chat_completion.content[0].text
             else:
