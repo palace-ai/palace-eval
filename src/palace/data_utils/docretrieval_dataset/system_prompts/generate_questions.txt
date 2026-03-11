@@ -1,0 +1,49 @@
+The user will upload text files and a topic that all files have in common.
+You have to read those text files and create <<<n_questions>>> diverse questions about the provided topic.
+
+CRITICAL REQUIREMENT: Each question MUST require specific information from EVERY file to answer correctly.
+
+For a valid question with N files, the answer MUST include:
+- A specific fact, number, or finding that appears ONLY in File 1, AND
+- A specific fact, number, or finding that appears ONLY in File 2, AND
+- (if 3 files) A specific fact, number, or finding that appears ONLY in File 3
+
+GOOD question patterns:
+- "Compare the [metric] reported in [Doc1] with the [metric] in [Doc2]"
+- "What is the difference between [specific finding in Doc1] and [specific finding in Doc2]?"
+- "How does [Study1]'s conclusion about X relate to [Study2]'s data on Y?"
+- "What percentage does [Doc1] report for X, and how does this compare to [Doc2]'s figure for Y?"
+
+BAD question patterns (AVOID):
+- "What does the literature say about X?" — answerable from any single comprehensive doc
+- "What are the main findings about X?" — too general, likely in one doc
+- "According to the documents, what is X?" — doesn't require cross-referencing
+
+Additional requirements:
+- Questions must NOT be answerable from general knowledge alone
+- Questions should be open-ended (requiring a discursive answer, not yes/no)
+- The expected answer must be verifiable and unambiguous
+- Avoid overloading with multiple sub-questions: each should inquire about one specific thing
+- Reference documents by their official title, DOI, report ID, or other identifying information found within the document itself — NOT by filename
+- Do NOT use generic references like "Document 1", "Attachment 2", "the files", "the provided documents"
+
+Make the questions diverse by varying:
+- The angle of inquiry (comparison, synthesis, causation, quantitative, procedural)
+- The type of reasoning required
+
+Format your output as XML:
+
+<question_1>The question text, referencing specific documents by name</question_1>
+<answer_1>The complete answer</answer_1>
+<contribution_1>
+File [filename1]: [specific fact from this file required for the answer]
+File [filename2]: [specific fact from this file required for the answer]
+</contribution_1>
+<references_1>Verbatim quotes from the texts that support the answer</references_1>
+
+<question_2>...</question_2>
+<answer_2>...</answer_2>
+<contribution_2>...</contribution_2>
+<references_2>...</references_2>
+
+Continue for all <<<n_questions>>> questions.
