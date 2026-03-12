@@ -8,7 +8,7 @@ from typing import Any, Callable, Optional
 import pandas as pd
 
 from palace.agents import Agent
-from palace.task import Task
+from palace.task_types import Task, TaskVerificationResult
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import loading, print
 
@@ -242,6 +242,7 @@ class Evaluation:
             tasks = tasks[: self.task_amount_limit]
 
         for i, task in enumerate(tasks):
+            task_metrics = {}  # Initialize before conditional branches
             prompt = task.create_prompt()
 
             if task.attachment is not None and task.attachment != "":
@@ -305,7 +306,16 @@ class Evaluation:
                     continue
             else:
                 print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
-                is_correct, reasoning = task.verify(result)
+                verification_result = task.verify(result)
+                
+                # Handle both tuple (legacy) and TaskVerificationResult
+                if isinstance(verification_result, TaskVerificationResult):
+                    is_correct = verification_result.is_correct
+                    reasoning = verification_result.reasoning
+                    task_metrics = verification_result.metrics
+                else:
+                    is_correct, reasoning = verification_result
+                
                 if is_correct:
                     print("[bold green]:white_check_mark: Correct[/]")
                 else:
@@ -323,6 +333,10 @@ class Evaluation:
                 "reasoning": reasoning,
                 "elapsed_time": elapsed_time,
             }
+            
+            # Add task-type-specific metrics to report
+            if task_metrics:
+                report[task.id]["metrics"] = task_metrics
             # add agent execution metrics to report
             if run_stats is not None:
                 for k, v in run_stats.items():
