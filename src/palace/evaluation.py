@@ -8,6 +8,8 @@ from typing import Any, Callable, Optional
 import pandas as pd
 
 from palace.agents import Agent
+from palace.analyzers import CitationVerifier
+from palace.analyzers.fetch import get_fetch_fn
 from palace.task_types import Task, TaskVerificationResult
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import loading, print
@@ -30,6 +32,7 @@ class Evaluation:
         text_tasks_only: bool = True,
         output_path: Path | None = None,
         on_task_complete: Callable[[int, int], None] | None = None,
+        enable_citation_verifier: Optional[bool] = None,
     ):
         self.name = name
         self.task_amount_limit = task_amount_limit
@@ -37,6 +40,47 @@ class Evaluation:
         self.text_tasks_only = text_tasks_only
         self.output_path = output_path or RESULTS_PATH
         self.on_task_complete = on_task_complete
+
+        # Initialize analyzers based on toggles
+        self.analyzers = []
+
+        # Resolve citation verifier toggle: param overrides env var
+        if enable_citation_verifier is None:
+            enable_citation_verifier = os.getenv(
+                "ENABLE_CITATION_VERIFIER", ""
+            ).lower() in ("true", "1", "yes")
+
+        if enable_citation_verifier:
+            self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
+
+    def _run_analyzers(
+        self,
+        task: Task,
+        answer: str,
+        verification_result: TaskVerificationResult,
+    ) -> dict[str, Any]:
+        """Run applicable analyzers and return metrics.
+
+        Args:
+            task: The task that was evaluated
+            answer: The agent's answer
+            verification_result: Result from task.verify()
+
+        Returns:
+            Dict of analyzer metrics keyed by analyzer name
+        """
+        analyzer_metrics = {}
+        for analyzer in self.analyzers:
+            # Skip if analyzer doesn't support this task type
+            if task.task_type not in analyzer.supported_task_types:
+                continue
+            try:
+                metrics = analyzer.analyze(task, answer, verification_result)
+                analyzer_metrics[analyzer.name] = metrics
+            except Exception as e:
+                print(f"[bold yellow]Analyzer {analyzer.name} failed: {e}[/]")
+                analyzer_metrics[analyzer.name] = {"error": str(e)}
+        return analyzer_metrics
 
     def evaluate_all(
         self,
@@ -243,6 +287,7 @@ class Evaluation:
 
         for i, task in enumerate(tasks):
             task_metrics = {}  # Initialize before conditional branches
+            verification_result = None  # Initialize for analyzer check
             prompt = task.create_prompt()
 
             if task.attachment is not None and task.attachment != "":
@@ -307,15 +352,18 @@ class Evaluation:
             else:
                 print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
                 verification_result = task.verify(result)
-                
+
                 # Handle both tuple (legacy) and TaskVerificationResult
                 if isinstance(verification_result, TaskVerificationResult):
                     is_correct = verification_result.is_correct
                     reasoning = verification_result.reasoning
                     task_metrics = verification_result.metrics
                 else:
+                    print(
+                        f"[bold yellow]Legacy verification result format detected for task type {type(task).__name__}. Consider updating the task.verify() method to return a TaskVerificationResult for richer metrics and reasoning.[/]"
+                    )
                     is_correct, reasoning = verification_result
-                
+
                 if is_correct:
                     print("[bold green]:white_check_mark: Correct[/]")
                 else:
@@ -333,10 +381,23 @@ class Evaluation:
                 "reasoning": reasoning,
                 "elapsed_time": elapsed_time,
             }
-            
+
             # Add task-type-specific metrics to report
             if task_metrics:
                 report[task.id]["metrics"] = task_metrics
+
+            # Run analyzers and add their metrics
+            if result is not None and isinstance(
+                verification_result, TaskVerificationResult
+            ):
+                analyzer_metrics = self._run_analyzers(
+                    task, result, verification_result
+                )
+                if analyzer_metrics:
+                    if "metrics" not in report[task.id]:
+                        report[task.id]["metrics"] = {}
+                    report[task.id]["metrics"]["analyzers"] = analyzer_metrics
+
             # add agent execution metrics to report
             if run_stats is not None:
                 for k, v in run_stats.items():
