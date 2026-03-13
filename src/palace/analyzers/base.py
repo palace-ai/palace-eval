@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from palace.task_types import Task, TaskVerificationResult
+from palace.task_types.base import TaskType
 
 
 class Analyzer(ABC):
@@ -20,8 +21,8 @@ class Analyzer(ABC):
         pass
 
     @property
-    def supported_task_types(self) -> list[str]:
-        """Task types this analyzer applies to. Empty = none (must override)."""
+    def supported_task_types(self) -> list[type[TaskType]]:
+        """TaskType classes this analyzer applies to. Empty = none (must override)."""
         return []
 
     @abstractmethod
@@ -42,3 +43,11 @@ class Analyzer(ABC):
             Dict of metrics to store under metrics.analyzers.<name>
         """
         pass
+
+    def format_summary(self, metrics: dict[str, Any]) -> str:
+        """Format metrics as human-readable summary for console output.
+        
+        Override in subclasses for custom formatting.
+        Default: key-value pairs.
+        """
+        return "\n".join(f"{k}: {v}" for k, v in metrics.items())

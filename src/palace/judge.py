@@ -1,4 +1,54 @@
+"""LLM-based judge for evaluating task outputs.
+
+The Judge class extracts structured data from LLM responses using XML tags.
+It supports both flat and nested tag structures with automatic retry on parse failures.
+
+Usage Examples
+--------------
+
+Flat tags (simple):
+    judge = Judge(
+        judge_model="minimax-m2",
+        judge_prompt="Evaluate and respond with <reasoning>...</reasoning><judgement>...</judgement>",
+        output_keywords=["reasoning", "judgement"]
+    )
+    result = judge.judge("Is the sky blue?")
+    # Returns: {"reasoning": "The sky appears blue due to...", "judgement": "Correct"}
+
+Nested tags (for complex structured output):
+    judge = Judge(
+        judge_model="minimax-m2", 
+        judge_prompt="...",
+        output_keywords={
+            "clarity": ["discussion", "best", "gap"],
+            "accuracy": ["discussion", "best", "gap"]
+        }
+    )
+    result = judge.judge(prompt)
+    # Returns: {
+    #     "clarity": {"discussion": "...", "best": "A", "gap": "3"},
+    #     "accuracy": {"discussion": "...", "best": "B", "gap": "2"}
+    # }
+
+Leaf tags (nested structure with some tags having no children):
+    output_keywords = {
+        "summary": [],  # Empty list = leaf tag, extracts content directly
+        "details": ["pros", "cons"]  # List = extract these children
+    }
+    # Returns: {"summary": "text content", "details": {"pros": "...", "cons": "..."}}
+
+Deep nesting (arbitrary depth):
+    output_keywords = {
+        "evaluation": {
+            "technical": ["accuracy", "completeness"],
+            "style": ["clarity", "tone"]
+        }
+    }
+    # Returns nested dict mirroring the structure
+"""
+
 import re
+from typing import Any
 
 from palace.models.api_model import APIModel
 from palace.utils.constants import GPTJRC_PROD_API_URL
@@ -7,103 +57,131 @@ from palace.utils.secrets import GPTJRC_PROD_TOKEN
 
 
 class Judge:
+    """LLM-based judge that extracts structured XML data from responses.
+    
+    The judge sends a prompt to an LLM and parses the response according to
+    a specified tag structure. It automatically retries on parse failures.
+    
+    Parameters
+    ----------
+    judge_model : str
+        Model identifier (e.g., "minimax-m2", "openai/gpt-oss-120b").
+    judge_prompt : str
+        System prompt instructing the LLM how to format its response.
+        Must specify the XML tag structure matching output_keywords.
+    output_keywords : list[str] | dict
+        Specifies which XML tags to extract:
+        - list[str]: Flat tags at root level. Returns dict[str, str].
+        - dict: Nested structure. Values can be:
+          - []: Leaf tag, extracts content as string
+          - ["a", "b"]: Extract these child tags
+          - {...}: Recurse into nested structure
+        Returns nested dict mirroring the input structure.
+    
+    Examples
+    --------
+    >>> judge = Judge("minimax-m2", prompt, ["reasoning", "judgement"])
+    >>> result = judge.judge("Evaluate this answer")
+    >>> result["judgement"]
+    'Correct'
+    
+    >>> judge = Judge("minimax-m2", prompt, {"quality": ["score", "explanation"]})
+    >>> result = judge.judge("Rate this text")
+    >>> result["quality"]["score"]
+    '8'
+    """
+
     def __init__(
         self,
         judge_model: str,
         judge_prompt: str,
-        output_keywords: list[str] = ["reasoning", "judgement"],
-        judge_inference: str = "remote",
+        output_keywords: list[str] | dict[str, Any] = ["reasoning", "judgement"],
     ) -> None:
-        """Initialize the Judge.
-
-        Parameters
-        ----------
-        judge_model : str
-            The model to use for judging.
-        judge_prompt : str
-            The system prompt to use for the judge model.
-            It MUST instruct the judge model to provide a judgement in the format:
-            ```
-            <keyword1>
-            value for keyword1
-            </keyword1>
-            <keyword2>
-            value for keyword2
-            </keyword2>
-            ...
-            ```
-        output_keywords : list[str]
-            The list of keywords to extract from the judge model's output.
-            It MUST match the keywords in the judge prompt.
-            Defaults to ["reasoning", "judgement"].
-        judge_inference : str
-            The inference method for the judge model. Can be "local" or "remote". Defaults to "remote".
-        """
         self.judge_prompt = judge_prompt
         self.output_keywords = output_keywords
+        
+        assert GPTJRC_PROD_API_URL is not None, (
+            "GPTJRC_PROD_API_URL is not set in the environment variables."
+        )
+        self.judge_model = APIModel(
+            judge_model,
+            GPTJRC_PROD_API_URL,
+            GPTJRC_PROD_TOKEN,
+        )
 
-        # initialize judge model
-        assert judge_inference in ["local", "remote"]
-        if judge_inference == "local":
-            raise NotImplementedError("Local judge inference is no longer supported.")
-            # judge_model_id = "/mnt/storage2/hf_models/Qwen2.5-3B-Instruct"
-            # self.judge_model = HuggingfaceModel(
-            #     judge_model_id, gpu_memory_utilization=0.3
-            # )
-        if judge_inference == "remote":
-            assert GPTJRC_PROD_API_URL is not None, (
-                "GPTJRC_PROD_API_URL is not set in the environment variables."
-            )
-            self.judge_model = APIModel(
-                judge_model,
-                GPTJRC_PROD_API_URL,
-                GPTJRC_PROD_TOKEN,
-            )
+    def _parse_tag(self, content: str, tag: str) -> str:
+        """Extract content of a single XML tag. Raises ValueError if not found."""
+        match = re.search(rf"<{tag}>(.*?)</{tag}>", content, re.S)
+        if not match:
+            raise ValueError(f"Missing tag: <{tag}>")
+        return match.group(1).strip()
 
-    def judge(self, prompt: str) -> dict[str, str]:
-        """Judge the given prompt and extract keyword values.
+    def _parse_recursive(self, content: str, spec: list | dict) -> dict:
+        """Parse nested XML according to spec. Returns nested dict."""
+        if isinstance(spec, list):
+            if not spec:
+                raise ValueError("Empty list spec should be handled by caller")
+            result = {}
+            for tag in spec:
+                result[tag] = self._parse_tag(content, tag)
+            return result
+        
+        result = {}
+        for tag, children in spec.items():
+            tag_content = self._parse_tag(content, tag)
+            if children == []:
+                result[tag] = tag_content
+            elif isinstance(children, list):
+                result[tag] = {}
+                for child in children:
+                    result[tag][child] = self._parse_tag(tag_content, child)
+            else:
+                result[tag] = self._parse_recursive(tag_content, children)
+        return result
 
+    def _parse_flat(self, content: str, keywords: list[str]) -> dict[str, str]:
+        """Parse flat XML tags at root level."""
+        result = {}
+        for keyword in keywords:
+            result[keyword] = self._parse_tag(content, keyword)
+        return result
+
+    def judge(self, prompt: str) -> dict:
+        """Send prompt to judge LLM and extract structured response.
+        
         Parameters
         ----------
         prompt : str
-            The prompt to be judged.
-
+            The user prompt to evaluate.
+            
         Returns
         -------
-        dict[str, str]
-            A dictionary containing the extracted keyword values.
+        dict
+            Extracted values. Structure matches output_keywords:
+            - Flat dict[str, str] for list input
+            - Nested dict for dict input
+            
+        Raises
+        ------
+        ValueError
+            If parsing fails after max retries (5 attempts).
         """
         conversation = []
         if self.judge_prompt is not None:
             conversation.append({"role": "system", "content": self.judge_prompt})
         conversation.append({"role": "user", "content": prompt})
 
-        count, max_attempts = 0, 5
-        while count < max_attempts:
-            count += 1
-            keyword_values = {}
-
+        max_attempts = 5
+        for attempt in range(1, max_attempts + 1):
             judge_output = self.judge_model.generate(conversation)
-            for keyword in self.output_keywords:
-                try:
-                    value = re.findall(
-                        rf"<{keyword}>(.*?)</{keyword}>", judge_output, flags=re.S
-                    )[0]
-                    keyword_values[keyword] = value.strip()
-                except Exception as e:
-                    print(
-                        f"[bold yellow]Couldn't get value for keyword '{keyword}' from judge output:\n{judge_output}\n\nEncountered the following exception: {e}"
-                    )
-                    continue
+            try:
+                if isinstance(self.output_keywords, list):
+                    return self._parse_flat(judge_output, self.output_keywords)
+                else:
+                    return self._parse_recursive(judge_output, self.output_keywords)
+            except ValueError as e:
+                print(f"[bold yellow]{e}. Retrying ({attempt}/{max_attempts})...")
 
-            # check that all keywords were found
-            if set(keyword_values.keys()) != set(self.output_keywords):
-                print(
-                    f"[bold yellow]Not all keywords found in judge output. Retrying ({count}/{max_attempts})..."
-                )
-            else:
-                return keyword_values
-        else:
-            raise ValueError(
-                f"[bold red]Max attempts ({max_attempts}) exceeded. Could not extract all keywords from judge output."
-            )
+        raise ValueError(
+            f"[bold red]Max attempts ({max_attempts}) exceeded. Could not parse judge output."
+        )

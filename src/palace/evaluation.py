@@ -72,13 +72,15 @@ class Evaluation:
         analyzer_metrics = {}
         for analyzer in self.analyzers:
             # Skip if analyzer doesn't support this task type
-            if task.task_type not in analyzer.supported_task_types:
+            if type(task.task_type) not in analyzer.supported_task_types:
                 continue
             try:
-                metrics = analyzer.analyze(task, answer, verification_result)
+                with loading():
+                    metrics = analyzer.analyze(task, answer, verification_result)
                 analyzer_metrics[analyzer.name] = metrics
+                print(analyzer.format_summary(metrics), box=True, box_title=f":mag: {analyzer.name}")
             except Exception as e:
-                print(f"[bold yellow]Analyzer {analyzer.name} failed: {e}[/]")
+                print(f"[bold red]Analyzer {analyzer.name} failed: {e}[/]")
                 analyzer_metrics[analyzer.name] = {"error": str(e)}
         return analyzer_metrics
 
@@ -265,7 +267,8 @@ class Evaluation:
                 task
                 | {
                     "task_type": tasklist_info["task_type"],
-                    "task_type_fields": tasklist_info.get("task_type_fields", {}),
+                    "task_type_fields": tasklist_info.get("task_type_fields", {})
+                    | task.get("task_type_fields", {}),
                 }
             )
             for task in json_tasks

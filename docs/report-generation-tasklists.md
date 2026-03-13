@@ -253,6 +253,7 @@ The evaluation returns per-task metrics:
       "actionability": 2
     },
     "overall_gap": 8.5,
+    "normalized_score": 0.59,
     "score_provided": 12.0,
     "score_expected": 3.5
   }
@@ -261,4 +262,125 @@ The evaluation returns per-task metrics:
 
 - `criteria_scores`: Per-criterion score (-10 to +10, positive = generated better)
 - `overall_gap`: Weighted sum of criteria scores
+- `normalized_score`: Gap rescaled to [0, 1] where 0.5 = tie, 1.0 = max win
 - `is_correct`: True if `score_provided > score_expected`
+
+## Hierarchical Criteria (Dimensions)
+
+For complex benchmarks with many criteria, group them into weighted dimensions:
+
+### info.json
+
+```json
+{
+  "name": "DeepResearchBench",
+  "task_type": "Report Generation",
+  "task_type_fields": {
+    "dimensions": [
+      {
+        "name": "comprehensiveness",
+        "description": "Measures breadth and depth of coverage.",
+        "weight": 0.3,
+        "criteria": [
+          {"name": "topic_coverage", "description": "Covers all required topics.", "weight": 0.5},
+          {"name": "detail_depth", "description": "Sufficient detail on each topic.", "weight": 0.5}
+        ]
+      },
+      {
+        "name": "insight",
+        "description": "Quality of analysis and conclusions.",
+        "weight": 0.7,
+        "criteria": [
+          {"name": "analysis_quality", "description": "Sound reasoning and analysis.", "weight": 0.6},
+          {"name": "conclusions", "description": "Actionable, well-supported conclusions.", "weight": 0.4}
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Dimension Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Dimension identifier |
+| `description` | No | Documentation (not sent to judge) |
+| `weight` | No | Dimension importance (default: 1.0) |
+| `criteria` | Yes | List of criteria within this dimension |
+
+### Weight Calculation
+
+Effective weight = `dimension.weight × criterion.weight`
+
+In the example above:
+- `topic_coverage`: 0.3 × 0.5 = 0.15
+- `detail_depth`: 0.3 × 0.5 = 0.15
+- `analysis_quality`: 0.7 × 0.6 = 0.42
+- `conclusions`: 0.7 × 0.4 = 0.28
+
+### Dimension Metrics
+
+When using hierarchical criteria, output includes `dimension_scores`:
+
+```json
+{
+  "metrics": {
+    "criteria_scores": {"topic_coverage": 3, "detail_depth": 2, "analysis_quality": 4, "conclusions": 1},
+    "dimension_scores": {"comprehensiveness": 5, "insight": 5},
+    "overall_gap": 10.0,
+    "normalized_score": 0.75
+  }
+}
+```
+
+### Per-Task Dimensions
+
+With `per_task_criteria: true`, tasks can provide their own dimensions via `task_type_fields`:
+
+```json
+{
+  "id": "specialized_task",
+  "objective": "...",
+  "expected": "...",
+  "task_type_fields": {
+    "dimensions": [
+      {
+        "name": "domain_expertise",
+        "weight": 0.5,
+        "criteria": [{"name": "accuracy", "description": "Domain-specific accuracy.", "weight": 1.0}]
+      }
+    ]
+  }
+}
+```
+
+Task `task_type_fields` merge with tasklist `task_type_fields` (task values override on conflict).
+
+## Batched Evaluation
+
+When evaluating many criteria, the judge LLM processes them in batches to maintain accuracy. By default, criteria are grouped by dimension and evaluated up to 10 at a time.
+
+### Configuring Batch Size
+
+```json
+{
+  "task_type_fields": {
+    "max_criteria_per_batch": 8,
+    "dimensions": [...]
+  }
+}
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `max_criteria_per_batch` | 10 | Maximum criteria per judge call |
+
+### Batching Behavior
+
+1. Criteria are grouped by dimension (keeps related criteria together)
+2. If a dimension has more criteria than `max_criteria_per_batch`, it's split into sub-batches
+3. Flat criteria (no dimensions) are batched sequentially
+4. Results from all batches are merged before scoring
+
+This ensures accurate evaluation even with 25+ criteria across multiple dimensions.

@@ -43,6 +43,7 @@ def http_fetch(url: str, timeout: int = 30) -> Optional[str]:
     """Fetch URL content via direct HTTP.
     
     Returns extracted text content, or None on failure.
+    Silently returns None for URL-related issues (404, 403, timeout, SSL).
     """
     try:
         headers = {
@@ -77,8 +78,14 @@ def http_fetch(url: str, timeout: int = 30) -> Optional[str]:
 
         return f"{title}\n\n{description}\n\n{content}"
 
-    except Exception as e:
-        print(f"[bold yellow]HTTP fetch failed for {url}: {e}[/]")
+    except (requests.exceptions.HTTPError, 
+            requests.exceptions.Timeout,
+            requests.exceptions.SSLError,
+            requests.exceptions.ConnectionError):
+        # URL-related issues - silent, tracked in analyzer metrics
+        return None
+    except Exception:
+        # Unexpected error - also silent, let analyzer handle
         return None
 
 
@@ -100,8 +107,8 @@ def aloha_web_fetch(url: str) -> Optional[str]:
                     return None
 
         return asyncio.run(_fetch())
-    except Exception as e:
-        print(f"[bold yellow]ALOHA web fetch failed for {url}: {e}[/]")
+    except Exception:
+        # Silent - tracked in analyzer metrics
         return None
 
 
@@ -128,8 +135,8 @@ def aloha_literature_fetch(doi: str) -> Optional[str]:
                     return None
 
         return asyncio.run(_fetch())
-    except Exception as e:
-        print(f"[bold yellow]ALOHA literature fetch failed for DOI {doi}: {e}[/]")
+    except Exception:
+        # Silent - tracked in analyzer metrics
         return None
 
 

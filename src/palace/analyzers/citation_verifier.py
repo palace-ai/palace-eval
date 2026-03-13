@@ -1,7 +1,83 @@
-"""Citation verification analyzer.
+"""Citation Verification Analyzer.
 
-Extracts citations from generated reports, scrapes cited URLs,
-and validates whether sources support the claimed facts.
+Verifies that claims in generated reports are supported by their cited sources.
+
+Overview
+--------
+The CitationVerifier extracts claims with citations from LLM-generated reports,
+fetches the cited URLs, and uses an LLM judge to determine whether each source
+actually supports the claim made.
+
+This is useful for evaluating the factual grounding of report generation tasks,
+particularly for detecting hallucinated citations (URLs that don't exist or
+don't support the claims attributed to them).
+
+Pipeline
+--------
+1. **Extract**: Parse the report to find (claim, URL) pairs using an LLM
+2. **Deduplicate**: Group claims by URL, merge semantically similar claims
+3. **Fetch**: Retrieve content from each unique URL
+4. **Validate**: For each claim, ask LLM if the source content supports it
+5. **Compute**: Aggregate results into accuracy metrics
+
+Usage
+-----
+The analyzer is enabled via environment variable:
+
+    ENABLE_CITATION_VERIFIER=true palace-cli
+
+Or programmatically:
+
+    from palace.evaluation import Evaluation
+    eval = Evaluation(name="test", enable_citation_verifier=True)
+
+It automatically runs on Report Generation tasks after the main evaluation.
+
+Configuration
+-------------
+Environment variables:
+- ENABLE_CITATION_VERIFIER: Set to "true" to enable (default: disabled)
+- JUDGE_MODEL: Model for extraction/validation (default: "minimax-m2")
+- USE_ALOHA: Set to "true" to use ALOHA MCP for URL fetching (for DMZ clusters)
+
+Output Metrics
+--------------
+The analyzer produces these metrics under `metrics.analyzers.citation_verifier`:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| claims_extracted | int | Total claims with citations found in report |
+| claims_checked | int | Claims where the URL was successfully fetched |
+| claims_supported | int | Claims verified as supported by source |
+| claims_unsupported | int | Claims not supported by source content |
+| claims_failed | int | Claims where URL fetch or validation failed |
+| urls_unique | int | Number of distinct URLs cited |
+| urls_fetched | list[str] | URLs successfully retrieved |
+| urls_failed | list[str] | URLs that could not be fetched |
+| accuracy | float | claims_supported / claims_checked (0.0-1.0) |
+| extraction_failed | bool | True if claim extraction itself failed |
+
+Example output:
+```json
+{
+  "claims_extracted": 12,
+  "claims_checked": 8,
+  "claims_supported": 6,
+  "claims_unsupported": 2,
+  "claims_failed": 4,
+  "urls_unique": 10,
+  "urls_fetched": ["https://example.com/report1", ...],
+  "urls_failed": ["https://broken.link/404", ...],
+  "accuracy": 0.75
+}
+```
+
+Limitations
+-----------
+- Only processes markdown-style citations: [text](url)
+- URL fetch may fail due to paywalls, bot blocking, or network restrictions
+- Validation depends on LLM judgment, which may have false positives/negatives
+- Maximum 100 citations processed per report (configurable)
 """
 
 import json
@@ -18,6 +94,8 @@ from palace.prompts.fact_prompts import (
     VALIDATE_PROMPT,
 )
 from palace.task_types import Task, TaskVerificationResult
+from palace.task_types.base import TaskType
+from palace.task_types.report_generation import ReportGenerationTaskType
 from palace.utils.constants import GPTJRC_PROD_API_URL
 from palace.utils.printing import print
 from palace.utils.secrets import GPTJRC_PROD_TOKEN
@@ -65,9 +143,19 @@ def _remove_urls_from_text(text: str) -> str:
 
 
 class CitationVerifier(Analyzer):
-    """Analyzer that verifies citations in generated reports.
-
-    Pipeline: extract → deduplicate → scrape → validate → compute stats
+    """Verifies that claims in generated reports are supported by cited sources.
+    
+    Implements the FACT pipeline: extract → deduplicate → fetch → validate → compute.
+    
+    Attributes:
+        name: "citation_verifier" (used as metrics key)
+        supported_task_types: [ReportGenerationTaskType]
+        
+    Example:
+        >>> from palace.analyzers.fetch import get_fetch_fn
+        >>> verifier = CitationVerifier(fetch_fn=get_fetch_fn())
+        >>> metrics = verifier.analyze(task, answer, verification_result)
+        >>> print(f"Accuracy: {metrics['accuracy']:.0%}")
     """
 
     @property
@@ -75,8 +163,8 @@ class CitationVerifier(Analyzer):
         return "citation_verifier"
 
     @property
-    def supported_task_types(self) -> list[str]:
-        return ["Report Generation"]
+    def supported_task_types(self) -> list[type[TaskType]]:
+        return [ReportGenerationTaskType]
 
     def __init__(
         self,
@@ -86,11 +174,32 @@ class CitationVerifier(Analyzer):
         """Initialize CitationVerifier.
 
         Args:
-            fetch_fn: Function to fetch URL content, returns text or None
-            max_citations: Maximum citations to process
+            fetch_fn: Function that takes a URL and returns page content as string,
+                or None if fetch fails. Use get_fetch_fn() for default implementation.
+            max_citations: Maximum claims to process per report (default: 100).
         """
         self.fetch_fn = fetch_fn
         self.max_citations = max_citations
+
+    def format_summary(self, metrics: dict[str, Any]) -> str:
+        """Format metrics as human-readable summary for console output."""
+        extracted = metrics.get("claims_extracted", 0)
+        checked = metrics.get("claims_checked", 0)
+        supported = metrics.get("claims_supported", 0)
+        failed = metrics.get("claims_failed", 0)
+        accuracy = metrics.get("accuracy", 0)
+        
+        if extracted == 0:
+            return "No claims with citations found in the generated report."
+        
+        lines = [
+            f"Claims: {extracted} extracted, {checked} checked, {failed} failed",
+            f"Supported: {supported}/{checked} ({accuracy:.0%} accuracy)",
+        ]
+        if failed > 0:
+            urls_failed = metrics.get("urls_failed", [])
+            lines.append(f"[dim]({len(urls_failed)} URLs could not be fetched)[/]")
+        return "\n".join(lines)
 
     def analyze(
         self,
@@ -107,12 +216,15 @@ class CitationVerifier(Analyzer):
             citations, extraction_failed = self._extract_citations(answer, model)
             if not citations:
                 return {
-                    "citation_count": 0,
-                    "unique_urls": 0,
-                    "citations_supported": 0,
-                    "citations_unsupported": 0,
-                    "citations_failed": 0,
-                    "citation_accuracy": 0.0,
+                    "claims_extracted": 0,
+                    "claims_checked": 0,
+                    "claims_supported": 0,
+                    "claims_unsupported": 0,
+                    "claims_failed": 0,
+                    "urls_unique": 0,
+                    "urls_fetched": [],
+                    "urls_failed": [],
+                    "accuracy": 0.0,
                     "extraction_failed": extraction_failed,
                 }
 
@@ -276,32 +388,43 @@ class CitationVerifier(Analyzer):
     def _compute_stats(
         self, deduped: dict[str, dict], total_extracted: int
     ) -> dict[str, Any]:
-        """Compute citation accuracy and counts."""
+        """Compute claim verification stats."""
         supported = 0
         unsupported = 0
         failed = 0
+        urls_failed = []
+        urls_fetched = []
+        details = []  # For debugging
 
-        for group in deduped.values():
-            if group.get("validate_error") is not None:
+        for url, group in deduped.items():
+            if group.get("scrape_failed") or group.get("validate_error"):
                 failed += len(group.get("facts", []))
+                urls_failed.append(url)
                 continue
-            for v in group.get("validate_res", []):
+            urls_fetched.append(url)
+            for i, v in enumerate(group.get("validate_res", [])):
                 result = v.get("result", "unknown")
+                fact = group.get("facts", [])[i] if i < len(group.get("facts", [])) else ""
+                details.append({"url": url, "claim": fact[:200], "result": result})
                 if result == "supported":
                     supported += 1
                 elif result == "unsupported":
                     unsupported += 1
-                else:  # unknown
+                else:
                     failed += 1
 
-        total_verified = supported + unsupported
-        accuracy = supported / total_verified if total_verified > 0 else 0.0
+        checked = supported + unsupported
+        accuracy = supported / checked if checked > 0 else 0.0
 
         return {
-            "citation_count": total_extracted,
-            "unique_urls": len(deduped),
-            "citations_supported": supported,
-            "citations_unsupported": unsupported,
-            "citations_failed": failed,
-            "citation_accuracy": round(accuracy, 4),
+            "claims_extracted": total_extracted,
+            "claims_checked": checked,
+            "claims_supported": supported,
+            "claims_unsupported": unsupported,
+            "claims_failed": failed,
+            "urls_unique": len(deduped),
+            "urls_fetched": urls_fetched,
+            "urls_failed": urls_failed,
+            "accuracy": round(accuracy, 4),
+            "details": details,
         }
