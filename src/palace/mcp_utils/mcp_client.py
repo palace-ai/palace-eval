@@ -7,6 +7,13 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.types import CallToolResult, ListToolsResult
 
+try:
+    import nest_asyncio
+
+    nest_asyncio.apply()
+except ImportError:
+    pass
+
 DEFAULT_TIMEOUT = 5
 DEFAULT_READ_TIMEOUT = 300
 
