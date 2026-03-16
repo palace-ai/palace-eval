@@ -3,6 +3,7 @@ import re
 import threading
 import time
 from builtins import print as builtin_print
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
@@ -311,7 +312,7 @@ class LoadingIcon:
 
 
 @contextmanager
-def loading():
+def loading() -> Generator["LoadingIcon", None, None]:
     spinner = itertools.cycle(
         [
             "⢀⠀",
