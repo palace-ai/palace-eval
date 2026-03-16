@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 from typing import Callable
 
+from palace.agents.mcp_agent import MCPAgent
 from palace.agents.openai_api_agent import OpenAIAPIAgent
 from palace.evaluation import Evaluation
 
@@ -16,6 +17,7 @@ def evaluate(
     limit: int | None = None,
     runs_per_configuration: int = 1,
     on_task_complete: Callable[[int, int], None] | None = None,
+    endpoint_type: str = "openai",
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -27,13 +29,19 @@ def evaluate(
     :param tasklist: The tasklist to evaluate the model/agent on.
     :param limit: The maximum number of tasks to evaluate per tasklist.
     :param runs_per_configuration: The number of evaluation runs to perform.
+    :param endpoint_type: The type of endpoint ("openai" or "mcp").
     """
-    agent = OpenAIAPIAgent(
-        url=url,
-        token=token,
-        name=name,
-        api_type="openai" if "claude" not in name.lower() else "anthropic",
-    )
+    if endpoint_type == "mcp":
+        agent = MCPAgent(url=url, token=token, name=name)
+    elif endpoint_type == "openai":
+        agent = OpenAIAPIAgent(
+            url=url,
+            token=token,
+            name=name,
+            api_type="openai" if "claude" not in name.lower() else "anthropic",
+        )
+    else:
+        raise ValueError(f"Unsupported endpoint type: {endpoint_type}")
     evaluation = Evaluation(
         name=run_name,
         task_amount_limit=limit,
@@ -90,6 +98,13 @@ def run():
         default=1,
         help="The number of evaluation runs to perform.",
     )
+    argparser.add_argument(
+        "--endpoint-type",
+        type=str,
+        default="openai",
+        choices=["openai", "mcp"],
+        help="The type of endpoint (openai or mcp).",
+    )
     args = argparser.parse_args()
 
     evaluate(
@@ -101,4 +116,5 @@ def run():
         tasklist=args.tasklist,
         limit=args.limit,
         runs_per_configuration=args.runs_per_configuration,
+        endpoint_type=args.endpoint_type,
     )
