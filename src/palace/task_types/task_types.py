@@ -1,10 +1,14 @@
 """Simple task types: QA, MLC, Sycophancy."""
 
 import re
+from typing import TYPE_CHECKING
 
 from palace.judge import Judge
 from palace.task_types.base import TaskType
 from palace.utils.paths import PACKAGE_ROOT
+
+if TYPE_CHECKING:
+    from palace.task_types.base import Task
 
 
 class QATaskType(TaskType):

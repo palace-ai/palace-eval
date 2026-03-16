@@ -5,10 +5,10 @@ import re
 from typing import TYPE_CHECKING
 
 from palace.judge import Judge
-
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 from palace.task_types.base import TaskType, TaskVerificationResult
 from palace.utils.printing import print
+
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
 if TYPE_CHECKING:
     from palace.task_types.base import Task
@@ -39,9 +39,11 @@ DEFAULT_CRITERIA = [
 DEFAULT_MAX_CRITERIA_PER_BATCH = 10
 
 
-def _flatten_dimensions(dimensions: list[dict]) -> tuple[list[dict], dict[str, list[str]]]:
+def _flatten_dimensions(
+    dimensions: list[dict],
+) -> tuple[list[dict], dict[str, list[str]]]:
     """Flatten hierarchical dimensions to flat criteria list.
-    
+
     Returns:
         (flat_criteria, dimension_map) where dimension_map tracks criteria per dimension
     """
@@ -52,12 +54,14 @@ def _flatten_dimensions(dimensions: list[dict]) -> tuple[list[dict], dict[str, l
         dim_weight = dim.get("weight", 1.0)
         dimension_map[dim_name] = []
         for c in dim.get("criteria", []):
-            flat.append({
-                "name": c["name"],
-                "description": c["description"],
-                "weight": dim_weight * c.get("weight", 1.0),
-                "_dimension": dim_name,
-            })
+            flat.append(
+                {
+                    "name": c["name"],
+                    "description": c["description"],
+                    "weight": dim_weight * c.get("weight", 1.0),
+                    "_dimension": dim_name,
+                }
+            )
             dimension_map[dim_name].append(c["name"])
     return flat, dimension_map
 
@@ -72,20 +76,20 @@ def _create_batches(criteria: list[dict], max_per_batch: int) -> list[list[dict]
             by_dim.setdefault(dim, []).append(c)
         else:
             no_dim.append(c)
-    
+
     batches = []
     for dim_criteria in by_dim.values():
         for i in range(0, len(dim_criteria), max_per_batch):
-            batches.append(dim_criteria[i:i + max_per_batch])
+            batches.append(dim_criteria[i : i + max_per_batch])
     for i in range(0, len(no_dim), max_per_batch):
-        batches.append(no_dim[i:i + max_per_batch])
-    
+        batches.append(no_dim[i : i + max_per_batch])
+
     return batches if batches else [criteria]
 
 
 class ReportGenerationTaskType(TaskType):
     """Configurable report generation evaluation using pairwise comparison.
-    
+
     Supports flat criteria or hierarchical dimensions with nested criteria.
     Evaluates in batches to handle large numbers of criteria.
     """
@@ -93,14 +97,16 @@ class ReportGenerationTaskType(TaskType):
     def adapt_prompt(self, task: "Task") -> str:
         return f"Generate a detailed report based on the following prompt:\n\n{task.objective}"
 
-    def _get_criteria(self, task: "Task") -> tuple[list[dict], dict[str, list[str]] | None]:
+    def _get_criteria(
+        self, task: "Task"
+    ) -> tuple[list[dict], dict[str, list[str]] | None]:
         """Get criteria from task_type_fields or use defaults.
-        
+
         Returns:
             (criteria_list, dimension_map) - dimension_map is None for flat format
         """
         task_type_fields = task.custom_fields.get("task_type_fields", {})
-        
+
         # Hierarchical format: dimensions with nested criteria
         if "dimensions" in task_type_fields:
             base_dims = task_type_fields["dimensions"]
@@ -112,7 +118,7 @@ class ReportGenerationTaskType(TaskType):
                     merged[d["name"]] = d
                 base_dims = list(merged.values())
             return _flatten_dimensions(base_dims)
-        
+
         # Flat format: simple criteria list
         tasklist_criteria = task_type_fields.get("criteria", DEFAULT_CRITERIA)
         if not task_type_fields.get("per_task_criteria", False):
@@ -165,7 +171,9 @@ Structure your output exactly as follows:
 Be fair and objective in your evaluation. Do not be biased towards either report A or B.
 The length of a report is not necessarily an indicator of quality - focus on the substance and how well it meets the user's needs."""
 
-    def _judge_batch(self, batch: list[dict], prompt_AB: str, prompt_BA: str) -> tuple[dict, dict]:
+    def _judge_batch(
+        self, batch: list[dict], prompt_AB: str, prompt_BA: str
+    ) -> tuple[dict, dict]:
         """Run judge on a batch of criteria, return keyword values for AB and BA."""
         judge_prompt = self._build_judge_prompt(batch)
         # Nested format: {criterion_name: [inner_tags]}
@@ -181,7 +189,9 @@ The length of a report is not necessarily an indicator of quality - focus on the
         """Verify using configurable criteria with pairwise comparison."""
         criteria, dimension_map = self._get_criteria(task)
         task_type_fields = task.custom_fields.get("task_type_fields", {})
-        max_per_batch = task_type_fields.get("max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH)
+        max_per_batch = task_type_fields.get(
+            "max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH
+        )
 
         prompt_AB = f"""
 QUESTION
@@ -210,7 +220,9 @@ REPORT B
         keyword_values_BA = {}
         for i, batch in enumerate(batches):
             if len(batches) > 1:
-                print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
+                print(
+                    f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)..."
+                )
             ab, ba = self._judge_batch(batch, prompt_AB, prompt_BA)
             keyword_values_AB.update(ab)
             keyword_values_BA.update(ba)
@@ -266,24 +278,30 @@ REPORT B
             name = c["name"]
             score = criteria_scores[name]
             sign = "+" if score > 0 else ""
-            
+
             # Combine discussions from both comparisons
-            disc_ab = replace_report_names(keyword_values_AB[name]["discussion"], provided_is_a=False)
-            disc_ba = replace_report_names(keyword_values_BA[name]["discussion"], provided_is_a=True)
-            
-            reasoning_parts.append(
-                f"## {name} ({sign}{score})\n{disc_ab}\n\n{disc_ba}"
+            disc_ab = replace_report_names(
+                keyword_values_AB[name]["discussion"], provided_is_a=False
+            )
+            disc_ba = replace_report_names(
+                keyword_values_BA[name]["discussion"], provided_is_a=True
             )
 
+            reasoning_parts.append(f"## {name} ({sign}{score})\n{disc_ab}\n\n{disc_ba}")
+
         reasoning = "\n\n".join(reasoning_parts)
-        
+
         # Summary section
         overall_gap = score_provided - score_expected
         max_score = sum(c.get("weight", 1.0) for c in criteria) * 10
-        normalized_score = (overall_gap + max_score) / (2 * max_score) if max_score > 0 else 0.5
-        
+        normalized_score = (
+            (overall_gap + max_score) / (2 * max_score) if max_score > 0 else 0.5
+        )
+
         reasoning += "\n\n## Summary\n"
-        reasoning += "Scores per criterion (positive = provided better, range -10 to +10):\n"
+        reasoning += (
+            "Scores per criterion (positive = provided better, range -10 to +10):\n"
+        )
         for name, score in criteria_scores.items():
             sign = "+" if score > 0 else ""
             reasoning += f"  {name}: {sign}{score}\n"

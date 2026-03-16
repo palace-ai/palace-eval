@@ -13,8 +13,7 @@ import requests
 from bs4 import BeautifulSoup
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
-
-from palace.utils.printing import print
+from mcp.types import TextContent
 
 # Environment variables
 ALOHA_WEB_URL = os.getenv("ALOHA_WEB_URL", "")
@@ -41,7 +40,7 @@ def extract_doi(url: str) -> Optional[str]:
 
 def http_fetch(url: str, timeout: int = 30) -> Optional[str]:
     """Fetch URL content via direct HTTP.
-    
+
     Returns extracted text content, or None on failure.
     Silently returns None for URL-related issues (404, 403, timeout, SSL).
     """
@@ -69,8 +68,10 @@ def http_fetch(url: str, timeout: int = 30) -> Optional[str]:
         # Extract description
         description = ""
         meta_desc = soup.find("meta", attrs={"name": "description"})
-        if meta_desc and meta_desc.get("content"):
-            description = meta_desc["content"].strip()
+        if meta_desc:
+            content_attr = meta_desc.get("content")
+            if content_attr and isinstance(content_attr, str):
+                description = content_attr.strip()
 
         # Extract body text
         content = soup.get_text(separator="\n", strip=True)
@@ -78,10 +79,12 @@ def http_fetch(url: str, timeout: int = 30) -> Optional[str]:
 
         return f"{title}\n\n{description}\n\n{content}"
 
-    except (requests.exceptions.HTTPError, 
-            requests.exceptions.Timeout,
-            requests.exceptions.SSLError,
-            requests.exceptions.ConnectionError):
+    except (
+        requests.exceptions.HTTPError,
+        requests.exceptions.Timeout,
+        requests.exceptions.SSLError,
+        requests.exceptions.ConnectionError,
+    ):
         # URL-related issues - silent, tracked in analyzer metrics
         return None
     except Exception:
@@ -95,15 +98,26 @@ def aloha_web_fetch(url: str) -> Optional[str]:
         return None
 
     try:
+
         async def _fetch():
-            headers = {"Authorization": f"Bearer {ALOHA_WEB_TOKEN}"} if ALOHA_WEB_TOKEN else None
-            async with streamablehttp_client(ALOHA_WEB_URL, headers=headers) as (read, write, _):
+            headers = (
+                {"Authorization": f"Bearer {ALOHA_WEB_TOKEN}"}
+                if ALOHA_WEB_TOKEN
+                else None
+            )
+            async with streamablehttp_client(ALOHA_WEB_URL, headers=headers) as (
+                read,
+                write,
+                _,
+            ):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     result = await session.call_tool("fetch_url", {"url": url})
-                    if result.content and result.content[0].text:
-                        parsed = json.loads(result.content[0].text)
-                        return parsed.get("text", "")
+                    if result.content:
+                        item = result.content[0]
+                        if isinstance(item, TextContent) and item.text:
+                            parsed = json.loads(item.text)
+                            return parsed.get("text", "")
                     return None
 
         return asyncio.run(_fetch())
@@ -118,20 +132,34 @@ def aloha_literature_fetch(doi: str) -> Optional[str]:
         return None
 
     try:
+
         async def _fetch():
-            headers = {"Authorization": f"Bearer {ALOHA_LITERATURE_TOKEN}"} if ALOHA_LITERATURE_TOKEN else None
-            async with streamablehttp_client(ALOHA_LITERATURE_URL, headers=headers) as (read, write, _):
+            headers = (
+                {"Authorization": f"Bearer {ALOHA_LITERATURE_TOKEN}"}
+                if ALOHA_LITERATURE_TOKEN
+                else None
+            )
+            async with streamablehttp_client(ALOHA_LITERATURE_URL, headers=headers) as (
+                read,
+                write,
+                _,
+            ):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     result = await session.call_tool(
                         "scopus_search_doi",
-                        {"doi_codes": [doi], "return_fields": ["title", "abstract", "authors", "date"]},
+                        {
+                            "doi_codes": [doi],
+                            "return_fields": ["title", "abstract", "authors", "date"],
+                        },
                     )
-                    if result.content and result.content[0].text:
-                        parsed = json.loads(result.content[0].text)
-                        if parsed and len(parsed) > 0:
-                            paper = parsed[0]
-                            return f"DOI: {doi}\n\nTitle: {paper.get('title', '')}\n\nAbstract: {paper.get('abstract', '')}"
+                    if result.content:
+                        item = result.content[0]
+                        if isinstance(item, TextContent) and item.text:
+                            parsed = json.loads(item.text)
+                            if parsed and len(parsed) > 0:
+                                paper = parsed[0]
+                                return f"DOI: {doi}\n\nTitle: {paper.get('title', '')}\n\nAbstract: {paper.get('abstract', '')}"
                     return None
 
         return asyncio.run(_fetch())
@@ -142,7 +170,7 @@ def aloha_literature_fetch(doi: str) -> Optional[str]:
 
 def get_fetch_fn() -> Callable[[str], Optional[str]]:
     """Return composite fetch function that handles DOIs and regular URLs.
-    
+
     - DOI URLs: Try literature search first, fall back to web fetch
     - Regular URLs: Use ALOHA web fetch (if USE_ALOHA) or direct HTTP
     """

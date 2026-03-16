@@ -29,8 +29,7 @@ def fetch_pdf_content(path: Path, limit_length: Optional[int] = None):
 def format_attachments(files: list[Path]) -> str:
     """Format files as attachments using filename as identifier."""
     return "\n\n----------\n\n".join(
-        f"ATTACHMENT ({path.name}):\n\n{fetch_pdf_content(path)[1]}"
-        for path in files
+        f"ATTACHMENT ({path.name}):\n\n{fetch_pdf_content(path)[1]}" for path in files
     )
 
 
@@ -78,15 +77,23 @@ def generate_tasks(
     for i in range(1, n_tasks + 1):
         question = re.search(rf"<question_{i}>(.*?)</question_{i}>", response, re.S)
         answer = re.search(rf"<answer_{i}>(.*?)</answer_{i}>", response, re.S)
-        contribution = re.search(rf"<contribution_{i}>(.*?)</contribution_{i}>", response, re.S)
-        references = re.search(rf"<references_{i}>(.*?)</references_{i}>", response, re.S)
+        contribution = re.search(
+            rf"<contribution_{i}>(.*?)</contribution_{i}>", response, re.S
+        )
+        references = re.search(
+            rf"<references_{i}>(.*?)</references_{i}>", response, re.S
+        )
         if question and answer:
-            tasks.append({
-                "text": question.group(1).strip(),
-                "answer": answer.group(1).strip(),
-                "contribution": contribution.group(1).strip() if contribution else "",
-                "references": references.group(1).strip() if references else "",
-            })
+            tasks.append(
+                {
+                    "text": question.group(1).strip(),
+                    "answer": answer.group(1).strip(),
+                    "contribution": contribution.group(1).strip()
+                    if contribution
+                    else "",
+                    "references": references.group(1).strip() if references else "",
+                }
+            )
     if not tasks:
         raise ValueError("No tasks parsed from response")
     return tasks
@@ -123,7 +130,10 @@ def validate_task(
         for attempt in range(confidence):
             system_prompt = system_prompts["tester"]
             if available_files:
-                system_prompt += "\n\nYou have access to the following attachments:\n\n" + format_attachments(available_files)
+                system_prompt += (
+                    "\n\nYou have access to the following attachments:\n\n"
+                    + format_attachments(available_files)
+                )
 
             answer = model.generate(
                 [
@@ -131,6 +141,8 @@ def validate_task(
                     {"role": "user", "content": task["objective"]},
                 ]
             )
+            if not answer:
+                continue
 
             judgement = model.generate(
                 [
@@ -141,28 +153,34 @@ def validate_task(
                     },
                 ]
             )
+            if not judgement:
+                continue
 
             try:
-                reasoning = re.findall(r"```reasoning\n(.*?)\n```", judgement, flags=re.S)[0]
-                verdict = re.findall(r"```verdict\n(.*?)\n```", judgement, flags=re.S)[0]
+                reasoning = re.findall(
+                    r"```reasoning\n(.*?)\n```", judgement, flags=re.S
+                )[0]
+                verdict = re.findall(r"```verdict\n(.*?)\n```", judgement, flags=re.S)[
+                    0
+                ]
                 assert verdict in ["Correct", "Incorrect"]
             except (IndexError, AssertionError):
                 continue
 
             # Log validation attempt
             print(
-                f"\n{'='*80}\n"
+                f"\n{'=' * 80}\n"
                 f"VALIDATION: {task['id']}\n"
                 f"EXCLUDED FILE: {excluded_file}\n"
                 f"AVAILABLE FILES: {[f.name for f in available_files]}\n"
                 f"ATTEMPT: {attempt + 1}/{confidence}\n"
-                f"{'='*80}\n"
+                f"{'=' * 80}\n"
                 f"QUESTION:\n{task['objective']}\n\n"
                 f"EXPECTED ANSWER:\n{task['expected']}\n\n"
                 f"TESTER ANSWER:\n{answer}\n\n"
                 f"JUDGE REASONING:\n{reasoning}\n\n"
                 f"VERDICT: {verdict}\n"
-                f"{'='*80}\n",
+                f"{'=' * 80}\n",
                 file_path=log_path,
                 file_only=True,
             )
@@ -181,7 +199,9 @@ def main():
     argparser.add_argument(
         "fileset",
         type=str,
-        choices=[f.name for f in (Path(__file__).parent / "files").iterdir()],
+        choices=[
+            f.name for f in (Path(__file__).parent / "filesets").iterdir() if f.is_dir()
+        ],
         help="The name of the folder containing the set of files to use to build the dataset.",
     )
     argparser.add_argument(
@@ -207,7 +227,7 @@ def main():
 
     TASKLIST_NAME = f"DocRetrieval-{args.fileset}"
 
-    documents_path = Path(__file__).parent / "files" / args.fileset
+    documents_path = Path(__file__).parent / "filesets" / args.fileset
     system_prompts_path = Path(__file__).parent / "system_prompts"
     tasklist_path = TASKLISTS_PATH / TASKLIST_NAME
     tasks_path = tasklist_path / "tasks.json"
@@ -304,11 +324,17 @@ def main():
                 print(f"[green]{task['objective']}[/]")
 
                 print("Validating: ", end="")
-                if validate_task(task, files, model, system_prompts, args.confidence, log_path):
+                if validate_task(
+                    task, files, model, system_prompts, args.confidence, log_path
+                ):
                     print(" [green]✓ Valid[/]")
                     tasks.append(task)
                 else:
                     print(" [red]✗ Invalid (answerable without all files)[/]")
+
+        #         break  # DEBUG: stop after first task
+        #     break  # DEBUG: stop after first topic
+        # break  # DEBUG: stop after first file combination
 
     Path(tasks_path.parent).mkdir(parents=True, exist_ok=True)
     with open(tasks_path, "w", encoding="utf-8") as f:
@@ -324,8 +350,8 @@ def main():
                 "name": TASKLIST_NAME,
                 "id": f"jrc-ai/DocRetrieval-{args.fileset}",
                 "original": True,
-                "config": args.fileset,
-                "split": None,
+                "config": "default",
+                "split": "test",
                 "category": "Agentic",
                 "task_type": "QA",
             },

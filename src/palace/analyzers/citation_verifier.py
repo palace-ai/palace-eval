@@ -106,13 +106,10 @@ JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
 def _get_model() -> APIModel:
     """Get the model for LLM calls."""
-    missing = []
-    if not GPTJRC_PROD_API_URL:
-        missing.append("GPTJRC_PROD_API_URL")
-    if not GPTJRC_PROD_TOKEN:
-        missing.append("GPTJRC_PROD_TOKEN")
-    if missing:
-        raise ValueError(f"Missing required env vars: {', '.join(missing)}")
+    if GPTJRC_PROD_API_URL is None:
+        raise ValueError("Missing required env var: GPTJRC_PROD_API_URL")
+    if GPTJRC_PROD_TOKEN is None:
+        raise ValueError("Missing required env var: GPTJRC_PROD_TOKEN")
     return APIModel(
         JUDGE_MODEL,
         GPTJRC_PROD_API_URL,
@@ -144,13 +141,13 @@ def _remove_urls_from_text(text: str) -> str:
 
 class CitationVerifier(Analyzer):
     """Verifies that claims in generated reports are supported by cited sources.
-    
+
     Implements the FACT pipeline: extract → deduplicate → fetch → validate → compute.
-    
+
     Attributes:
         name: "citation_verifier" (used as metrics key)
         supported_task_types: [ReportGenerationTaskType]
-        
+
     Example:
         >>> from palace.analyzers.fetch import get_fetch_fn
         >>> verifier = CitationVerifier(fetch_fn=get_fetch_fn())
@@ -188,10 +185,10 @@ class CitationVerifier(Analyzer):
         supported = metrics.get("claims_supported", 0)
         failed = metrics.get("claims_failed", 0)
         accuracy = metrics.get("accuracy", 0)
-        
+
         if extracted == 0:
             return "No claims with citations found in the generated report."
-        
+
         lines = [
             f"Claims: {extracted} extracted, {checked} checked, {failed} failed",
             f"Supported: {supported}/{checked} ({accuracy:.0%} accuracy)",
@@ -248,9 +245,11 @@ class CitationVerifier(Analyzer):
             print(f"[bold red]Citation verification failed: {e}[/]")
             raise
 
-    def _extract_citations(self, article: str, model: APIModel) -> tuple[list[dict], bool]:
+    def _extract_citations(
+        self, article: str, model: APIModel
+    ) -> tuple[list[dict], bool]:
         """Extract (fact, ref_idx, url) triplets from the article using LLM.
-        
+
         Returns:
             Tuple of (citations list, extraction_failed flag)
         """
@@ -314,7 +313,9 @@ class CitationVerifier(Analyzer):
 
             # Fallback: keep all
             if not kept_indices or 0 in kept_indices or len(kept_indices) > len(group):
-                print(f"[bold yellow]Deduplication failed for {url}, keeping all {len(group)} citations[/]")
+                print(
+                    f"[bold yellow]Deduplication failed for {url}, keeping all {len(group)} citations[/]"
+                )
                 kept_indices = list(range(1, len(group) + 1))
 
             deduped[url] = {
@@ -404,7 +405,9 @@ class CitationVerifier(Analyzer):
             urls_fetched.append(url)
             for i, v in enumerate(group.get("validate_res", [])):
                 result = v.get("result", "unknown")
-                fact = group.get("facts", [])[i] if i < len(group.get("facts", [])) else ""
+                fact = (
+                    group.get("facts", [])[i] if i < len(group.get("facts", [])) else ""
+                )
                 details.append({"url": url, "claim": fact[:200], "result": result})
                 if result == "supported":
                     supported += 1
