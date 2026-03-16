@@ -1,6 +1,8 @@
 from typing import Optional
 
-from palace.mcp_utils.mcp_client import MCPClientPool
+from mcp.types import TextContent
+
+from palace.mcp_utils.mcp_client import call_tool
 from palace.tools import Tool
 from palace.utils.exceptions import ToolHallucinationException
 
@@ -30,19 +32,15 @@ class MCPTool(Tool):
                 raise ToolHallucinationException(f"""Tool `{self.name}` encountered the following error: parameter `{parameter}` was not found in the tool call but it is required. Make sure to comply with the required parameters name and type. For this tool, the required parameters are the following:
 {self.required_parameters}""")
 
-        with MCPClientPool.get_connection(
-            url=self._server_url, token=self._server_token
-        ) as mcp_client:
-            response = mcp_client.call_tool(self._name, kwargs)
+        response = call_tool(self._server_url, self._name, kwargs, self._server_token)
 
         if response is None:
             return f"Tool `{self.name}` encountered some issue and returned no result, likely due to a timeout. Maybe it was unable to process your specific input, or there was some internal error."
-        else:
-            return response.content[
-                0
-            ].text[
-                :300000
-            ]  # TODO [:300000] is a workaround for very long outputs to ensure it fits in the model context
+        
+        content = response.content[0]
+        if isinstance(content, TextContent) and content.text:
+            return content.text[:300000]
+        return f"Tool `{self.name}` returned non-text content."
 
     @property
     def name(self) -> str:

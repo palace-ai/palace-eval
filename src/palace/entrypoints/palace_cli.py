@@ -14,7 +14,7 @@ from palace.environments import (
 )
 from palace.environments.empty_environment import EmptyEnvironment
 from palace.evaluation import Evaluation
-from palace.mcp_utils.mcp_client import MCPClientPool
+from palace.mcp_utils.mcp_client import list_tools
 from palace.models import APIModel
 from palace.paradigms import (
     ActParadigm,
@@ -40,11 +40,11 @@ from palace.utils.secrets import (
 _DEFAULT_MCP_SERVERS = [
     {
         "name": "Default local Palace",
-        "url": "http://localhost:8080/sse",
+        "url": "http://localhost:8080/mcp/",
     },
     {
         "name": "Default local agentpoc",
-        "url": "http://localhost:8000/sse",
+        "url": "http://localhost:8000/mcp/",
     },
     {
         "name": "Default local abw-serve",
@@ -242,10 +242,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                     f"Checking availability of MCP servers... [dim]({server['url']})"
                 )
                 try:
-                    with MCPClientPool.get_connection(
-                        server["url"], server.get("token")
-                    ) as mcp_client:
-                        mcp_client.list_tools()
+                    list_tools(server["url"], server.get("token"))
                 except Exception:
                     server["available"] = False
                 else:
@@ -284,18 +281,20 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 )
             ],
         ).ask()
-        if url == "Custom URL":  # custom mcp server can't require a token
+        if url == "Custom URL":
             url = questionary.text("Custom URL:").ask()
             if not url.startswith("http"):
                 raise ValueError("Invalid URL provided.")
-        mcp_server = next(
-            server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
-        )
-        token = mcp_server.get("token")
+            token = questionary.text("Token (leave empty if none):").ask() or None
+            mcp_server = {"url": url}
+        else:
+            mcp_server = next(
+                server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
+            )
+            token = mcp_server.get("token")
 
         # retrieve remote agents from url
-        with MCPClientPool.get_connection(url, token) as mcp_client:
-            available_mcp_agents = [tool.name for tool in mcp_client.list_tools().tools]
+        available_mcp_agents = [tool.name for tool in list_tools(url, token).tools]
         if len(available_mcp_agents) == 0:
             raise ValueError("No agents found in the provided MCP server URL.")
         mcp_agents = questionary.checkbox(

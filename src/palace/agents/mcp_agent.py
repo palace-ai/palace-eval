@@ -7,7 +7,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from palace.agents import Agent
 from palace.environments.base_environment import Environment
 from palace.environments.unknown_environment import UnknownEnvironment
-from palace.mcp_utils.mcp_client import MCPClientPool
+from palace.mcp_utils.mcp_client import call_tool, list_tools
 
 
 class MCPAgent(Agent):
@@ -39,8 +39,7 @@ class MCPAgent(Agent):
         self.output_processor = output_processor
         self._environment = UnknownEnvironment()
 
-        with MCPClientPool.get_connection(url, token) as mcp_client:
-            available_agents = mcp_client.list_tools().tools
+        available_agents = list_tools(url, token).tools
 
         if len(available_agents) == 0:
             raise ValueError(f"There is no agent or tool at {url}.")
@@ -104,8 +103,7 @@ class MCPAgent(Agent):
             params |= self.params["custom"]
 
         try:
-            with MCPClientPool.get_connection(self.url, self.token) as mcp_client:
-                output: CallToolResult = mcp_client.call_tool(self.name, params)
+            output: CallToolResult = call_tool(self.url, self.name, params, self.token)
         except Exception as e:
             print(f"Remote agent returned the following exception: \n{e}")
             raise e

@@ -1,12 +1,12 @@
 from palace.environments.base_environment import Environment
-from palace.mcp_utils.mcp_client import MCPClientPool
+from palace.mcp_utils.mcp_client import list_tools
 from palace.tools import FinalAnswerTool, MCPTool, Tool
 from palace.utils.secrets import ALOHA_STAGING_TOKEN
 
 
 class MCPEnvironment(Environment):
     MCP_SERVERS = {
-        "local": {"url": "http://localhost:8080/sse", "token": None},
+        "local": {"url": "http://localhost:8080/mcp/", "token": None},
         "aloha": {
             "url": "https://aloha-main-jrc-gpt.apps.ocpg.jrc.ec.europa.eu/api/mcp/jrc-gpt/sse",
             "token": ALOHA_STAGING_TOKEN,
@@ -37,10 +37,7 @@ class MCPEnvironment(Environment):
     @property
     def tools(self) -> list[Tool]:
         if self._tools is None:  # load tools the first time it's called
-            with MCPClientPool.get_connection(
-                url=self.url, token=self.token
-            ) as mcp_client:
-                mcp_tools = (mcp_client.list_tools()).tools
+            mcp_tools = list_tools(self.url, self.token).tools
 
             tools = []
             for mcp_tool in mcp_tools:
@@ -52,7 +49,7 @@ class MCPEnvironment(Environment):
                 tools.append(
                     MCPTool(
                         name=mcp_tool.name,
-                        description=mcp_tool.description,
+                        description=mcp_tool.description or "",
                         parameters=tool_parameters,
                         required_parameters=required_parameters,
                         server_url=self.url,
