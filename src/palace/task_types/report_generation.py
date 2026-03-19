@@ -187,146 +187,169 @@ The length of a report is not necessarily an indicator of quality - focus on the
 
     def verify(self, task: "Task", answer: str) -> TaskVerificationResult:
         """Verify using configurable criteria with pairwise comparison."""
-        criteria, dimension_map = self._get_criteria(task)
-        task_type_fields = task.custom_fields.get("task_type_fields", {})
-        max_per_batch = task_type_fields.get(
-            "max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH
-        )
-
-        prompt_AB = f"""
-QUESTION
-{task.objective}
-
-REPORT A
-{task.expected}
-
-REPORT B
-{answer}
-"""
-        prompt_BA = f"""
-QUESTION
-{task.objective}
-
-REPORT A
-{answer}
-
-REPORT B
-{task.expected}
-"""
-
-        # Evaluate in batches
-        batches = _create_batches(criteria, max_per_batch)
-        keyword_values_AB = {}
-        keyword_values_BA = {}
-        for i, batch in enumerate(batches):
-            if len(batches) > 1:
-                print(
-                    f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)..."
-                )
-            ab, ba = self._judge_batch(batch, prompt_AB, prompt_BA)
-            keyword_values_AB.update(ab)
-            keyword_values_BA.update(ba)
-
-        # Calculate weighted scores
-        score_expected, score_provided = 0.0, 0.0
-        criteria_scores = {}
-
-        for c in criteria:
-            name = c["name"]
-            weight = c.get("weight", 1.0)
-            ab = keyword_values_AB[name]
-            ba = keyword_values_BA[name]
-
-            # AB comparison
-            if ab["best"] == "A":
-                score_expected += int(ab["gap"]) * weight
-            elif ab["best"] == "B":
-                score_provided += int(ab["gap"]) * weight
-            else:
-                raise ValueError(
-                    f"Invalid best report value for criterion '{name}': {ab['best']}. Must be 'A' or 'B'."
-                )
-
-            # BA comparison (swapped)
-            if ba["best"] == "A":
-                score_provided += int(ba["gap"]) * weight
-            elif ba["best"] == "B":
-                score_expected += int(ba["gap"]) * weight
-            else:
-                raise ValueError(
-                    f"Invalid best report value for criterion '{name}': {ba['best']}. Must be 'A' or 'B'."
-                )
-
-            # Per-criterion score for metrics
-            coef_AB = 1 if ab["best"] == "B" else -1
-            coef_BA = 1 if ba["best"] == "A" else -1
-            criteria_scores[name] = coef_AB * int(ab["gap"]) + coef_BA * int(ba["gap"])
-
-        # Build reasoning string with per-criterion sections
-        def replace_report_names(text: str, provided_is_a: bool) -> str:
-            """Replace 'Report A/B' with 'Provided/Expected'."""
-            if provided_is_a:
-                text = re.sub(r"[Rr]eport\s*A", "Provided", text)
-                text = re.sub(r"[Rr]eport\s*B", "Expected", text)
-            else:
-                text = re.sub(r"[Rr]eport\s*A", "Expected", text)
-                text = re.sub(r"[Rr]eport\s*B", "Provided", text)
-            return text
-
-        reasoning_parts = []
-        for c in criteria:
-            name = c["name"]
-            score = criteria_scores[name]
-            sign = "+" if score > 0 else ""
-
-            # Combine discussions from both comparisons
-            disc_ab = replace_report_names(
-                keyword_values_AB[name]["discussion"], provided_is_a=False
-            )
-            disc_ba = replace_report_names(
-                keyword_values_BA[name]["discussion"], provided_is_a=True
+        if not answer or not answer.strip():
+            return TaskVerificationResult(
+                is_correct=False,
+                reasoning="Agent did not provide a report.",
+                metrics={"normalized_score": 0.0},
             )
 
-            reasoning_parts.append(f"## {name} ({sign}{score})\n{disc_ab}\n\n{disc_ba}")
+        try:
+            criteria, dimension_map = self._get_criteria(task)
+            task_type_fields = task.custom_fields.get("task_type_fields", {})
+            max_per_batch = task_type_fields.get(
+                "max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH
+            )
 
-        reasoning = "\n\n".join(reasoning_parts)
+            prompt_AB = f"""
+    QUESTION
+    {task.objective}
 
-        # Summary section
-        overall_gap = score_provided - score_expected
-        max_score = sum(c.get("weight", 1.0) for c in criteria) * 10
-        normalized_score = (
-            (overall_gap + max_score) / (2 * max_score) if max_score > 0 else 0.5
-        )
+    REPORT A
+    {task.expected}
 
-        reasoning += "\n\n## Summary\n"
-        reasoning += (
-            "Scores per criterion (positive = provided better, range -10 to +10):\n"
-        )
-        for name, score in criteria_scores.items():
-            sign = "+" if score > 0 else ""
-            reasoning += f"  {name}: {sign}{score}\n"
-        reasoning += f"\nOverall: {overall_gap:+.1f} (range {-max_score:.0f} to +{max_score:.0f})"
-        reasoning += f"\nNormalized: {normalized_score:.2f} (0=worst, 0.5=tie, 1=best)"
+    REPORT B
+    {answer}
+    """
+            prompt_BA = f"""
+    QUESTION
+    {task.objective}
 
-        # Build metrics
-        metrics: dict = {
-            "criteria_scores": criteria_scores,
-            "overall_gap": overall_gap,
-            "score_provided": score_provided,
-            "score_expected": score_expected,
-            "normalized_score": normalized_score,
-        }
+    REPORT A
+    {answer}
 
-        # Add dimension scores if hierarchical
-        if dimension_map:
-            dimension_scores = {}
-            for dim_name, crit_names in dimension_map.items():
-                dim_total = sum(criteria_scores.get(cn, 0) for cn in crit_names)
-                dimension_scores[dim_name] = dim_total
-            metrics["dimension_scores"] = dimension_scores
+    REPORT B
+    {task.expected}
+    """
 
-        return TaskVerificationResult(
-            is_correct=score_provided > score_expected,
-            reasoning=reasoning,
-            metrics=metrics,
-        )
+            # Evaluate in batches
+            batches = _create_batches(criteria, max_per_batch)
+            keyword_values_AB = {}
+            keyword_values_BA = {}
+            for i, batch in enumerate(batches):
+                if len(batches) > 1:
+                    print(
+                        f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)..."
+                    )
+                ab, ba = self._judge_batch(batch, prompt_AB, prompt_BA)
+                keyword_values_AB.update(ab)
+                keyword_values_BA.update(ba)
+
+            # Calculate weighted scores
+            score_expected, score_provided = 0.0, 0.0
+            criteria_scores = {}
+
+            for c in criteria:
+                name = c["name"]
+                weight = c.get("weight", 1.0)
+                ab = keyword_values_AB[name]
+                ba = keyword_values_BA[name]
+
+                ab_best = ab["best"].strip().upper()[:1]
+                ba_best = ba["best"].strip().upper()[:1]
+
+                if ab_best not in ("A", "B") or ba_best not in ("A", "B"):
+                    return TaskVerificationResult(
+                        is_correct=False,
+                        reasoning=f"Judge returned invalid comparison for '{name}': AB={ab['best']}, BA={ba['best']}",
+                        metrics={"normalized_score": 0.0},
+                    )
+
+                # AB comparison
+                if ab_best == "A":
+                    score_expected += int(ab["gap"]) * weight
+                else:
+                    score_provided += int(ab["gap"]) * weight
+
+                # BA comparison (swapped)
+                if ba_best == "A":
+                    score_provided += int(ba["gap"]) * weight
+                else:
+                    score_expected += int(ba["gap"]) * weight
+
+                # Per-criterion score for metrics
+                coef_AB = 1 if ab_best == "B" else -1
+                coef_BA = 1 if ba_best == "A" else -1
+                criteria_scores[name] = coef_AB * int(ab["gap"]) + coef_BA * int(
+                    ba["gap"]
+                )
+
+            # Build reasoning string with per-criterion sections
+            def replace_report_names(text: str, provided_is_a: bool) -> str:
+                """Replace 'Report A/B' with 'Provided/Expected'."""
+                if provided_is_a:
+                    text = re.sub(r"[Rr]eport\s*A", "Provided", text)
+                    text = re.sub(r"[Rr]eport\s*B", "Expected", text)
+                else:
+                    text = re.sub(r"[Rr]eport\s*A", "Expected", text)
+                    text = re.sub(r"[Rr]eport\s*B", "Provided", text)
+                return text
+
+            reasoning_parts = []
+            for c in criteria:
+                name = c["name"]
+                score = criteria_scores[name]
+                sign = "+" if score > 0 else ""
+
+                # Combine discussions from both comparisons
+                disc_ab = replace_report_names(
+                    keyword_values_AB[name]["discussion"], provided_is_a=False
+                )
+                disc_ba = replace_report_names(
+                    keyword_values_BA[name]["discussion"], provided_is_a=True
+                )
+
+                reasoning_parts.append(
+                    f"## {name} ({sign}{score})\n{disc_ab}\n\n{disc_ba}"
+                )
+
+            reasoning = "\n\n".join(reasoning_parts)
+
+            # Summary section
+            overall_gap = score_provided - score_expected
+            max_score = sum(c.get("weight", 1.0) for c in criteria) * 10
+            normalized_score = (
+                (overall_gap + max_score) / (2 * max_score) if max_score > 0 else 0.5
+            )
+
+            reasoning += "\n\n## Summary\n"
+            reasoning += (
+                "Scores per criterion (positive = provided better, range -10 to +10):\n"
+            )
+            for name, score in criteria_scores.items():
+                sign = "+" if score > 0 else ""
+                reasoning += f"  {name}: {sign}{score}\n"
+            reasoning += f"\nOverall: {overall_gap:+.1f} (range {-max_score:.0f} to +{max_score:.0f})"
+            reasoning += (
+                f"\nNormalized: {normalized_score:.2f} (0=worst, 0.5=tie, 1=best)"
+            )
+
+            # Build metrics
+            metrics: dict = {
+                "criteria_scores": criteria_scores,
+                "overall_gap": overall_gap,
+                "score_provided": score_provided,
+                "score_expected": score_expected,
+                "normalized_score": normalized_score,
+            }
+
+            # Add dimension scores if hierarchical
+            if dimension_map:
+                dimension_scores = {}
+                for dim_name, crit_names in dimension_map.items():
+                    dim_total = sum(criteria_scores.get(cn, 0) for cn in crit_names)
+                    dimension_scores[dim_name] = dim_total
+                metrics["dimension_scores"] = dimension_scores
+
+            return TaskVerificationResult(
+                is_correct=score_provided > score_expected,
+                reasoning=reasoning,
+                metrics=metrics,
+            )
+
+        except Exception as e:
+            return TaskVerificationResult(
+                is_correct=False,
+                reasoning=f"Verification failed: {e}",
+                metrics={"normalized_score": 0.0},
+            )
