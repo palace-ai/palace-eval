@@ -221,6 +221,29 @@ class Evaluation:
                     box_title="Evaluation Report",
                 )
 
+                # Build metrics dict with universal metrics
+                metrics: dict[str, int | float | dict] = {
+                    "task_count": len(report),
+                    "correct_count": correct_tasks,
+                    "total_time": total_time,
+                }
+                metrics |= pass_at_k_scores
+                metrics |= metrics_averages
+                if tool_hallucination_rate:
+                    metrics |= tool_hallucination_rate
+
+                # Aggregate task-type-specific metrics (e.g., avg normalized_score for ReportGeneration)
+                task_type_metrics = {}
+                normalized_scores = [
+                    r["metrics"]["normalized_score"]
+                    for r in report.values()
+                    if r.get("metrics") and "normalized_score" in r["metrics"]
+                ]
+                if normalized_scores:
+                    task_type_metrics["avg_normalized_score"] = sum(normalized_scores) / len(normalized_scores)
+                if task_type_metrics:
+                    metrics["task_type_metrics"] = task_type_metrics
+
                 run_results = {
                     "agent": agent.name,
                     "model": agent.model_name,
@@ -228,12 +251,9 @@ class Evaluation:
                     "environment": agent.environment.name,
                     "tasklist": tasklist,
                     "accuracy": accuracy,
-                    "total_time": total_time,
+                    "metrics": metrics,
                     "detailed_report": report,
                 }
-                run_results |= pass_at_k_scores
-                run_results |= metrics_averages
-                run_results |= tool_hallucination_rate
                 results.append(run_results)
 
                 # append results to jsonl file
