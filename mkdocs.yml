@@ -48,6 +48,14 @@ nav:
     - Migration Guide: howto/migration.md
   - Reference:
     - reference/index.md
+    - Official Tasklists:
+      - reference/tasklists/index.md
+      - GuardBench: reference/tasklists/guardbench.md
+      - Sycophancy: reference/tasklists/sycophancy.md
+      - ValuesEval24: reference/tasklists/valueseval24.md
+      - DocRetrieval: reference/tasklists/docretrieval.md
+      - DeepConsult: reference/tasklists/deepconsult.md
+      - DeepResearchBench: reference/tasklists/deepresearchbench.md
     - info.json: reference/info-json.md
     - tasks.json: reference/tasks-json.md
     - Task Type Fields: reference/task-type-fields.md

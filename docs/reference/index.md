@@ -2,6 +2,19 @@
 
 Technical specifications and complete documentation for PALACE configuration and output formats.
 
+## Official Tasklists
+
+### [Official PALACE Tasklists](tasklists/index.md)
+
+Comprehensive documentation for the official benchmark tasklists developed by the JRC AI team:
+
+- [GuardBench](tasklists/guardbench.md) — Multilingual safety content classification
+- [Sycophancy](tasklists/sycophancy.md) — Sycophancy detection in two modalities
+- [ValuesEval24](tasklists/valueseval24.md) — Human values detection across 9 languages
+- [DocRetrieval](tasklists/docretrieval.md) — Multi-document retrieval and synthesis
+- [DeepConsult](tasklists/deepconsult.md) — Long-form consulting report generation
+- [DeepResearchBench](tasklists/deepresearchbench.md) — Research reports with per-task criteria
+
 ## Specifications
 
 ### [info.json](info-json.md)
