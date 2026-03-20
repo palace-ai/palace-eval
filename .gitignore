@@ -1,5 +1,4 @@
 **/__pycache__/
-**/___*
 **/*.egg-info/
 **/*.ipynb
 **/*.png
@@ -8,6 +7,7 @@
 .vscode
 build/
 site/
+**/___*
 
 # all prohibited by gitlab pattern
 *.3gp
