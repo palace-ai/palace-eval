@@ -1,15 +1,15 @@
 from palace.models.api_model import APIModel
 from palace.tools import Tool
-from palace.utils.constants import GPTJRC_PROD_API_URL
-from palace.utils.secrets import GPTJRC_PROD_TOKEN
+from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
+from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 
 class AIAssistantTool(Tool):
     def __init__(self):
-        assert GPTJRC_PROD_API_URL is not None, (
-            "GPTJRC_PROD_API_URL is not set in the environment variables."
+        assert OPENAI_LIKE_API_BASE_URL is not None, (
+            "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
         )
-        self.model = APIModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
+        self.model = APIModel("gpt-4o", OPENAI_LIKE_API_BASE_URL, OPENAI_LIKE_API_KEY)
 
     def execute(self, **kwargs) -> str:
         """Execute the tool functionality."""

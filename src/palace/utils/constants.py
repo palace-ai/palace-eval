@@ -2,16 +2,12 @@ import os
 
 from dotenv import load_dotenv
 
-# from palace.utils.paths import PROJECT_ROOT
-
-# load_dotenv(PROJECT_ROOT / ".env")
-
 load_dotenv()
 
-GPTJRC_PROD_URL = os.getenv("GPTJRC_PROD_URL")
-GPTJRC_PROD_API_URL = os.getenv("GPTJRC_PROD_API_URL")
-GPTJRC_STAGING_URL = os.getenv("GPTJRC_STAGING_URL")
-GPTJRC_STAGING_API_URL = os.getenv("GPTJRC_STAGING_API_URL")
+# Primary API endpoint (OpenAI-compatible)
+OPENAI_LIKE_API_BASE_URL = os.getenv("OPENAI_LIKE_API_BASE_URL")
+
+# Other service URLs
 ALOHA_PROD_URL = os.getenv("ALOHA_PROD_URL")
 ALOHA_STAGING_URL = os.getenv("ALOHA_STAGING_URL")
 REACT_AGENT_ALOHA_URL = os.getenv("REACT_AGENT_ALOHA_URL")

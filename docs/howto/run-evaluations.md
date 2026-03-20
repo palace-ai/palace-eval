@@ -32,38 +32,38 @@ The `palace-run` command runs evaluations directly from the terminal.
 ### Basic Usage
 
 ```bash
-palace-run --tasklist GuardBench-EN
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN
 ```
 
 ### Common Options
 
 ```bash
+# With API key authentication
+palace-run -u https://api.example.com/v1 -k your-api-key -m gpt-4o -t GuardBench-EN
+
 # Limit number of tasks (useful for testing)
-palace-run --tasklist GuardBench-EN --limit 10
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN -l 10
 
 # Specify output directory
-palace-run --tasklist GuardBench-EN --output ./my-results
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN --output-folder ./my-results
 
-# Use a specific model endpoint
-palace-run --tasklist GuardBench-EN \
-    --model-url https://api.example.com/v1 \
-    --model-token your-api-key
-
-# Specify the model name
-palace-run --tasklist GuardBench-EN --model gpt-4o
+# Use MCP endpoint instead of OpenAI-compatible
+palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint-type mcp
 ```
 
 ### All Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--tasklist` | Name of the tasklist to run | Required |
-| `--limit` | Maximum number of tasks to run | All tasks |
-| `--output` | Output directory for results | `~/.cache/palace/results/` |
-| `--model-url` | API endpoint URL | From environment |
-| `--model-token` | API authentication token | From environment |
-| `--model` | Model name to use | From environment |
-| `--verbose` | Enable detailed logging | False |
+| `-u`, `--url` | API endpoint URL | Required |
+| `-m`, `--name` | Model name to evaluate | Required |
+| `-t`, `--tasklist` | Name of the tasklist to run | Required |
+| `-k`, `--token` | API authentication token | None |
+| `-l`, `--limit` | Maximum number of tasks to run | All tasks |
+| `--output-folder` | Output directory for results | `~/.cache/palace/results/` |
+| `--run-name` | Name for this evaluation run | Auto-generated |
+| `--runs-per-configuration` | Number of runs to perform | 1 |
+| `--endpoint-type` | `openai` or `mcp` | `openai` |
 
 **Best for**: Scripted evaluations, CI/CD pipelines, batch processing.
 
@@ -76,13 +76,14 @@ For integration into Python scripts and applications, use the `evaluate` functio
 ```python
 from palace import evaluate
 
-results = evaluate(
-    tasklist="GuardBench-EN",
-    model_url="https://api.example.com/v1",
-    model_token="your-api-key"
+evaluate(
+    run_name="my-evaluation",
+    output_folder="./my-results",
+    url="https://api.example.com/v1",
+    token="your-api-key",
+    name="gpt-4o",
+    tasklist="GuardBench-EN"
 )
-
-print(f"Accuracy: {results.accuracy:.1%}")
 ```
 
 ### With Options
@@ -90,42 +91,35 @@ print(f"Accuracy: {results.accuracy:.1%}")
 ```python
 from palace import evaluate
 
-results = evaluate(
+evaluate(
+    run_name="guardench-test",
+    output_folder="./my-results",
+    url="https://api.example.com/v1",
+    token="your-api-key",
+    name="gpt-4o",
     tasklist="GuardBench-EN",
-    model_url="https://api.example.com/v1",
-    model_token="your-api-key",
-    output_path="./my-results",
     limit=10,
-    model="gpt-4o"
+    runs_per_configuration=3
 )
-
-# Access detailed results
-for task_result in results.task_results:
-    print(f"{task_result.task_id}: {'✓' if task_result.is_correct else '✗'}")
 ```
 
 ### Parameters
 
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
+| `run_name` | str | Name for this evaluation run | Required |
+| `output_folder` | str | Output directory | Required |
+| `url` | str | API endpoint URL | Required |
+| `token` | str | API authentication token | None |
+| `name` | str | Model name | Required |
 | `tasklist` | str | Name of the tasklist | Required |
-| `model_url` | str | API endpoint URL | From environment |
-| `model_token` | str | API authentication token | From environment |
-| `output_path` | str | Output directory | `~/.cache/palace/results/` |
 | `limit` | int | Maximum tasks to run | None (all) |
-| `model` | str | Model name | From environment |
+| `runs_per_configuration` | int | Number of runs | 1 |
+| `endpoint_type` | str | `"openai"` or `"mcp"` | `"openai"` |
 
 ### Return Value
 
-The `evaluate` function returns a `Results` object with:
-
-```python
-results.accuracy        # Float: overall accuracy (0.0 to 1.0)
-results.total_tasks     # Int: number of tasks evaluated
-results.correct_tasks   # Int: number of correct tasks
-results.task_results    # List: detailed per-task results
-results.output_file     # Path: location of JSONL results file
-```
+The `evaluate` function returns `None`. Results are written to the output folder as JSONL files.
 
 **Best for**: Custom pipelines, integration with other tools, programmatic analysis.
 
@@ -136,24 +130,27 @@ results.output_file     # Path: location of JSONL results file
 **CLI approach**:
 ```bash
 for tasklist in GuardBench-EN Sycophancy-Binary DocRetrieval-ai; do
-    palace-run --tasklist $tasklist --output ./batch-results
+    palace-run -u https://api.example.com/v1 -m gpt-4o -t $tasklist --output-folder ./batch-results
 done
 ```
 
 **Python approach**:
 ```python
 from palace import evaluate
+import json
 
 tasklists = ["GuardBench-EN", "Sycophancy-Binary", "DocRetrieval-ai"]
 
 for tasklist in tasklists:
-    results = evaluate(
-        tasklist=tasklist,
-        model_url="https://api.example.com/v1",
-        model_token="your-api-key",
-        output_path="./batch-results"
+    evaluate(
+        run_name=f"batch-{tasklist}",
+        output_folder="./batch-results",
+        url="https://api.example.com/v1",
+        token="your-api-key",
+        name="gpt-4o",
+        tasklist=tasklist
     )
-    print(f"{tasklist}: {results.accuracy:.1%}")
+    print(f"Completed: {tasklist}")
 ```
 
 ### Comparing Models
@@ -167,40 +164,53 @@ models = [
 ]
 
 for model_name, url, token in models:
-    results = evaluate(
-        tasklist="GuardBench-EN",
-        model_url=url,
-        model_token=token,
-        model=model_name,
-        output_path=f"./results/{model_name}"
+    evaluate(
+        run_name=f"comparison-{model_name}",
+        output_folder=f"./results/{model_name}",
+        url=url,
+        token=token,
+        name=model_name,
+        tasklist="GuardBench-EN"
     )
-    print(f"{model_name}: {results.accuracy:.1%}")
+    print(f"Completed: {model_name}")
 ```
 
 ## Understanding Output
 
 ### Results File
 
-Results are saved as JSONL (one JSON object per line):
+Results are saved as JSONL (one JSON object per evaluation run):
 
 ```bash
-cat ~/.cache/palace/results/GuardBench-EN_2026-03-20_15-00-00.jsonl
+cat ~/.cache/palace/results/eval.jsonl | python -m json.tool
 ```
 
 ### Result Structure
 
-Each line contains:
+Each evaluation produces a JSON object:
 
 ```json
 {
-    "task_id": "GuardBench-EN_0",
-    "objective": "The prompt that was evaluated",
-    "expected": "The expected output",
-    "model_output": "What the model produced",
-    "is_correct": true,
-    "reasoning": "Explanation of the verification result",
+    "agent": "gpt-4o",
+    "model": "Unknown remote model",
+    "paradigm": "Unknown remote paradigm",
+    "environment": "Unknown Remote Environment",
+    "tasklist": "GuardBench-EN",
+    "accuracy": 0.85,
     "metrics": {
-        "criterion": "semantic equivalence"
+        "task_count": 20,
+        "correct_count": 17,
+        "total_time": 120.5
+    },
+    "detailed_report": {
+        "GuardBench-EN_0": {
+            "objective": "The prompt that was evaluated",
+            "expected": "The expected output",
+            "actual": "What the model produced",
+            "is_correct": true,
+            "reasoning": "Explanation of the verification result",
+            "elapsed_time": 1.2
+        }
     }
 }
 ```
@@ -211,19 +221,23 @@ Each line contains:
 import json
 
 # Load results
-with open("results.jsonl") as f:
+with open("results/eval.jsonl") as f:
     results = [json.loads(line) for line in f]
 
-# Calculate accuracy
-correct = sum(1 for r in results if r["is_correct"])
-print(f"Accuracy: {correct}/{len(results)} ({correct/len(results):.1%})")
-
-# Find failures
-failures = [r for r in results if not r["is_correct"]]
-for f in failures[:5]:
-    print(f"\nFailed: {f['task_id']}")
-    print(f"Expected: {f['expected']}")
-    print(f"Got: {f['model_output']}")
+for run in results:
+    print(f"Tasklist: {run['tasklist']}")
+    print(f"Accuracy: {run['accuracy']:.1%}")
+    
+    # Find failures
+    failures = [
+        (task_id, data) 
+        for task_id, data in run['detailed_report'].items() 
+        if not data['is_correct']
+    ]
+    
+    print(f"Failures: {len(failures)}")
+    for task_id, data in failures[:3]:
+        print(f"  {task_id}: {data['reasoning'][:100]}...")
 ```
 
 ## Environment Variables
@@ -235,17 +249,11 @@ Configure defaults via environment variables:
 export OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
 export OPENAI_LIKE_API_KEY=your-api-key
 
-# Optional: separate judge configuration
-export JUDGE_API_BASE_URL=https://api.example.com/v1
-export JUDGE_API_KEY=your-judge-key
+# Optional: judge model
 export JUDGE_MODEL=gpt-4o
 ```
 
-With environment variables set, you can run without explicit credentials:
-
-```bash
-palace-run --tasklist GuardBench-EN
-```
+These are used by `palace-cli` for default values. The `palace-run` command requires explicit `-u` and `-m` arguments.
 
 ## Troubleshooting
 
@@ -254,7 +262,7 @@ palace-run --tasklist GuardBench-EN
 Ensure the tasklist is downloaded:
 
 ```bash
-palace-download --tasklist GuardBench-EN
+palace-download -t GuardBench-EN
 ```
 
 Check available tasklists:
@@ -278,7 +286,7 @@ curl -H "Authorization: Bearer $OPENAI_LIKE_API_KEY" \
 
 If you hit rate limits:
 
-- Use `--limit` to reduce concurrent requests
+- Use `-l` to reduce concurrent requests
 - Add delays between evaluations in batch scripts
 - Consider using a higher-tier API plan
 
@@ -286,7 +294,7 @@ If you hit rate limits:
 
 For large tasklists:
 
-- Use `--limit` to process in batches
+- Use `-l` to process in batches
 - Ensure sufficient disk space for results
 
 ---

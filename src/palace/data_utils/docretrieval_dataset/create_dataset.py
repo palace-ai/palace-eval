@@ -8,10 +8,10 @@ from typing import Optional
 
 import pymupdf
 from palace.models.api_model import APIModel
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import print
-from palace.utils.secrets import GPTJRC_PROD_TOKEN
+from palace.utils.secrets import OPENAI_LIKE_API_KEY
 from tenacity import Retrying, stop_after_attempt
 
 
@@ -245,8 +245,8 @@ def main():
             ] = f.read()
     print(list(system_prompts.keys()), box=True, box_title="Loaded system prompts")
 
-    assert GPTJRC_PROD_API_URL is not None, "GPTJRC_PROD_API_URL is not set"
-    model = APIModel("minimax-m2", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
+    assert OPENAI_LIKE_API_BASE_URL is not None, "OPENAI_LIKE_API_BASE_URL is not set"
+    model = APIModel("minimax-m2", OPENAI_LIKE_API_BASE_URL, OPENAI_LIKE_API_KEY)
 
     tasks = []
     documents = [path for path in documents_path.iterdir() if path.suffix == ".pdf"]

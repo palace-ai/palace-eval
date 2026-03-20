@@ -19,6 +19,7 @@ This example is based on the DocRetrieval-ai benchmark pattern—straightforward
     "name": "FactualKnowledge",
     "id": "my-org/FactualKnowledge",
     "version": "1.0.0",
+    "original": true,
     "category": "Knowledge",
     "task_type": "QA"
 }
@@ -99,21 +100,23 @@ The semantic equivalence criterion handles common variations:
 
 ## Output
 
-Results are saved as JSONL:
+Results are saved as JSONL. Each task in `detailed_report` contains:
 
 ```json
 {
-    "task_id": "fact_001",
     "objective": "What is the chemical symbol for gold?",
     "expected": "Au",
-    "model_output": "The chemical symbol for gold is Au.",
+    "actual": "The chemical symbol for gold is Au.",
     "is_correct": true,
     "reasoning": "The answer correctly states that Au is the chemical symbol for gold, matching the reference answer.",
+    "elapsed_time": 1.5,
     "metrics": {
         "criterion": "semantic equivalence"
     }
 }
 ```
+
+This is the structure for a single task within the `detailed_report` object, keyed by task ID (e.g., `"fact_001": {...}`).
 
 ## Customization Ideas
 

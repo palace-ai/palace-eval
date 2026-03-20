@@ -196,6 +196,7 @@ You can define multiple labels for complex classification tasks. Each label is e
 {
     "name": "ContentModerator",
     "id": "my-org/ContentModerator",
+    "original": true,
     "category": "Safety",
     "task_type": "Classification",
     "task_type_fields": {

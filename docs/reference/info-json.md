@@ -20,7 +20,7 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 |-------|------|---------|-------------|
 | `version` | string | `"1.0.0"` | Semantic version |
 | `category` | string | `""` | Grouping category |
-| `original` | boolean | `false` | Whether this is an original PALACE benchmark |
+| `original` | boolean | `false` | `true` for custom-built PALACE tasklists, `false` for auto-converted public benchmarks |
 | `task_type_fields` | object | `{}` | Task-type-specific configuration |
 
 ## Minimal Example
@@ -29,7 +29,8 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 {
     "name": "MyBenchmark",
     "id": "my-org/MyBenchmark",
-    "task_type": "QA"
+    "task_type": "QA",
+    "original": true
 }
 ```
 

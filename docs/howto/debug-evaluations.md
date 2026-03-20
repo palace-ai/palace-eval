@@ -9,18 +9,20 @@ This guide helps you troubleshoot common issues when running PALACE evaluations.
 When tasks fail unexpectedly, check the reasoning field in results:
 
 ```bash
-# Find failed tasks
-cat results.jsonl | jq 'select(.is_correct == false)'
+# Find failed tasks in detailed_report
+cat results.jsonl | jq '.detailed_report | to_entries[] | select(.value.is_correct == false)'
 ```
 
-Each result includes:
+Each task in `detailed_report` includes:
 
 ```json
 {
-    "task_id": "task_001",
+    "objective": "What is the capital of Italy?",
+    "expected": "Rome",
+    "actual": "Milan is the largest city in Italy.",
     "is_correct": false,
     "reasoning": "The answer mentions Milan, which is not the capital...",
-    "model_output": "Milan is the largest city in Italy."
+    "elapsed_time": 1.2
 }
 ```
 
@@ -59,7 +61,7 @@ The `reasoning` field explains why the judge marked it incorrect.
 
 ```json
 {
-    "model_output": "<Unsafe>\n yes \n</Unsafe>",
+    "actual": "<Unsafe>\n yes \n</Unsafe>",
     "is_correct": false
 }
 ```
@@ -227,14 +229,19 @@ import json
 
 def load_results(path):
     with open(path) as f:
-        return {r["task_id"]: r for r in (json.loads(l) for l in f)}
+        results = [json.loads(l) for l in f]
+    # Flatten detailed_report from all runs
+    all_tasks = {}
+    for run in results:
+        all_tasks.update(run.get("detailed_report", {}))
+    return all_tasks
 
 run1 = load_results("results_run1.jsonl")
 run2 = load_results("results_run2.jsonl")
 
 # Find tasks with different outcomes
 for task_id in run1:
-    if run1[task_id]["is_correct"] != run2[task_id]["is_correct"]:
+    if task_id in run2 and run1[task_id]["is_correct"] != run2[task_id]["is_correct"]:
         print(f"Changed: {task_id}")
         print(f"  Run 1: {run1[task_id]['is_correct']}")
         print(f"  Run 2: {run2[task_id]['is_correct']}")
@@ -243,12 +250,17 @@ for task_id in run1:
 ### Across Models
 
 ```python
+import json
+
 # Compare accuracy across models
 models = ["gpt-4o", "claude-3", "llama-3"]
 for model in models:
-    results = load_results(f"results_{model}.jsonl")
-    correct = sum(1 for r in results.values() if r["is_correct"])
-    print(f"{model}: {correct}/{len(results)}")
+    with open(f"results_{model}.jsonl") as f:
+        results = [json.loads(l) for l in f]
+    for run in results:
+        report = run.get("detailed_report", {})
+        correct = sum(1 for r in report.values() if r["is_correct"])
+        print(f"{model}: {correct}/{len(report)}")
 ```
 
 ## Getting Help

@@ -120,17 +120,24 @@ Judge Output:
 
 ### 6. Results
 
-Results are saved as JSONL:
+Results are saved as JSONL. Each line is a complete evaluation run:
 
 ```json
 {
-    "task_id": "task_001",
-    "objective": "...",
-    "expected": "...",
-    "model_output": "...",
-    "is_correct": true,
-    "reasoning": "...",
-    "metrics": {...}
+    "agent": "gpt-4o",
+    "tasklist": "GuardBench-EN",
+    "accuracy": 0.85,
+    "metrics": {"task_count": 20, "correct_count": 17, "total_time": 120.5},
+    "detailed_report": {
+        "task_001": {
+            "objective": "...",
+            "expected": "...",
+            "actual": "...",
+            "is_correct": true,
+            "reasoning": "...",
+            "elapsed_time": 1.2
+        }
+    }
 }
 ```
 
@@ -180,15 +187,17 @@ Results are saved as JSONL:
 
 ### Model Configuration
 
-- API endpoint: `OPENAI_LIKE_API_BASE_URL`
-- Authentication: `OPENAI_LIKE_API_KEY`
-- Model selection: `--model` flag or environment variable
+- API endpoint: `-u` / `--url` argument (required for `palace-run`)
+- Authentication: `-k` / `--token` argument
+- Model selection: `-m` / `--name` argument (required for `palace-run`)
 
 ### Judge Configuration (QA, Report Generation)
 
-- Separate endpoint: `JUDGE_API_BASE_URL`
-- Separate auth: `JUDGE_API_KEY`
-- Model: `JUDGE_MODEL`
+The judge uses the same API endpoint configured via environment variables:
+
+- API endpoint: `OPENAI_LIKE_API_BASE_URL`
+- Authentication: `OPENAI_LIKE_API_KEY`
+- Model: `JUDGE_MODEL` (default: minimax-m2)
 
 ## Error Handling
 

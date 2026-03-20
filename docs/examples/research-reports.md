@@ -154,12 +154,16 @@ For each criterion, the judge assigns a score from -5 to +5:
 
 ## Output
 
-Results include detailed scoring:
+Results include detailed scoring. Each task in `detailed_report` contains:
 
 ```json
 {
-    "task_id": "report_001",
+    "objective": "Write a comprehensive report analyzing...",
+    "expected": "# AI and the Future of Work...",
+    "actual": "# Generated Report...",
     "is_correct": true,
+    "reasoning": "## accuracy (+2)\n...\n## Summary\n...",
+    "elapsed_time": 45.2,
     "metrics": {
         "criteria_scores": {
             "accuracy": 2,
@@ -182,6 +186,8 @@ Results include detailed scoring:
     }
 }
 ```
+
+This is the structure for a single task within the `detailed_report` object, keyed by task ID (e.g., `"report_001": {...}`).
 
 ### Interpreting Scores
 

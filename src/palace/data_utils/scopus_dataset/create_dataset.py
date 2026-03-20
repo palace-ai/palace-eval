@@ -5,10 +5,10 @@ from mcp.types import TextContent
 
 from palace.mcp_utils.mcp_client import call_tool
 from palace.models.api_model import APIModel
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.paths import PACKAGE_ROOT, TASKLISTS_PATH
 from palace.utils.printing import loading
-from palace.utils.secrets import ALOHA_STAGING_TOKEN, GPTJRC_PROD_TOKEN
+from palace.utils.secrets import ALOHA_STAGING_TOKEN, OPENAI_LIKE_API_KEY
 
 SCOPUS_MCP_URL = "http://localhost:8000/sse"
 
@@ -44,10 +44,10 @@ with loading() as ld:
                     papers[subject][field].append(paper)
 
 # initialize model for question-answer pair generation
-assert GPTJRC_PROD_API_URL is not None, (
-    "GPTJRC_PROD_API_URL is not set in the environment variables."
+assert OPENAI_LIKE_API_BASE_URL is not None, (
+    "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
 )
-model = APIModel("gpt-4o", GPTJRC_PROD_API_URL, GPTJRC_PROD_TOKEN)
+model = APIModel("gpt-4o", OPENAI_LIKE_API_BASE_URL, OPENAI_LIKE_API_KEY)
 
 # for each paper, generate the question-answer pair and put it in the dict
 count = 0

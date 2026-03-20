@@ -26,14 +26,14 @@ from palace.paradigms import (
 from palace.utils.constants import (
     ABW_SERVE_STAGING_URL,
     ALOHA_STAGING_URL,
-    GPTJRC_PROD_API_URL,
+    OPENAI_LIKE_API_BASE_URL,
     TS_STAGING_URL,
 )
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
 from palace.utils.secrets import (
     ALOHA_STAGING_TOKEN,
-    GPTJRC_PROD_TOKEN,
+    OPENAI_LIKE_API_KEY,
     TS_STAGING_TOKEN,
 )
 
@@ -71,8 +71,8 @@ _DEFAULT_MCP_SERVERS = [
         },
     },
 ]
-_DEFAULT_OPENAI_AGENTS_URL = "https://api-gpt.jrc.ec.europa.eu/v1"
-_DEFAULT_OPENAI_AGENTS_TOKEN = GPTJRC_PROD_TOKEN
+_DEFAULT_OPENAI_AGENTS_URL = OPENAI_LIKE_API_BASE_URL or ""
+_DEFAULT_OPENAI_AGENTS_TOKEN = OPENAI_LIKE_API_KEY
 
 
 def main():
@@ -211,9 +211,11 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
             raise ValueError("No environments selected")
 
         # add local agents
-        if GPTJRC_PROD_API_URL is None and not local_llm:
+        api_url = OPENAI_LIKE_API_BASE_URL
+        api_key = OPENAI_LIKE_API_KEY
+        if api_url is None and not local_llm:
             raise ValueError(
-                "GPTJRC_PROD_API_URL is not set in the environment variables."
+                "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
             )
         agents += [
             LocalAgent(
@@ -222,8 +224,8 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 # else
                 APIModel(
                     model,
-                    GPTJRC_PROD_API_URL,  # type: ignore
-                    GPTJRC_PROD_TOKEN,
+                    api_url,  # type: ignore
+                    api_key,
                     api_type="openai" if "claude-" not in model else "anthropic",
                 ),
                 paradigm=paradigm,

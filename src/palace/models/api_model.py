@@ -11,16 +11,6 @@ from palace.models.base_model import Model
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
 
-_huggingface_to_gptjrc_model_names_map = {
-    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-instruct",
-    "MiniMaxAI/MiniMax-M2": "minimax-m2",
-    "mistralai/Mistral-Small-3.1-24B-Instruct-2503": "mistral-small-3.1-24b",
-    "Qwen/Qwen3-32B": "qwen3-32b",
-    "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-coder-2.5-instruct",
-    "openai/gpt-4o": "gpt-4o",
-    "openai/gpt-oss-120b": "gpt-oss-120b",
-}
-
 
 class APIModel(Model):
     @classmethod
@@ -29,8 +19,6 @@ class APIModel(Model):
         client = OpenAI(api_key=token, base_url=url)
         models = client.models.list()
         return [model.id for model in models.data]
-
-    _DEFAULT_MODEL_ID = "llama-3.3-70b-instruct"
 
     def __init__(
         self,
@@ -44,6 +32,7 @@ class APIModel(Model):
         A class to interact with OpenAI-compatible models.
 
         Arguments:
+            model_id (str): The model identifier to use.
             url (str): The URL of the OpenAI compatible API server.
             token (str): The API token for authentication.
             api_type (str): The API type to use. Allowed values are `openai` and `anthropic`.
@@ -53,22 +42,14 @@ class APIModel(Model):
             "api_type must be either 'openai' or 'anthropic'"
         )
         self.api_type = api_type
-
-        if model_id in _huggingface_to_gptjrc_model_names_map:
-            self.model_id = _huggingface_to_gptjrc_model_names_map[model_id]
-        else:
-            self.model_id = model_id
+        self.model_id = model_id
 
         if self.api_type == "openai":
             self.client = OpenAI(base_url=url, api_key=token)
         elif self.api_type == "anthropic":
             self.client = Anthropic(
-                base_url=url.removesuffix(
-                    "/v1"
-                ),  # GPTJRC's Anthropic-compatible API doesn't want the /v1 suffix in the base URL
-                default_headers={
-                    "Authorization": f"Bearer {token}"
-                },  # GPTJRC's Anthropic-compatible API uses Bearer token instead of api_key parameter
+                base_url=url.removesuffix("/v1"),
+                default_headers={"Authorization": f"Bearer {token}"},
             )
         else:
             raise ValueError(f"Unsupported API type: {api_type}")
@@ -130,19 +111,12 @@ class APIModel(Model):
                 system_prompt = None
                 if messages[0]["role"] == "system":
                     system_prompt = messages.pop(0)
-                    print(
-                        f"[bold yellow][WARN] System prompt was set for an Anthropic API model, but might not be used by the GPT@JRC backend: {system_prompt['content']}[/]"
-                    )
                 chat_completion = self.client.messages.create(  # type: ignore
                     model=self.model_id,
                     messages=messages,  # type: ignore
                     max_tokens=2048,
                     stream=False,
-                    system=system_prompt[
-                        "content"
-                    ]  # BUG: `system` parameter doesn't seem to be used by GPT@JRC backend
-                    if system_prompt is not None
-                    else omit,
+                    system=system_prompt["content"] if system_prompt is not None else omit,
                 )  # type: ignore
                 return chat_completion.content[0].text
             else:

@@ -51,9 +51,9 @@ import re
 from typing import Any
 
 from palace.models.api_model import APIModel
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
-from palace.utils.secrets import GPTJRC_PROD_TOKEN
+from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 
 class Judge:
@@ -100,13 +100,13 @@ class Judge:
         self.judge_prompt = judge_prompt
         self.output_keywords = output_keywords
         
-        assert GPTJRC_PROD_API_URL is not None, (
-            "GPTJRC_PROD_API_URL is not set in the environment variables."
+        assert OPENAI_LIKE_API_BASE_URL is not None, (
+            "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
         )
         self.judge_model = APIModel(
             judge_model,
-            GPTJRC_PROD_API_URL,
-            GPTJRC_PROD_TOKEN,
+            OPENAI_LIKE_API_BASE_URL,
+            OPENAI_LIKE_API_KEY,
         )
 
     def _parse_tag(self, content: str, tag: str) -> str:

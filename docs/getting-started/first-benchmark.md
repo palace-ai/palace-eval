@@ -50,6 +50,7 @@ Create `info.json` with your benchmark's metadata:
     "name": "EuropeanCapitals",
     "id": "my-org/EuropeanCapitals",
     "version": "1.0.0",
+    "original": true,
     "category": "Knowledge",
     "task_type": "QA"
 }
@@ -62,6 +63,7 @@ Let's break down each field:
 | `name` | "EuropeanCapitals" | Display name for the benchmark |
 | `id` | "my-org/EuropeanCapitals" | Unique identifier (org/name format) |
 | `version` | "1.0.0" | Version tracking for your benchmark |
+| `original` | `true` | Set to `true` for custom-built PALACE tasklists (vs. auto-converted public benchmarks) |
 | `category` | "Knowledge" | Grouping for organization |
 | `task_type` | "QA" | Tells PALACE how to evaluate |
 
@@ -138,7 +140,7 @@ You should see "EuropeanCapitals" in the list of available tasklists.
 Run your benchmark:
 
 ```bash
-palace-run --tasklist EuropeanCapitals
+palace-run -u https://api.example.com/v1 -k your-api-key -m gpt-4o -t EuropeanCapitals
 ```
 
 You'll see output like:
@@ -152,7 +154,7 @@ Running EuropeanCapitals (5 tasks)
 [5/5] capitals_005 ✓
 
 Accuracy: 5/5 (100.0%)
-Results saved to ~/.cache/palace/results/EuropeanCapitals_2026-03-20_15-00-00.jsonl
+Results saved to ~/.cache/palace/results/eval.jsonl
 ```
 
 ## Step 7: Interpret the Results
@@ -160,21 +162,29 @@ Results saved to ~/.cache/palace/results/EuropeanCapitals_2026-03-20_15-00-00.js
 View the detailed results:
 
 ```bash
-cat ~/.cache/palace/results/EuropeanCapitals_*.jsonl
+cat ~/.cache/palace/results/eval.jsonl | python -m json.tool
 ```
 
-Each line shows what happened for one task:
+The output contains a `detailed_report` with each task's result:
 
 ```json
 {
-    "task_id": "capitals_001",
-    "objective": "What is the capital of France?",
-    "expected": "Paris",
-    "model_output": "The capital of France is Paris.",
-    "is_correct": true,
-    "reasoning": "The answer correctly identifies Paris as the capital of France. While the reference simply states 'Paris', the model's response conveys the same factual information.",
+    "agent": "gpt-4o",
+    "tasklist": "EuropeanCapitals",
+    "accuracy": 1.0,
     "metrics": {
-        "criterion": "semantic equivalence"
+        "task_count": 5,
+        "correct_count": 5,
+        "total_time": 12.5
+    },
+    "detailed_report": {
+        "capitals_001": {
+            "objective": "What is the capital of France?",
+            "expected": "Paris",
+            "actual": "The capital of France is Paris.",
+            "is_correct": true,
+            "reasoning": "The answer correctly identifies Paris as the capital of France..."
+        }
     }
 }
 ```
@@ -187,12 +197,13 @@ If a task is marked incorrect, check the `reasoning` field:
 
 ```json
 {
-    "task_id": "capitals_003",
-    "objective": "What is the capital of Italy?",
-    "expected": "Rome",
-    "model_output": "Milan is the largest city in Italy.",
-    "is_correct": false,
-    "reasoning": "The answer mentions Milan, which is not the capital of Italy. The reference answer is Rome. The model's response does not convey the same factual information."
+    "capitals_003": {
+        "objective": "What is the capital of Italy?",
+        "expected": "Rome",
+        "actual": "Milan is the largest city in Italy.",
+        "is_correct": false,
+        "reasoning": "The answer mentions Milan, which is not the capital of Italy. The reference answer is Rome."
+    }
 }
 ```
 
@@ -249,6 +260,7 @@ For more nuanced evaluation, you can customize the correctness criterion. For ex
     "name": "EuropeanCapitals-Strict",
     "id": "my-org/EuropeanCapitals-Strict",
     "version": "1.0.0",
+    "original": true,
     "category": "Knowledge",
     "task_type": "QA",
     "task_type_fields": {
@@ -267,7 +279,7 @@ See the [QA Task Type](../task-types/qa.md) guide for more configuration options
 You've created a complete PALACE benchmark:
 
 1. **Planned** what capability to test and which task type to use
-2. **Created** `info.json` with benchmark metadata
+2. **Created** `info.json` with benchmark metadata (including `original: true`)
 3. **Created** `tasks.json` with evaluation tasks
 4. **Ran** the evaluation with `palace-run`
 5. **Interpreted** results including judge reasoning

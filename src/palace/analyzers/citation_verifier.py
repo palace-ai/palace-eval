@@ -96,9 +96,9 @@ from palace.prompts.fact_prompts import (
 from palace.task_types import Task, TaskVerificationResult
 from palace.task_types.base import TaskType
 from palace.task_types.report_generation import ReportGenerationTaskType
-from palace.utils.constants import GPTJRC_PROD_API_URL
+from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
-from palace.utils.secrets import GPTJRC_PROD_TOKEN
+from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 MAX_RETRIES = 3
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
@@ -106,14 +106,14 @@ JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
 def _get_model() -> APIModel:
     """Get the model for LLM calls."""
-    if GPTJRC_PROD_API_URL is None:
-        raise ValueError("Missing required env var: GPTJRC_PROD_API_URL")
-    if GPTJRC_PROD_TOKEN is None:
-        raise ValueError("Missing required env var: GPTJRC_PROD_TOKEN")
+    if OPENAI_LIKE_API_BASE_URL is None:
+        raise ValueError("Missing required env var: OPENAI_LIKE_API_BASE_URL")
+    if OPENAI_LIKE_API_KEY is None:
+        raise ValueError("Missing required env var: OPENAI_LIKE_API_KEY")
     return APIModel(
         JUDGE_MODEL,
-        GPTJRC_PROD_API_URL,
-        GPTJRC_PROD_TOKEN,
+        OPENAI_LIKE_API_BASE_URL,
+        OPENAI_LIKE_API_KEY,
     )
 
 

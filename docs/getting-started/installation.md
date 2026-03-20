@@ -68,9 +68,7 @@ Create a `.env` file in your working directory or set these environment variable
 OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
 OPENAI_LIKE_API_KEY=your-api-key
 
-# Optional: Separate endpoint for the judge model (defaults to same as above)
-JUDGE_API_BASE_URL=https://api.example.com/v1
-JUDGE_API_KEY=your-judge-api-key
+# Optional: Model to use for judging (defaults to minimax-m2)
 JUDGE_MODEL=gpt-4o
 ```
 
@@ -87,9 +85,7 @@ cp .env.example .env
 |----------|----------|-------------|
 | `OPENAI_LIKE_API_BASE_URL` | Yes | Base URL for the OpenAI-compatible API |
 | `OPENAI_LIKE_API_KEY` | Yes | API key for authentication |
-| `JUDGE_API_BASE_URL` | No | Separate API for judge (defaults to main API) |
-| `JUDGE_API_KEY` | No | Separate key for judge (defaults to main key) |
-| `JUDGE_MODEL` | No | Model to use for judging (default varies by task type) |
+| `JUDGE_MODEL` | No | Model to use for LLM judging in QA and Report Generation tasks (default: minimax-m2) |
 
 ## Download Tasklists
 
@@ -110,7 +106,7 @@ This downloads all available tasklists to your user data directory:
 You can also download specific tasklists:
 
 ```bash
-palace-download --tasklist GuardBench-EN
+palace-download -t GuardBench-EN
 ```
 
 ## Platform-Specific Notes
@@ -194,7 +190,7 @@ If `palace-download` fails:
 
 1. Check your internet connection
 2. Verify HuggingFace is accessible
-3. Try downloading a specific tasklist: `palace-download --tasklist GuardBench-EN`
+3. Try downloading a specific tasklist: `palace-download -t GuardBench-EN`
 
 ---
 

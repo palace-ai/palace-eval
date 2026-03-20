@@ -93,21 +93,25 @@ The judge evaluates each criterion by comparing the two reports and deciding whi
 
 By default, PALACE uses the same API endpoint for judging as for the model being evaluated.
 
-### Separate Judge
+### Judge Configuration
 
-Configure a different model for judging:
+The judge uses the API endpoint configured via environment variables:
 
 ```bash
-export JUDGE_API_BASE_URL=https://api.example.com/v1
-export JUDGE_API_KEY=your-judge-key
-export JUDGE_MODEL=gpt-4o
+# Required: API endpoint for the judge
+export OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
+export OPENAI_LIKE_API_KEY=your-api-key
+
+# Optional: specify which model to use for judging
+export JUDGE_MODEL=gpt-4o  # default: minimax-m2
 ```
 
-### Why Use a Separate Judge?
+The `JUDGE_MODEL` environment variable controls which model is used for judging in both QA and Report Generation tasks. If not set, it defaults to `minimax-m2`.
 
-- **Consistency**: Same judge across all evaluations
-- **Quality**: Use a stronger model for judging
-- **Cost**: Use a cheaper model for the evaluated model, stronger for judge
+### Why Configure JUDGE_MODEL?
+
+- **Quality**: Use a stronger model for judging than the model being evaluated
+- **Consistency**: Same judge model across all evaluations
 - **Avoiding self-evaluation**: Don't let a model judge itself
 
 ## Judge Behavior

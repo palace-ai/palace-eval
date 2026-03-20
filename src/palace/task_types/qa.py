@@ -1,5 +1,6 @@
 """Configurable QA task type with LLM judge verification."""
 
+import os
 from typing import TYPE_CHECKING
 
 from palace.judge import Judge
@@ -7,6 +8,8 @@ from palace.task_types.base import TaskType, TaskVerificationResult
 
 if TYPE_CHECKING:
     from palace.task_types.base import Task
+
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
 DEFAULT_CORRECTNESS_CRITERION = {
     "name": "semantic equivalence",
@@ -131,7 +134,7 @@ Either Correct or Incorrect. No other text can be here.
         judge_prompt = self._build_judge_prompt(criterion, references, has_incorrect)
         judge_input = self._build_judge_input(task, answer, references)
 
-        verifier = Judge(judge_model="openai/gpt-oss-120b", judge_prompt=judge_prompt)
+        verifier = Judge(judge_model=JUDGE_MODEL, judge_prompt=judge_prompt)
         keyword_values = verifier.judge(judge_input)
 
         judgement = keyword_values.get("judgement", "").strip()

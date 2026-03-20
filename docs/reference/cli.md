@@ -40,59 +40,46 @@ Run evaluations directly from the command line.
 ### Usage
 
 ```bash
-palace-run --tasklist <name> [options]
+palace-run -u <url> -m <model-name> -t <tasklist> [options]
 ```
 
 ### Required Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `--tasklist` | Name of the tasklist to evaluate |
+| `-u`, `--url` | API endpoint URL (OpenAI-compatible) |
+| `-m`, `--name` | Model name to evaluate |
+| `-t`, `--tasklist` | Name of the tasklist to evaluate |
 
 ### Optional Arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--limit` | All tasks | Maximum number of tasks to run |
-| `--output` | `~/.cache/palace/results/` | Output directory |
-| `--model-url` | From env | API endpoint URL |
-| `--model-token` | From env | API authentication token |
-| `--model` | From env | Model name to use |
-| `--verbose` | False | Enable detailed logging |
+| `-k`, `--token` | None | API authentication token |
+| `-l`, `--limit` | All tasks | Maximum number of tasks to run |
+| `--output-folder` | `~/.cache/palace/results/` | Output directory |
+| `--run-name` | Auto-generated | Name for this evaluation run |
+| `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
+| `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
 
 ### Examples
 
 ```bash
 # Basic evaluation
-palace-run --tasklist GuardBench-EN
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN
+
+# With authentication
+palace-run -u https://api.example.com/v1 -k your-api-key -m gpt-4o -t GuardBench-EN
 
 # Limit to 10 tasks
-palace-run --tasklist GuardBench-EN --limit 10
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN -l 10
 
 # Custom output directory
-palace-run --tasklist GuardBench-EN --output ./my-results
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN --output-folder ./my-results
 
-# Specify model endpoint
-palace-run --tasklist GuardBench-EN \
-    --model-url https://api.example.com/v1 \
-    --model-token your-api-key \
-    --model gpt-4o
-
-# Verbose output
-palace-run --tasklist GuardBench-EN --verbose
+# MCP endpoint
+palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint-type mcp
 ```
-
-### Environment Variables
-
-When not specified via arguments, these environment variables are used:
-
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_LIKE_API_BASE_URL` | API endpoint URL |
-| `OPENAI_LIKE_API_KEY` | API authentication token |
-| `JUDGE_API_BASE_URL` | Judge API endpoint (optional) |
-| `JUDGE_API_KEY` | Judge API token (optional) |
-| `JUDGE_MODEL` | Judge model name (optional) |
 
 ### Exit Codes
 
@@ -115,7 +102,8 @@ palace-download [options]
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--tasklist` | All | Specific tasklist to download |
+| `-t`, `--tasklists` | All | Specific tasklist(s) to download |
+| `--skip-existing` | False | Skip tasklists that already exist locally |
 
 ### Examples
 
@@ -124,10 +112,13 @@ palace-download [options]
 palace-download
 
 # Download specific tasklist
-palace-download --tasklist GuardBench-EN
+palace-download -t GuardBench-EN
 
-# Download by full HuggingFace ID
-palace-download --tasklist jrc-ai/GuardBench-EN
+# Download multiple tasklists
+palace-download -t GuardBench-EN Sycophancy-Binary
+
+# Skip already downloaded
+palace-download --skip-existing
 ```
 
 ### Download Location
@@ -150,21 +141,21 @@ Run `palace-download` without arguments to see available tasklists.
 
 ```bash
 # Download and run with limit
-palace-download --tasklist GuardBench-EN
-palace-run --tasklist GuardBench-EN --limit 5
+palace-download -t GuardBench-EN
+palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN -l 5
 ```
 
 ### Full Evaluation
 
 ```bash
-palace-run --tasklist GuardBench-EN --output ./results/guardench
+palace-run -u https://api.example.com/v1 -k $API_KEY -m gpt-4o -t GuardBench-EN --output-folder ./results/guardench
 ```
 
 ### Batch Evaluation
 
 ```bash
 for tasklist in GuardBench-EN Sycophancy-Binary DocRetrieval-ai; do
-    palace-run --tasklist $tasklist --output ./batch-results
+    palace-run -u https://api.example.com/v1 -m gpt-4o -t $tasklist --output-folder ./batch-results
 done
 ```
 
@@ -172,12 +163,10 @@ done
 
 ```bash
 # Model A
-OPENAI_LIKE_API_BASE_URL=https://api-a.example.com/v1 \
-palace-run --tasklist GuardBench-EN --output ./results/model-a
+palace-run -u https://api-a.example.com/v1 -m model-a -t GuardBench-EN --output-folder ./results/model-a
 
 # Model B
-OPENAI_LIKE_API_BASE_URL=https://api-b.example.com/v1 \
-palace-run --tasklist GuardBench-EN --output ./results/model-b
+palace-run -u https://api-b.example.com/v1 -m model-b -t GuardBench-EN --output-folder ./results/model-b
 ```
 
 ## Troubleshooting
@@ -189,19 +178,15 @@ palace-run --tasklist GuardBench-EN --output ./results/model-b
 ls ~/.cache/palace/tasklists/
 
 # Download if missing
-palace-download --tasklist <name>
+palace-download -t <name>
 ```
 
 ### "API connection error"
 
 ```bash
-# Verify environment variables
-echo $OPENAI_LIKE_API_BASE_URL
-echo $OPENAI_LIKE_API_KEY
-
 # Test connectivity
-curl -H "Authorization: Bearer $OPENAI_LIKE_API_KEY" \
-     "$OPENAI_LIKE_API_BASE_URL/models"
+curl -H "Authorization: Bearer $API_KEY" \
+     "https://api.example.com/v1/models"
 ```
 
 ### "Invalid JSON"

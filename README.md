@@ -143,16 +143,16 @@ Besides that, you pass the same information that you would pass to the CLI.
 Using PALACE programmatically is as easy as calling a function:
 
 ```python
-import palace
+from palace import evaluate
 
-palace.evaluate(
+evaluate(
    run_name="My Evaluation",         # evaluation run name
-   output_folder="palace_results",   # folder where to save results
+   output_folder="palace_results",   # folder where to save results (default: ~/.cache/palace/results/)
    url="https://api.mistral.ai/v1",  # your API URL
    token="abc123def456",             # your API token
    name="mistral-medium-latest",     # model or agent name
    tasklist="GAIA",                  # PALACE tasklist to use
-   task_amount_limit=100,            # optional; useful for very large tasklists
+   limit=100,                        # optional; useful for very large tasklists
    runs_per_configuration=5,         # optional; useful to smooth out variance
 )
 ```

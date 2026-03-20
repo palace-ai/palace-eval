@@ -5,11 +5,12 @@ from typing import Callable
 from palace.agents.mcp_agent import MCPAgent
 from palace.agents.openai_api_agent import OpenAIAPIAgent
 from palace.evaluation import Evaluation
+from palace.utils.paths import RESULTS_PATH
 
 
 def evaluate(
     run_name: str,
-    output_folder: str,
+    output_folder: str | None,
     url: str,
     token: str | None,
     name: str,
@@ -22,7 +23,7 @@ def evaluate(
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
     :param run_name: The name of the run.
-    :param output_folder: The path to the output folder.
+    :param output_folder: The path to the output folder (default: ~/.cache/palace/results/).
     :param url: The URL of the OpenAI API.
     :param token: The token to use for authentication, if required.
     :param name: The name of the model/agent.
@@ -42,11 +43,13 @@ def evaluate(
         )
     else:
         raise ValueError(f"Unsupported endpoint type: {endpoint_type}")
+    
+    output_path = Path(output_folder) if output_folder else RESULTS_PATH
     evaluation = Evaluation(
         name=run_name,
         task_amount_limit=limit,
         runs_per_configuration=runs_per_configuration,
-        output_path=Path(output_folder),
+        output_path=output_path,
         on_task_complete=on_task_complete,
     )
     evaluation.evaluate_all([agent], tasklists=[tasklist])
@@ -62,8 +65,8 @@ def run():
     argparser.add_argument(
         "--output-folder",
         type=str,
-        default="./palace_results",
-        help="The path to the output folder.",
+        default=None,
+        help="The path to the output folder (default: ~/.cache/palace/results/).",
     )
     argparser.add_argument(
         "-u", "--url", type=str, required=True, help="The URL of the OpenAI API."

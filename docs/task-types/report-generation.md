@@ -40,6 +40,7 @@ A report generation tasklist requires two files in `~/.cache/palace/tasklists/{T
 {
   "name": "MyReportBench",
   "id": "my-org/MyReportBench",
+  "original": true,
   "category": "Report Generation",
   "task_type": "Report Generation"
 }
@@ -81,6 +82,7 @@ Define your own evaluation criteria in `info.json`:
 {
   "name": "TechReportBench",
   "id": "my-org/TechReportBench",
+  "original": true,
   "category": "Report Generation",
   "task_type": "Report Generation",
   "task_type_fields": {
@@ -129,6 +131,7 @@ For tasklists where different tasks need different evaluation criteria, enable p
 ```json
 {
   "name": "MixedReportBench",
+  "original": true,
   "task_type": "Report Generation",
   "task_type_fields": {
     "criteria": [
@@ -277,6 +280,7 @@ For complex benchmarks with many criteria, group them into weighted dimensions:
 ```json
 {
   "name": "DeepResearchBench",
+  "original": true,
   "task_type": "Report Generation",
   "task_type_fields": {
     "dimensions": [
