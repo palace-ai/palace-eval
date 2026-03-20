@@ -17,9 +17,7 @@ The framework allows to easily add new tasklists from HuggingFace and align them
 The framework is composed of two main parts: the evaluation part and agent engine part. Over time, the agent engine part is being detached from this project, which will focus exclusively on evaluation.
 If you are interested in agent definition, you may be interested in the [ABW](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/agents-by-workflow) project.
 
-In PALACE, the output of an evaluation run is a JSONL file containing all the collected information. This information can be used to build user-friendly results visualizations. An interactive web dashboard is available within this repository to get insights about the results.
-
-![img](assets/readme_images/dashboard.png)
+In PALACE, the output of an evaluation run is a JSONL file containing all the collected information. This information can be used to build user-friendly results visualizations.
 
 ## Installation
 
@@ -161,20 +159,6 @@ palace.evaluate(
 
 The outputs of the evaluation are saved to `<output_folder>/<run_name>.jsonl`.
 
-### Dashboard
-
-Once you have results, you can visualize them in a user-friendly way with the integrated web dashboard.
-To do that, move to the `palace/src/dashboard/` folder, then run
-
-```bash
-$ npm install
-$ npm run dev
-```
-
-The dashboard will be live probably at `http://localhost:5173` (you can check the correct URL in the terminal), where you can upload the evaluation results files (JSONL) and get nice visualizations.
-
-<img src="assets/readme_images/dashboard-intro.png" width="600" alt="dashboard-intro.png">
-
 ### MCP Server
 
 The package comes with an MCP server that you can use to debug or test the application in case you don't have a ready MCP server to use. The pre-package MCP server only contains a web search tool and a fetch tool.
@@ -248,26 +232,6 @@ To add a custom tasklist, create files in the user data directory (e.g., `~/.cac
 - optionally, `<tasklist_name>/task_files/` — folder containing files referenced in the `reference` field of the tasks
 
 Your custom tasklist will be automatically available to be used for evaluation in PALACE.
-
-## Containers (experimental)
-
-_(This section is experimental and not advised.)_
-
-You can build and run the images in the `images` folder as containers.
-
-For example, to build the MCP server image, `cd` into the project root and run:
-
-```bash
-$ docker build -t mcp-server:latest -f images/mcp-server/Dockerfile .
-```
-
-And then,
-
-```bash
-$ docker run -d -p 8080:8080 mcp-server:latest
-```
-
-The MCP server will be ready to serve requests on port 8080.
 
 ## FAQ
 

@@ -1,8 +1,11 @@
-# Creating Report Generation Tasklists
+# Report Generation Task Type
 
-This guide explains how to create and customize report generation tasklists for evaluation with palace.
+Evaluate long-form content through pairwise comparison with weighted criteria.
 
-## What is Report Generation?
+!!! tip "When to Use"
+    Use Report Generation when evaluating documents, reports, summaries, or any long-form content where multiple quality dimensions matter.
+
+## Overview
 
 Report generation tasks evaluate a model's ability to produce long-form, structured documents in response to a prompt. Unlike QA tasks with short factual answers, report generation assesses complex writing abilities: research synthesis, logical organization, depth of analysis, and clear communication.
 
@@ -384,3 +387,14 @@ When evaluating many criteria, the judge LLM processes them in batches to mainta
 4. Results from all batches are merged before scoring
 
 This ensures accurate evaluation even with 25+ criteria across multiple dimensions.
+
+
+---
+
+## Related Pages
+
+- [Choosing a Task Type](index.md) - Compare all task types
+- [QA Task Type](qa.md) - For factual question-answering
+- [Classification Task Type](classification.md) - For categorical outputs
+- [Research Reports Example](../examples/research-reports.md) - DeepResearchBench-style example
+- [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specification

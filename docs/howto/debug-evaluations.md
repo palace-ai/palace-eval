@@ -1,0 +1,269 @@
+# How to Debug Evaluations
+
+This guide helps you troubleshoot common issues when running PALACE evaluations.
+
+## Common Issues
+
+### Task Failures
+
+When tasks fail unexpectedly, check the reasoning field in results:
+
+```bash
+# Find failed tasks
+cat results.jsonl | jq 'select(.is_correct == false)'
+```
+
+Each result includes:
+
+```json
+{
+    "task_id": "task_001",
+    "is_correct": false,
+    "reasoning": "The answer mentions Milan, which is not the capital...",
+    "model_output": "Milan is the largest city in Italy."
+}
+```
+
+The `reasoning` field explains why the judge marked it incorrect.
+
+### QA Judge Issues
+
+**Problem**: Judge marks correct answers as incorrect.
+
+**Diagnosis**:
+1. Check the criterion description—is it specific enough?
+2. Review the reference answer—does it clearly represent correctness?
+3. Examine the reasoning—what did the judge misunderstand?
+
+**Solutions**:
+
+- Make the criterion description more specific:
+  ```json
+  // Before
+  {"description": "The answer is correct."}
+  
+  // After
+  {"description": "The answer contains the same key factual information as the reference, even if phrased differently."}
+  ```
+
+- Add incorrect references to help the judge understand boundaries:
+  ```json
+  {"references": {"correct": ["expected"], "incorrect": ["common_mistake"]}}
+  ```
+
+### Classification Parsing Issues
+
+**Problem**: Classification tasks fail even when the model seems correct.
+
+**Diagnosis**: Check if the model output matches the expected XML format exactly.
+
+```json
+{
+    "model_output": "<Unsafe>\n yes \n</Unsafe>",
+    "is_correct": false
+}
+```
+
+**Common causes**:
+
+1. **Case mismatch**: "yes" vs "Yes"
+2. **Extra whitespace**: " Yes " vs "Yes"
+3. **Missing tags**: Model didn't use XML format
+4. **Wrong tag name**: `<unsafe>` vs `<Unsafe>`
+
+**Solutions**:
+
+- Ensure class names in your config match exactly what you expect
+- Check that label names are consistent between info.json and tasks.json
+- Review the generated prompt to see what format the model was asked for
+
+### Report Generation Scoring
+
+**Problem**: Reports score unexpectedly low or high.
+
+**Diagnosis**: Check per-criterion scores in the metrics:
+
+```json
+{
+    "metrics": {
+        "criteria_scores": {
+            "accuracy": -3,
+            "completeness": 2,
+            "clarity": 1
+        }
+    }
+}
+```
+
+Negative scores mean the reference was better for that criterion.
+
+**Solutions**:
+
+- Review criterion descriptions—are they clear and specific?
+- Check if weights match your priorities
+- Examine the reference report—is it actually high quality?
+
+## Verbose Logging
+
+Enable detailed logging to see what's happening:
+
+```bash
+palace-run --tasklist MyBenchmark --verbose
+```
+
+Or in Python:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+from palace import evaluate
+results = evaluate(tasklist="MyBenchmark", ...)
+```
+
+This shows:
+
+- Prompts sent to the model
+- Raw model responses
+- Judge inputs and outputs
+- Parsing steps
+
+## Inspecting Prompts
+
+### QA Prompts
+
+The model receives:
+
+```
+Provide the direct answer, without any additional text:
+
+{objective}
+```
+
+### Classification Prompts
+
+View the generated prompt by checking verbose output or:
+
+```python
+from palace.task_types.classification import ClassificationTaskType
+from palace.task import Task
+
+task_type = ClassificationTaskType()
+task = Task(id="test", objective="Test content", custom_fields={...})
+print(task_type.adapt_prompt(task))
+```
+
+### Judge Prompts
+
+For QA tasks, the judge sees a prompt constructed from your criterion and references. Enable verbose logging to see the exact prompt.
+
+## Testing Individual Tasks
+
+Test a single task to isolate issues:
+
+```bash
+palace-run --tasklist MyBenchmark --limit 1
+```
+
+Or create a minimal test tasklist:
+
+```json
+// test-tasks.json
+[
+    {
+        "id": "debug_001",
+        "objective": "Your test question",
+        "expected": "Expected answer"
+    }
+]
+```
+
+## Validating JSON
+
+Ensure your JSON files are valid:
+
+```bash
+python -c "import json; json.load(open('info.json')); json.load(open('tasks.json')); print('Valid!')"
+```
+
+Common JSON issues:
+
+- Trailing commas (not allowed in JSON)
+- Unescaped quotes in strings
+- Missing commas between array elements
+
+## API Issues
+
+### Connection Errors
+
+```bash
+# Test API connectivity
+curl -H "Authorization: Bearer $OPENAI_LIKE_API_KEY" \
+     "$OPENAI_LIKE_API_BASE_URL/models"
+```
+
+### Rate Limiting
+
+If you see 429 errors:
+
+- Reduce concurrent requests with `--limit`
+- Add delays between tasks
+- Check your API tier limits
+
+### Timeout Errors
+
+For long-running tasks (especially Report Generation):
+
+- Check if the model is responding slowly
+- Consider using a faster model for testing
+- Verify network stability
+
+## Comparing Results
+
+### Across Runs
+
+```python
+import json
+
+def load_results(path):
+    with open(path) as f:
+        return {r["task_id"]: r for r in (json.loads(l) for l in f)}
+
+run1 = load_results("results_run1.jsonl")
+run2 = load_results("results_run2.jsonl")
+
+# Find tasks with different outcomes
+for task_id in run1:
+    if run1[task_id]["is_correct"] != run2[task_id]["is_correct"]:
+        print(f"Changed: {task_id}")
+        print(f"  Run 1: {run1[task_id]['is_correct']}")
+        print(f"  Run 2: {run2[task_id]['is_correct']}")
+```
+
+### Across Models
+
+```python
+# Compare accuracy across models
+models = ["gpt-4o", "claude-3", "llama-3"]
+for model in models:
+    results = load_results(f"results_{model}.jsonl")
+    correct = sum(1 for r in results.values() if r["is_correct"])
+    print(f"{model}: {correct}/{len(results)}")
+```
+
+## Getting Help
+
+If you're stuck:
+
+1. Check the [task type documentation](../task-types/index.md) for your task type
+2. Review the [examples](../examples/index.md) for similar benchmarks
+3. Enable verbose logging and examine the full output
+4. Create a minimal reproduction case
+
+---
+
+## Related Pages
+
+- [Run Evaluations](run-evaluations.md) — Running evaluations
+- [Custom Criteria](custom-criteria.md) — Configuring evaluation criteria
+- [Task Types](../task-types/index.md) — Understanding task types
