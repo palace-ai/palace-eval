@@ -53,7 +53,7 @@ info = {
         "version": "1.0.0",
         "original": True,
         "category": "Safety",
-        "task_type": "MLC",
+        "task_type": "Classification",
         "task_type_fields": {
             "labels": [
                 {

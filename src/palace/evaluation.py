@@ -342,7 +342,7 @@ class Evaluation:
                 box=True,
                 box_title=f":memo: Task {i + 1}",
             )
-            print(task.expected, box=True, box_title=":fleur_de_lis: Expected Answer")
+            print(task.task_type.expected_display(task), box=True, box_title=":fleur_de_lis: Expected Answer")
 
             start_time = time.time()
             with loading():
@@ -398,7 +398,7 @@ class Evaluation:
             elapsed_time = time.time() - start_time
             report[task.id] = {
                 "objective": task.objective,
-                "expected": task.expected,
+                "expected": task.task_type.expected_display(task),
                 "actual": result,
                 "is_correct": is_correct if result is not None else False,
                 "reasoning": reasoning,

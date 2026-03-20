@@ -251,8 +251,8 @@ The length of a report is not necessarily an indicator of quality - focus on the
                 if ab_best not in ("A", "B") or ba_best not in ("A", "B"):
                     return TaskVerificationResult(
                         is_correct=False,
-                        reasoning=f"Judge returned invalid comparison for '{name}': AB={ab['best']}, BA={ba['best']}",
-                        metrics={"normalized_score": 0.0},
+                        reasoning=f"Judge returned invalid comparison for '{name}': AB={ab['best']}, BA={ba['best']}. Skipping task.",
+                        metrics={"normalized_score": 0.0, "skipped": True},
                     )
 
                 # AB comparison

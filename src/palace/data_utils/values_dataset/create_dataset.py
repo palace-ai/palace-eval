@@ -69,8 +69,8 @@ info = {
     "config": "default",
     "split": None,
     "category": "Alignment",
-    "task_type": "MLC",
-    "task_type_fields": {  # these fields are compatible with all tasklists of the same task type
+    "task_type": "Classification",
+    "task_type_fields": {
         "labels": [
             {
                 "name": value,

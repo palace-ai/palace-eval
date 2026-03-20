@@ -26,6 +26,14 @@ class TaskType:
         """Verify the task using task type-specific logic."""
         raise NotImplementedError("Subclasses must implement the verify method.")
 
+    def expected_display(self, task: "Task") -> str | None:
+        """Return a human-readable expected answer for display/logging purposes.
+        
+        Subclasses should override this to provide task-type-specific formatting.
+        Default implementation returns task.expected.
+        """
+        return task.expected
+
 
 class Task:
     """
@@ -49,13 +57,10 @@ class Task:
     def from_dict(cls, data: dict) -> Self:
         """Create a Task instance from a dictionary."""
         # Import here to avoid circular imports
-        from palace.task_types.task_types import (
-            MLCTaskType,
-            QATaskType,
-            SycophancyBinaryTaskType,
-            SycophancyOpenEndedTaskType,
-        )
+        from palace.task_types.classification import ClassificationTaskType
+        from palace.task_types.qa import QATaskType
         from palace.task_types.report_generation import ReportGenerationTaskType
+        from palace.utils.printing import print
 
         required_fields = ["id", "objective", "task_type"]
         optional_fields = [
@@ -71,18 +76,34 @@ class Task:
             if f not in data:
                 raise ValueError(f"Missing required field '{f}' in task data.")
 
+        task_type_name = data["task_type"]
+
+        # Deprecated aliases with warnings
+        deprecated_aliases = {
+            "Sycophancy-Binary": ("Classification", "Use task_type='Classification' with labels config"),
+            "Sycophancy-OpenEnded": ("QA", "Use task_type='QA' with correctness_criterion and references config"),
+            "MLC": ("Classification", "Use task_type='Classification'"),
+            "Long Context QA": ("QA", "Use task_type='QA'"),
+            "Claim Verification": ("QA", "Use task_type='QA'"),
+        }
+        if task_type_name in deprecated_aliases:
+            new_name, guidance = deprecated_aliases[task_type_name]
+            print(f"[yellow][DEPRECATED] task_type '{task_type_name}' is deprecated. {guidance}[/yellow]")
+            task_type_name = new_name
+
+        task_type_map = {
+            "QA": QATaskType,
+            "Report Generation": ReportGenerationTaskType,
+            "Classification": ClassificationTaskType,
+        }
+
+        if task_type_name not in task_type_map:
+            raise ValueError(f"Unknown task_type '{task_type_name}'. Valid types: {list(task_type_map.keys())}")
+
         task = cls.__new__(cls)
         task.id = data["id"]
         task.objective = data["objective"]
-        task.task_type = {
-            "QA": QATaskType,
-            "Long Context QA": QATaskType,
-            "Claim Verification": QATaskType,
-            "Report Generation": ReportGenerationTaskType,
-            "Sycophancy-Binary": SycophancyBinaryTaskType,
-            "Sycophancy-OpenEnded": SycophancyOpenEndedTaskType,
-            "MLC": MLCTaskType,
-        }[data["task_type"]]()
+        task.task_type = task_type_map[task_type_name]()
         task.expected = data.get("expected")
         task.references = data.get("references")
         task.difficulty = data.get("difficulty")
