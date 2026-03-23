@@ -30,6 +30,11 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
-        """Run the agent on the given task and return an answer."""
+    def run(self, prompt: str, image: str | None = None) -> tuple[str, dict[str, Any] | None]:
+        """Run the agent on the given prompt and return an answer.
+
+        Args:
+            prompt: The text prompt for the agent
+            image: Optional path to an image file for multimodal tasks
+        """
         pass

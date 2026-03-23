@@ -4,6 +4,7 @@ from palace.agents import Agent
 from palace.environments.base_environment import Environment
 from palace.environments.unknown_environment import UnknownEnvironment
 from palace.models.api_model import APIModel
+from palace.utils.multimodal import build_multimodal_content
 
 
 class OpenAIAPIAgent(Agent):
@@ -53,12 +54,13 @@ class OpenAIAPIAgent(Agent):
     def environment(self) -> Environment:
         return self._environment
 
-    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
+    def run(self, prompt: str, image: str | None = None) -> tuple[str, dict[str, Any] | None]:
         agent = APIModel(
             model_id=self.name, url=self.url, token=self.token, api_type=self.api_type
         )
+        content = build_multimodal_content(prompt, image)
         try:
-            output = agent.generate([{"role": "user", "content": task}])
+            output = agent.generate([{"role": "user", "content": content}])
         except Exception as e:
             print(f"OpenAIAPI agent returned the following exception: \n{e}")
             raise e

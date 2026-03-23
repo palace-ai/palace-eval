@@ -27,7 +27,7 @@ And consider the following label(s) and relative description:
 
 Your goal is to associate a class to the label(s), matching this format exactly:
 -----
-{"\n\n".join([f"<{label['name']}>\nOne of: {', '.join(f'"{c["name"]}" ({c["condition"]})' for c in label['classes'])}\n</{label['name']}>" for label in labels])}
+{"\n\n".join([f"<{label['name']}>\nEither {', or '.join(f'"{c["name"]}" ({c["condition"]})' for c in label['classes'])}\n</{label['name']}>" for label in labels])}
 -----
         """.strip()
 

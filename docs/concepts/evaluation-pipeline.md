@@ -72,16 +72,39 @@ Generate a detailed report based on the following prompt:
 
 ### 4. Model Call
 
-The adapted prompt is sent to the model via the configured API:
+The adapted prompt is sent to the model via the configured API.
 
+**Text-only tasks:**
 ```
 Request:
   POST {OPENAI_LIKE_API_BASE_URL}/chat/completions
   Authorization: Bearer {OPENAI_LIKE_API_KEY}
   Body: {"messages": [{"role": "user", "content": "{prompt}"}]}
+```
 
-Response:
-  {"choices": [{"message": {"content": "{model_output}"}}]}
+**Multimodal tasks (with image attachment):**
+```
+Request:
+  POST {OPENAI_LIKE_API_BASE_URL}/chat/completions
+  Body: {
+    "messages": [{
+      "role": "user",
+      "content": [
+        {"type": "text", "text": "{prompt}"},
+        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+      ]
+    }]
+  }
+```
+
+Images are automatically:
+- Resized to max 1024px dimension (to avoid payload limits)
+- Converted to JPEG with 85% quality
+- Base64-encoded for the API
+
+**Response:**
+```
+{"choices": [{"message": {"content": "{model_output}"}}]}
 ```
 
 ### 5. Verification
@@ -140,6 +163,44 @@ Results are saved as JSONL. Each line is a complete evaluation run:
     }
 }
 ```
+
+## Multimodal Support
+
+PALACE supports evaluating vision-language models on tasks with image attachments.
+
+### Supported Formats
+
+| Type | Extensions | Handling |
+|------|------------|----------|
+| Text | `.txt`, `.md`, `.json`, etc. | Prepended to prompt |
+| Image | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` | Sent via Vision API |
+| Other | `.mp4`, `.pdf`, etc. | Skipped with warning |
+
+### Image Processing
+
+Large images are automatically processed before sending:
+
+1. **Resize**: Images larger than 1024px (either dimension) are scaled down
+2. **Convert**: All images converted to JPEG for consistent compression
+3. **Encode**: Base64-encoded for the OpenAI Vision API format
+
+This ensures compatibility with API payload limits while preserving image quality.
+
+### Unsupported Attachments
+
+Tasks with unsupported attachment types (video, audio, PDFs, etc.) are automatically skipped with a warning. The evaluation continues with remaining tasks.
+
+### Model Requirements
+
+The target model must support vision inputs. Compatible models include:
+- GPT-4o, GPT-4o-mini
+- Claude 3+ (Haiku, Sonnet, Opus)
+- Gemini Pro Vision
+- LLaVA, Qwen-VL (local)
+
+Non-vision models will fail on image tasks.
+
+---
 
 ## Flow Diagram
 

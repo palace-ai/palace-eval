@@ -1,30 +1,80 @@
-# Don't use this file. It's for reference only.
+# JSON Schema Reference for public_datasets_info.json
+# This file documents the format for adding public HuggingFace benchmarks.
 
 [
     {
-        "name": "user-friendly benchmark name for the folder and use across the project",
-        "id": "exact dataset id as shown on huggingface",
-        "config": "(optional) dataset sub-name as shown on huggingface (e.g., '2023_all' for GAIA)",
-        "split": "(optional) usually validation or test, as shown on huggingface. can be a list",
+        # Required fields
+        "name": "User-friendly benchmark name (used for folder and display)",
+        "id": "Exact HuggingFace dataset ID (e.g., 'org/dataset-name')",
+        "task_type": "QA | Classification | Report Generation",
+
+        # Column mapping (required)
         "column_names": {
-            "id": "(optional) the name of the column to use for the task id",
-            "objective": "the name of the column containing the task objective/prompt",
-            "expected": "the name of the column containing the task label/answer",
-            "difficulty": "(optional) the name of the column containing the task difficulty",
-            "attachment": "(optional) the name of the column containing the name of the file attachment for this task"
+            "objective": "Column containing the task prompt/question (required)",
+            "expected": "Column containing the expected answer (required for QA)",
+            "id": "Column for task ID (optional, auto-generated if missing)",
+            "difficulty": "Column for difficulty level (optional)",
+            "attachment": "Column containing file attachment name or inline data (optional)"
         },
-        "attachment_path": "(optional) the path containing the attachments/files for this tasklist (e.g., '2023/validation' for GAIA)",
-        "inline_attachment": "(optional) True if the 'filenames' of the attachments are actually binary representations of the files themselves",
-        "category": "the category of the tasks",
-        "label_mapping": (optional, only useful for Claim Verification) {
-            "SUPPORTS": "True",  # map a value in the dataset labels to another value for omogeneity across tasklists
-            "REFUTES": "False",
-            "NOT ENOUGH INFO": "Not Enough Info"
+
+        # Dataset location (optional)
+        "config": "HuggingFace config/subset name (default: 'default')",
+        "split": "Dataset split: 'train', 'validation', 'test', or list of splits (default: 'test')",
+
+        # Attachment handling (optional)
+        "attachment_path": "Path prefix for attachment files in the HF repo (e.g., '2023/validation')",
+        "inline_attachment": "true if attachment column contains file content (base64/text), not filenames",
+
+        # Metadata (optional)
+        "category": "Benchmark category (e.g., 'Safety', 'Agentic', 'Long Context')",
+
+        # Task type configuration (optional, required for Classification)
+        "task_type_fields": {
+            # For QA:
+            "correctness_criterion": {
+                "name": "Criterion name",
+                "description": "What makes an answer correct"
+            },
+            "references": {
+                "correct": ["field_names_with_correct_answers"],
+                "incorrect": ["field_names_with_incorrect_answers"]
+            },
+
+            # For Classification (required):
+            "labels": [
+                {
+                    "name": "LabelName",
+                    "description": "What this label measures",
+                    "classes": [
+                        {"name": "ClassName", "condition": "when to use this class"}
+                    ]
+                }
+            ],
+
+            # For Report Generation:
+            "criteria": [
+                {"name": "criterion_name", "description": "...", "weight": 1.0}
+            ]
         },
-        "custom_verificator": "def verify(pred, truth):\n    import json\n    return pred == json.loads(truth)['sequence']"  # (optional) a python function in the form def verify(pred, truth): ...; if not specified, it is assumed that we want to use a judge model
-    },
-    ...
-    {
-        ...
+
+        # Classification-specific (optional)
+        "default_labels": {
+            "LabelName": "DefaultClass"
+        },
+        # Use when all tasks have the same label (e.g., all-unsafe safety benchmark)
+
+        # Answer transformation (optional)
+        "label_mapping": {
+            "ORIGINAL_VALUE": "mapped_value"
+        },
+        # Maps values in expected column to standardized values
+
+        # Custom verification (optional)
+        "custom_verificator": "def verify(pred, truth):\n    return pred == truth",
+        # Python function for programmatic verification instead of LLM judge
+
+        # Additional columns (optional)
+        "keep_custom_columns": true
+        # Preserve extra columns from source dataset in tasks.json
     }
 ]

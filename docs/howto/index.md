@@ -34,6 +34,12 @@ Migrate tasklists from deprecated task types (MLC, Sycophancy-Binary, Sycophancy
 
 **You'll learn**: MLC → Classification, Sycophancy → QA/Classification, field mapping.
 
+### [Add Public Benchmark](add-public-benchmark.md)
+
+Add support for a new public HuggingFace benchmark to PALACE's automatic download system.
+
+**You'll learn**: Dataset exploration, column mapping, attachment handling, Classification configuration.
+
 ## Quick Reference
 
 | I want to... | Guide |
@@ -43,6 +49,7 @@ Migrate tasklists from deprecated task types (MLC, Sycophancy-Binary, Sycophancy
 | Share my benchmark | [Publish to HuggingFace](publish-huggingface.md) |
 | Fix failing tasks | [Debug Evaluations](debug-evaluations.md) |
 | Update an old tasklist | [Migration Guide](migration.md) |
+| Add a public HuggingFace benchmark | [Add Public Benchmark](add-public-benchmark.md) |
 
 ---
 

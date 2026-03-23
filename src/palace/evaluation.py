@@ -3,7 +3,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import pandas as pd
 
@@ -11,6 +11,7 @@ from palace.agents import Agent
 from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
 from palace.task_types import Task, TaskVerificationResult
+from palace.utils.multimodal import is_image_attachment
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import loading, print
 
@@ -27,17 +28,15 @@ class Evaluation:
     def __init__(
         self,
         name: str = "eval",
-        task_amount_limit: Optional[int] = None,
+        task_amount_limit: int | None = None,
         runs_per_configuration: int = 1,
-        text_tasks_only: bool = True,
         output_path: Path | None = None,
         on_task_complete: Callable[[int, int], None] | None = None,
-        enable_citation_verifier: Optional[bool] = None,
+        enable_citation_verifier: bool | None = None,
     ):
         self.name = name
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
-        self.text_tasks_only = text_tasks_only
         self.output_path = output_path or RESULTS_PATH
         self.on_task_complete = on_task_complete
 
@@ -78,7 +77,11 @@ class Evaluation:
                 with loading():
                     metrics = analyzer.analyze(task, answer, verification_result)
                 analyzer_metrics[analyzer.name] = metrics
-                print(analyzer.format_summary(metrics), box=True, box_title=f":mag: {analyzer.name}")
+                print(
+                    analyzer.format_summary(metrics),
+                    box=True,
+                    box_title=f":mag: {analyzer.name}",
+                )
             except Exception as e:
                 print(f"[bold red]Analyzer {analyzer.name} failed: {e}[/]")
                 analyzer_metrics[analyzer.name] = {"error": str(e)}
@@ -240,7 +243,9 @@ class Evaluation:
                     if r.get("metrics") and "normalized_score" in r["metrics"]
                 ]
                 if normalized_scores:
-                    task_type_metrics["avg_normalized_score"] = sum(normalized_scores) / len(normalized_scores)
+                    task_type_metrics["avg_normalized_score"] = sum(
+                        normalized_scores
+                    ) / len(normalized_scores)
                 if task_type_metrics:
                     metrics["task_type_metrics"] = task_type_metrics
 
@@ -294,16 +299,6 @@ class Evaluation:
             for task in json_tasks
         ]
 
-        # filter out tasks that are not text-based
-        if self.text_tasks_only:
-            tasks = [
-                task
-                for task in tasks
-                if task.attachment is None
-                or task.attachment == ""
-                or task.attachment[-4:] == ".txt"
-            ]
-
         # limit the number of tasks to evaluate
         if self.task_amount_limit is not None:
             tasks = tasks[: self.task_amount_limit]
@@ -312,27 +307,40 @@ class Evaluation:
             task_metrics = {}  # Initialize before conditional branches
             verification_result = None  # Initialize for analyzer check
             prompt = task.create_prompt()
+            image_path = None  # For multimodal tasks
 
             if task.attachment is not None and task.attachment != "":
-                with open(
-                    tasklist_path / "task_files" / task.attachment,
-                    encoding="utf-8",
-                ) as f:
-                    attachment = f.read()
-                max_attachment_len = 1000000
-                if len(attachment) > max_attachment_len:
-                    # TODO this is a temporary workaround, it must be fixed. either increase the truncation to the LLM limit or find another way
-                    print(
-                        f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment)}), truncating it to {max_attachment_len} characters."
-                    )
-                    attachment = attachment[:max_attachment_len]
+                attachment_file = tasklist_path / "task_files" / task.attachment
 
-                attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment\n\n"
-                attachment_str_debug = f"""Start of text attachment >>>\n{
-                    f"{attachment[:1000]}... (truncated)"
-                    if len(attachment) > 1000
-                    else attachment
-                }\n<<< End of text attachment\n\n"""
+                # Check if attachment is an image
+                if is_image_attachment(task.attachment):
+                    image_path = str(attachment_file)
+                    attachment_str = ""
+                    attachment_str_debug = f"[Image: {task.attachment}]\n\n"
+                else:
+                    # Try to read as text attachment
+                    try:
+                        with open(attachment_file, encoding="utf-8") as f:
+                            attachment = f.read()
+                    except UnicodeDecodeError:
+                        print(
+                            f"[yellow bold]Skipping task {task.id}: unsupported attachment type '{task.attachment}' (not text or image)[/]"
+                        )
+                        continue
+
+                    max_attachment_len = 200000
+                    if len(attachment) > max_attachment_len:
+                        print(
+                            f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment)}), truncating it to {max_attachment_len} characters."
+                        )
+                        attachment = attachment[:max_attachment_len]
+
+                    attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment\n\n"
+                    attachment_str_debug = f"""Start of text attachment >>>\n{
+                        f"{attachment[:1000]}... (truncated)"
+                        if len(attachment) > 1000
+                        else attachment
+                    }\n<<< End of text attachment\n\n"""
             else:
                 attachment_str = ""
                 attachment_str_debug = ""
@@ -342,11 +350,17 @@ class Evaluation:
                 box=True,
                 box_title=f":memo: Task {i + 1}",
             )
-            print(task.task_type.expected_display(task), box=True, box_title=":fleur_de_lis: Expected Answer")
+            print(
+                task.task_type.expected_display(task),
+                box=True,
+                box_title=":fleur_de_lis: Expected Answer",
+            )
 
             start_time = time.time()
             with loading():
-                result, run_stats = agent.run(task=f"{attachment_str}{prompt}")
+                result, run_stats = agent.run(
+                    prompt=f"{attachment_str}{prompt}", image=image_path
+                )
 
             # check if run completed successfully
             if result is None:

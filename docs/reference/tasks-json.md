@@ -183,11 +183,42 @@ Optional difficulty indicator for analysis:
 
 ### attachment
 
-Additional context or data for the task:
+Path to an additional file for the task, relative to `task_files/` directory. PALACE supports three attachment types:
 
+**Text attachments** (`.txt`, `.md`, `.json`, etc.):
 ```json
-{"attachment": "path/to/document.pdf"}
-{"attachment": "Additional context: ..."}
+{"attachment": "document.txt"}
+{"attachment": "context/data.json"}
+```
+Text is prepended to the prompt with markers:
+```
+Start of text attachment >>>
+{file contents}
+<<< End of text attachment
+
+{objective}
+```
+
+**Image attachments** (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`):
+```json
+{"attachment": "imgs/0.png"}
+{"attachment": "screenshot.jpg"}
+```
+Images are sent to the model using the OpenAI Vision API format (base64-encoded). Large images are automatically resized to max 1024px dimension.
+
+**Unsupported attachments** (video, audio, etc.):
+Tasks with unsupported attachment types are skipped with a warning during evaluation.
+
+**Directory structure:**
+```
+tasklist/
+├── info.json
+├── tasks.json
+└── task_files/
+    ├── document.txt
+    └── imgs/
+        ├── 0.png
+        └── 1.png
 ```
 
 ## Complete Examples

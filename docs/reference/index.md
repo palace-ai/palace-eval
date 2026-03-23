@@ -15,6 +15,12 @@ Comprehensive documentation for the official benchmark tasklists developed by th
 - [DeepConsult](tasklists/deepconsult.md) — Long-form consulting report generation
 - [DeepResearchBench](tasklists/deepresearchbench.md) — Research reports with per-task criteria
 
+### [Public Benchmarks](public-benchmarks.md)
+
+Public HuggingFace benchmarks supported by `palace-download`:
+
+- BABILong (32k/128k), CURIE-protein, HotpotQA, GAIA, SimpleQA, AssistantBench, Humanity's Last Exam, VLSBench
+
 ## Specifications
 
 ### [info.json](info-json.md)

@@ -135,5 +135,7 @@ class MCPAgent(Agent):
 
         return answer, metrics
 
-    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
-        return self._run_with_retry(task)
+    def run(self, prompt: str, image: str | None = None) -> tuple[str, dict[str, Any] | None]:
+        if image is not None:
+            raise NotImplementedError("MCPAgent does not support image attachments yet")
+        return self._run_with_retry(prompt)

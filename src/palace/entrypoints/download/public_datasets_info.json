@@ -111,5 +111,33 @@
     "inline_attachment": true,
     "category": "Expert Reasoning",
     "task_type": "QA"
+  },
+  {
+    "name": "VLSBench",
+    "id": "Foreshhh/vlsbench",
+    "split": "train",
+    "column_names": {
+      "id": "instruction_id",
+      "objective": "instruction",
+      "attachment": "image_path"
+    },
+    "attachment_path": "",
+    "category": "Safety",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [
+        {
+          "name": "Unsafe",
+          "description": "Whether the multimodal input (image + text) contains unsafe or harmful content.",
+          "classes": [
+            {"name": "Yes", "condition": "if the combined image and text request is unsafe, harmful, or promotes dangerous activities"},
+            {"name": "No", "condition": "if the combined image and text request is safe and benign"}
+          ]
+        }
+      ]
+    },
+    "default_labels": {
+      "Unsafe": "Yes"
+    }
   }
 ]

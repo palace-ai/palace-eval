@@ -10,6 +10,7 @@ from palace.paradigms.non_agentic_paradigm import NonAgenticParadigm
 from palace.tools import Tool
 from palace.utils.config import VERBOSE_MODE
 from palace.utils.exceptions import ConvergenceError, ToolHallucinationException
+from palace.utils.multimodal import build_multimodal_content
 from palace.utils.printing import print
 
 
@@ -49,7 +50,7 @@ class LocalAgent(Agent):
     def environment(self) -> Environment:
         return self._environment
 
-    def run(self, task: str) -> tuple[str, dict[str, Any] | None]:
+    def run(self, prompt: str, image: str | None = None) -> tuple[str, dict[str, Any] | None]:
         self.tools = self.environment.tools
         self.conversation = []
 
@@ -63,12 +64,13 @@ class LocalAgent(Agent):
                 "content": system_prompt,
             }
         )
-        self.conversation.append({"role": "user", "content": task})
+        content = build_multimodal_content(prompt, image)
+        self.conversation.append({"role": "user", "content": content})
         final_answer = None
 
         if VERBOSE_MODE:
             print(f"[bold]System prompt: [/] \n{system_prompt}\n")
-            print(f"[bold]Task: [/] \n{task}\n")
+            print(f"[bold]Prompt: [/] \n{prompt}\n")
 
         self.n_toolcalls: int = 0
         self.n_tool_hallucinations: int = 0

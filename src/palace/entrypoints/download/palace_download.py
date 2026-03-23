@@ -39,6 +39,8 @@ def download_tasklist(
     inline_attachment: bool | None = None,
     category: str | None = None,
     task_type: str | None = None,
+    task_type_fields: dict | None = None,
+    default_labels: dict[str, str] | None = None,
     label_mapping: dict[str, str] | None = None,
     custom_verificator: str | None = None,
 ) -> None:
@@ -54,6 +56,8 @@ def download_tasklist(
                 inline_attachment=inline_attachment,
                 category=category,
                 task_type=task_type,
+                task_type_fields=task_type_fields,
+                default_labels=default_labels,
                 label_mapping=label_mapping,
                 custom_verificator=custom_verificator,
             )
@@ -106,6 +110,10 @@ def download_tasklist(
                 if k not in column_names.values():
                     task[k] = v  # type: ignore
 
+        # Add default labels for Classification tasks
+        if default_labels is not None:
+            task["labels"] = default_labels
+
         # Add task to list if it doesn't already exist
         if task["id"] not in [t["id"] for t in tasks]:
             tasks.append(task)
@@ -131,17 +139,20 @@ def download_tasklist(
         with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=4)
     except Exception:
+        info = {
+            "name": name,
+            "id": id,
+            "original": False,
+            "config": config,
+            "split": split,
+            "category": category,
+            "task_type": task_type,
+        }
+        if task_type_fields is not None:
+            info["task_type_fields"] = task_type_fields
         with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
             json.dump(
-                {
-                    "name": name,
-                    "id": id,
-                    "original": False,
-                    "config": config,
-                    "split": split,
-                    "category": category,
-                    "task_type": task_type,
-                },
+                info,
                 f,
                 ensure_ascii=False,
                 indent=4,

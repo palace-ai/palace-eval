@@ -46,6 +46,7 @@ nav:
     - Publish to HuggingFace: howto/publish-huggingface.md
     - Debug Evaluations: howto/debug-evaluations.md
     - Migration Guide: howto/migration.md
+    - Add Public Benchmark: howto/add-public-benchmark.md
   - Reference:
     - reference/index.md
     - Official Tasklists:
@@ -56,6 +57,7 @@ nav:
       - DocRetrieval: reference/tasklists/docretrieval.md
       - DeepConsult: reference/tasklists/deepconsult.md
       - DeepResearchBench: reference/tasklists/deepresearchbench.md
+    - Public Benchmarks: reference/public-benchmarks.md
     - info.json: reference/info-json.md
     - tasks.json: reference/tasks-json.md
     - Task Type Fields: reference/task-type-fields.md
@@ -93,3 +95,5 @@ markdown_extensions:
 
 plugins:
   - search
+
+use_directory_urls: false
