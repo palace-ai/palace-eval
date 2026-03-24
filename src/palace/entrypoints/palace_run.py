@@ -19,6 +19,7 @@ def evaluate(
     runs_per_configuration: int = 1,
     on_task_complete: Callable[[int, int], None] | None = None,
     endpoint_type: str = "openai",
+    io_adapter: dict | None = None,
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -31,6 +32,7 @@ def evaluate(
     :param limit: The maximum number of tasks to evaluate per tasklist.
     :param runs_per_configuration: The number of evaluation runs to perform.
     :param endpoint_type: The type of endpoint ("openai" or "mcp").
+    :param io_adapter: Optional model I/O adapter config dict for specialized models.
     """
     if endpoint_type == "mcp":
         agent = MCPAgent(url=url, token=token, name=name)
@@ -51,6 +53,7 @@ def evaluate(
         runs_per_configuration=runs_per_configuration,
         output_path=output_path,
         on_task_complete=on_task_complete,
+        io_adapter=io_adapter,
     )
     evaluation.evaluate_all([agent], tasklists=[tasklist])
 

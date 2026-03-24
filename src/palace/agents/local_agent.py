@@ -5,6 +5,7 @@ from typing import Any, Optional, cast
 from palace.agents import Agent
 from palace.environments import Environment
 from palace.models import Model
+from palace.models.base_model import Message
 from palace.paradigms import Paradigm
 from palace.paradigms.non_agentic_paradigm import NonAgenticParadigm
 from palace.tools import Tool
@@ -32,7 +33,7 @@ class LocalAgent(Agent):
         self.max_steps: int = max_steps or self.MAX_STEPS_DEFAULT_VALUE
 
         self.tools: list[Tool] = []
-        self.conversation: list[dict[str, str]] = []
+        self.conversation: list[Message] = []
 
     @property
     def name(self) -> str:

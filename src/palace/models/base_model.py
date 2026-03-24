@@ -1,4 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import Any
+
+# Content can be plain text or multimodal parts (text + image_url dicts)
+type MessageContent = str | list[dict[str, Any]]
+type Message = dict[str, MessageContent]
 
 
 class Model(ABC):
@@ -11,12 +16,12 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def generate(self, messages: list[dict[str, str]], **kwargs) -> str:
+    def generate(self, messages: list[Message], **kwargs) -> str:
         """
         Generate a response given a conversation history.
 
         Args:
-            messages: List of message dictionaries, each with `role` and `content` keys. `role` can be either `system`, `user`, `assistant`, or `tool`. Optionally, there may be an additional `tool_name` key.
+            messages: List of message dictionaries, each with `role` and `content` keys. `content` can be a string or a list of content parts (for multimodal). `role` can be either `system`, `user`, `assistant`, or `tool`. Optionally, there may be an additional `tool_name` key.
             **kwargs: Additional model-specific parameters
 
         Returns:

@@ -40,6 +40,12 @@ Add support for a new public HuggingFace benchmark to PALACE's automatic downloa
 
 **You'll learn**: Dataset exploration, column mapping, attachment handling, Classification configuration.
 
+### [Model Adapters](model-adapters.md)
+
+Evaluate specialized finetuned models (guardrails, classifiers) that can't follow PALACE's standard prompt format. Define per-model input/output transformations via YAML config.
+
+**You'll learn**: Adapter YAML schema, input templates, output regex parsing, value mapping, glob matching, gradin integration.
+
 ## Quick Reference
 
 | I want to... | Guide |
@@ -50,6 +56,7 @@ Add support for a new public HuggingFace benchmark to PALACE's automatic downloa
 | Fix failing tasks | [Debug Evaluations](debug-evaluations.md) |
 | Update an old tasklist | [Migration Guide](migration.md) |
 | Add a public HuggingFace benchmark | [Add Public Benchmark](add-public-benchmark.md) |
+| Evaluate specialized finetuned models | [Model Adapters](model-adapters.md) |
 
 ---
 

@@ -46,20 +46,29 @@ def build_multimodal_content(
 
 
 def _load_and_resize_image(image_path: str) -> tuple[str, str]:
-    """Load image, resize if too large, return base64 and MIME type."""
+    """Load image, resize if too large, return base64 and MIME type.
+
+    Preserves PNG format for smaller images to maintain fidelity.
+    Falls back to high-quality JPEG for large images to avoid payload size issues.
+    """
+    MAX_BASE64_BYTES = 1_000_000  # ~1MB base64 threshold
+
     with Image.open(image_path) as img:
-        # Convert to RGB if necessary (handles RGBA, P mode, etc.)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
 
-        # Resize if larger than max dimension
         if max(img.size) > MAX_IMAGE_DIMENSION:
             img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
 
-        # Save to bytes as JPEG (good compression)
-        buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=85)
-        image_bytes = buffer.getvalue()
+        # Try PNG first for lossless fidelity
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        png_bytes = buf.getvalue()
 
-    image_data = base64.b64encode(image_bytes).decode("utf-8")
-    return image_data, "image/jpeg"
+        if len(png_bytes) <= MAX_BASE64_BYTES:
+            return base64.b64encode(png_bytes).decode("utf-8"), "image/png"
+
+        # Fall back to high-quality JPEG for large images
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=95)
+        return base64.b64encode(buf.getvalue()).decode("utf-8"), "image/jpeg"

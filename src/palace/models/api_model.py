@@ -7,7 +7,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from palace.models.base_model import Model
+from palace.models.base_model import Message, Model
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
 
@@ -45,7 +45,7 @@ class APIModel(Model):
         self.model_id = model_id
 
         if self.api_type == "openai":
-            self.client = OpenAI(base_url=url, api_key=token)
+            self.client = OpenAI(base_url=url, api_key=token or "no-key")
         elif self.api_type == "anthropic":
             self.client = Anthropic(
                 base_url=url.removesuffix("/v1"),
@@ -61,7 +61,7 @@ class APIModel(Model):
 
     def generate(
         self,
-        messages: list[dict[str, str]],
+        messages: list[Message],
         **kwargs,
     ) -> str:
         """Generate text based on the input messages.
@@ -98,7 +98,7 @@ class APIModel(Model):
             f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore
         ),
     )
-    def generate_with_retry(self, messages: list[dict[str, str]], **_) -> str:
+    def generate_with_retry(self, messages: list[Message], **_) -> str:
         try:
             if self.api_type == "openai":
                 chat_completion = self.client.chat.completions.create(  # type: ignore
@@ -116,7 +116,9 @@ class APIModel(Model):
                     messages=messages,  # type: ignore
                     max_tokens=2048,
                     stream=False,
-                    system=system_prompt["content"] if system_prompt is not None else omit,
+                    system=system_prompt["content"]
+                    if system_prompt is not None
+                    else omit,
                 )  # type: ignore
                 return chat_completion.content[0].text
             else:

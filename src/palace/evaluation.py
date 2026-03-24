@@ -11,6 +11,7 @@ from palace.agents import Agent
 from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
 from palace.task_types import Task, TaskVerificationResult
+from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.multimodal import is_image_attachment
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import loading, print
@@ -33,12 +34,14 @@ class Evaluation:
         output_path: Path | None = None,
         on_task_complete: Callable[[int, int], None] | None = None,
         enable_citation_verifier: bool | None = None,
+        io_adapter: dict | None = None,
     ):
         self.name = name
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.output_path = output_path or RESULTS_PATH
         self.on_task_complete = on_task_complete
+        self.io_adapter = io_adapter
 
         # Initialize analyzers based on toggles
         self.analyzers = []
@@ -303,11 +306,17 @@ class Evaluation:
         if self.task_amount_limit is not None:
             tasks = tasks[: self.task_amount_limit]
 
+        # Resolve model adapter (programmatic > file > none)
+        file_io_adapters = load_io_adapters()
+        adapter = get_io_adapter(agent.name, self.io_adapter, file_io_adapters)
+        if adapter is not None:
+            print(f"[blue]:wrench: Using I/O adapter for {agent.name}[/]")
+
         for i, task in enumerate(tasks):
             task_metrics = {}  # Initialize before conditional branches
             verification_result = None  # Initialize for analyzer check
-            prompt = task.create_prompt()
             image_path = None  # For multimodal tasks
+            attachment_content = ""  # Raw text attachment content for adapter
 
             if task.attachment is not None and task.attachment != "":
                 attachment_file = tasklist_path / "task_files" / task.attachment
@@ -321,7 +330,7 @@ class Evaluation:
                     # Try to read as text attachment
                     try:
                         with open(attachment_file, encoding="utf-8") as f:
-                            attachment = f.read()
+                            attachment_content = f.read()
                     except UnicodeDecodeError:
                         print(
                             f"[yellow bold]Skipping task {task.id}: unsupported attachment type '{task.attachment}' (not text or image)[/]"
@@ -329,21 +338,29 @@ class Evaluation:
                         continue
 
                     max_attachment_len = 200000
-                    if len(attachment) > max_attachment_len:
+                    if len(attachment_content) > max_attachment_len:
                         print(
-                            f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment)}), truncating it to {max_attachment_len} characters."
+                            f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment_content)}), truncating it to {max_attachment_len} characters."
                         )
-                        attachment = attachment[:max_attachment_len]
+                        attachment_content = attachment_content[:max_attachment_len]
 
-                    attachment_str = f"Start of text attachment >>>\n{attachment}\n<<< End of text attachment\n\n"
+                    attachment_str = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n"
                     attachment_str_debug = f"""Start of text attachment >>>\n{
-                        f"{attachment[:1000]}... (truncated)"
-                        if len(attachment) > 1000
-                        else attachment
+                        f"{attachment_content[:1000]}... (truncated)"
+                        if len(attachment_content) > 1000
+                        else attachment_content
                     }\n<<< End of text attachment\n\n"""
             else:
                 attachment_str = ""
                 attachment_str_debug = ""
+
+            # Build prompt: adapter overrides default prompt construction
+            if adapter is not None:
+                prompt = adapter.adapt_input(task, attachment_content)
+                agent_prompt = prompt  # No separate attachment wrapping
+            else:
+                prompt = task.create_prompt()
+                agent_prompt = f"{attachment_str}{prompt}"
 
             print(
                 f"{attachment_str_debug}{prompt}",
@@ -359,8 +376,12 @@ class Evaluation:
             start_time = time.time()
             with loading():
                 result, run_stats = agent.run(
-                    prompt=f"{attachment_str}{prompt}", image=image_path
+                    prompt=agent_prompt, image=image_path
                 )
+
+            # Apply output adapter if configured
+            if result is not None and adapter is not None:
+                result = adapter.adapt_output(result)
 
             # check if run completed successfully
             if result is None:
