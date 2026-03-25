@@ -129,7 +129,12 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
 
     available_tasklists = sorted(
         [
-            {"name": t.name, "category": json.load(open(t / "info.json"))["category"]}
+            {
+                "name": t.name,
+                **(info := json.load(open(t / "info.json"))),
+                "category": info.get("category", ""),
+                "modalities": info.get("modalities", ["text"]),
+            }
             for t in (TASKLISTS_PATH).iterdir()
             if t.is_dir()
         ],
@@ -364,6 +369,10 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                     (
                         "class:blue",
                         f"[{tasklist['category']}] ",
+                    ),
+                    (
+                        "",
+                        f"[{', '.join(tasklist['modalities'])}] ",
                     ),
                     ("class:bold", tasklist["name"]),
                 ],

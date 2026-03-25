@@ -158,6 +158,17 @@ def download_tasklist(
                 indent=4,
             )
 
+    # Auto-detect modalities if not already declared in info.json
+    info_path = tasklist_path / "info.json"
+    with open(info_path) as f:
+        info_data = json.load(f)
+    if "modalities" not in info_data:
+        from palace.utils.multimodal import detect_modalities
+
+        info_data["modalities"] = detect_modalities(tasks)
+        with open(info_path, "w", encoding="utf-8") as f:
+            json.dump(info_data, f, ensure_ascii=False, indent=4)
+
     # Download and save task files (attachments)
     if (
         column_names.get("attachment") is not None

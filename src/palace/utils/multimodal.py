@@ -9,6 +9,24 @@ from PIL import Image
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
+MODALITY_EXTENSIONS: dict[str, set[str]] = {
+    "image": IMAGE_EXTENSIONS,
+    "video": {".mp4", ".webm", ".avi", ".mov"},
+    "audio": {".mp3", ".wav", ".ogg", ".flac"},
+}
+
+
+def detect_modalities(tasks: list[dict]) -> list[str]:
+    """Detect modalities from task attachments. Always includes 'text'."""
+    modalities = {"text"}
+    for task in tasks:
+        if attachment := task.get("attachment"):
+            ext = Path(attachment).suffix.lower()
+            for modality, extensions in MODALITY_EXTENSIONS.items():
+                if ext in extensions:
+                    modalities.add(modality)
+    return sorted(modalities)
+
 # Max dimension for images (OpenAI recommends 2048 max, we use 1024 for safety)
 MAX_IMAGE_DIMENSION = 1024
 
