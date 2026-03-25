@@ -116,7 +116,7 @@ class APIModel(Model):
                     messages=messages,  # type: ignore
                     max_tokens=2048,
                     stream=False,
-                    system=system_prompt["content"]
+                    system=str(system_prompt["content"])
                     if system_prompt is not None
                     else omit,
                 )  # type: ignore
