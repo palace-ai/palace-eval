@@ -23,16 +23,18 @@ def evaluate(
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
-    :param run_name: The name of the run.
-    :param output_folder: The path to the output folder (default: ~/.cache/palace/results/).
-    :param url: The URL of the OpenAI API.
-    :param token: The token to use for authentication, if required.
-    :param name: The name of the model/agent.
-    :param tasklist: The tasklist to evaluate the model/agent on.
-    :param limit: The maximum number of tasks to evaluate per tasklist.
-    :param runs_per_configuration: The number of evaluation runs to perform.
-    :param endpoint_type: The type of endpoint ("openai" or "mcp").
-    :param io_adapter: Optional model I/O adapter config dict for specialized models.
+    Args:
+        run_name: The name of the run.
+        output_folder: The path to the output folder (default: ~/.cache/palace/results/).
+        url: The URL of the OpenAI API.
+        token: The token to use for authentication, if required.
+        name: The name of the model/agent.
+        tasklist: The tasklist to evaluate the model/agent on.
+        limit: The maximum number of tasks to evaluate per tasklist.
+        runs_per_configuration: The number of evaluation runs to perform.
+        on_task_complete: Optional callback invoked after each task with (current, total).
+        endpoint_type: The type of endpoint ("openai" or "mcp").
+        io_adapter: Optional model I/O adapter config dict for specialized models.
     """
     if endpoint_type == "mcp":
         agent = MCPAgent(url=url, token=token, name=name)

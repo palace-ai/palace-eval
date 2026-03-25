@@ -160,13 +160,10 @@ This ensures that every document listed in the `documents` field is genuinely ne
 
 ```bash
 # Download the tasklist
-palace-download --tasklist DocRetrieval-ai
+palace-download -t DocRetrieval-ai
 
-# Run with agentic paradigm
-palace-run --tasklist DocRetrieval-ai --paradigm react --limit 20
-
-# Run with specific tools
-palace-run --tasklist DocRetrieval-ai --tools fetch,web_search
+# Run evaluation
+palace-run -u https://api.example.com/v1 -m gpt-4o -t DocRetrieval-ai -l 20
 ```
 
 ## Interpreting Results

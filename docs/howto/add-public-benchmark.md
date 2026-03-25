@@ -228,7 +228,7 @@ ls ~/.cache/palace/tasklists/MyBenchmark/task_files/
 Verify the benchmark works end-to-end:
 
 ```bash
-palace-run --tasklist MyBenchmark --task-limit 5
+palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 5
 ```
 
 ## Configuration Reference

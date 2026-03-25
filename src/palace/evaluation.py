@@ -1,3 +1,5 @@
+"""Core evaluation engine for running benchmarks on LLM agents."""
+
 import itertools
 import json
 import os
@@ -18,7 +20,18 @@ from palace.utils.printing import loading, print
 
 
 def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
-    """Compute agent-execution metrics: pass@k, averages, tool hallucination rate."""
+    """Compute agent-execution metrics from an evaluation report.
+
+    Calculates pass@k scores at k=1,3,6,10 for steps and tool calls,
+    averages for numeric stats, and tool hallucination rate.
+
+    Args:
+        report: Mapping of task ID to task result dict containing
+            agent execution stats (n_steps, n_toolcalls, etc.).
+
+    Returns:
+        Dict of computed metric names to float values.
+    """
     agent_run_stats: list[dict[str, Any]] = [
         {"name": "n_steps", "pass@k": True, "pass@k_symbol": "s"},
         {"name": "n_toolcalls", "pass@k": True, "pass@k_symbol": "tc"},
@@ -78,6 +91,23 @@ def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
 
 
 class Evaluation:
+    """Runs benchmark evaluations across agents and tasklists.
+
+    Orchestrates the evaluation loop: loads tasks, dispatches them to agents,
+    verifies answers, runs analyzers, computes metrics, and writes JSONL results.
+
+    Args:
+        name: Run name used for the output JSONL filename.
+        task_amount_limit: Maximum number of tasks to evaluate per tasklist.
+            None means evaluate all tasks.
+        runs_per_configuration: Number of evaluation runs per agent/tasklist pair.
+        output_path: Directory for JSONL result files. Defaults to ~/.cache/palace/results/.
+        on_task_complete: Optional callback invoked after each task with (current, total).
+        enable_citation_verifier: Enable the citation verifier analyzer.
+            None falls back to the ENABLE_CITATION_VERIFIER env var.
+        io_adapter: Optional model I/O adapter config dict for specialized models.
+    """
+
     def __init__(
         self,
         name: str = "eval",
@@ -147,6 +177,20 @@ class Evaluation:
         agents: list[Agent],
         tasklists: list[str],
     ):
+        """Run evaluations for all agent/tasklist combinations.
+
+        Iterates over the cartesian product of agents and tasklists,
+        running each pair for ``runs_per_configuration`` iterations.
+        Results are appended to a JSONL file and returned as a DataFrame.
+
+        Args:
+            agents: List of agents to evaluate.
+            tasklists: List of tasklist names to evaluate on.
+
+        Returns:
+            DataFrame with one row per run containing accuracy, metrics,
+            and detailed report.
+        """
         results = []
 
         grid = list(itertools.product(agents, tasklists))
@@ -221,6 +265,19 @@ class Evaluation:
         agent: Agent,
         tasklist: str,
     ) -> tuple[dict[str, dict], list[TaskVerificationResult], type[Task]]:
+        """Evaluate a single agent on a single tasklist.
+
+        Loads tasks from the tasklist directory, runs each through the agent,
+        verifies answers, and collects metrics.
+
+        Args:
+            agent: The agent to evaluate.
+            tasklist: Name of the tasklist directory under the tasklists path.
+
+        Returns:
+            Tuple of (report dict mapping task ID to result dict,
+            list of verification results, task class used).
+        """
         report: dict[str, dict] = {}
         verification_results: list[TaskVerificationResult] = []
         tasklist_path = TASKLISTS_PATH / tasklist

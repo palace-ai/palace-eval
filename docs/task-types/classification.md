@@ -54,7 +54,7 @@ Yes
 </Unsafe>
 ```
 
-PALACE extracts "Yes" from the `<Unsafe>` tags and compares it against the expected value. The comparison is exact—"yes", "YES", or "Yes." would all fail.
+PALACE extracts "Yes" from the `<Unsafe>` tags and compares it against the expected value. Leading and trailing whitespace is stripped, but the comparison is otherwise exact—"yes", "YES", or "Yes." would all fail.
 
 ## Tasklist Structure
 

@@ -9,6 +9,7 @@ Complete reference for PALACE command-line tools.
 | `palace-cli` | Interactive menu-driven interface |
 | `palace-run` | Run evaluations from command line |
 | `palace-download` | Download tasklists from HuggingFace |
+| `palace-mcpstart` | Start the MCP SSE server |
 
 ## palace-cli
 
@@ -58,7 +59,7 @@ palace-run -u <url> -m <model-name> -t <tasklist> [options]
 | `-k`, `--token` | None | API authentication token |
 | `-l`, `--limit` | All tasks | Maximum number of tasks to run |
 | `--output-folder` | `~/.cache/palace/results/` | Output directory |
-| `--run-name` | Auto-generated | Name for this evaluation run |
+| `--run-name` | `eval` | Name for this evaluation run |
 | `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
 | `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
 
@@ -134,6 +135,34 @@ Tasklists are downloaded to:
 ### Available Tasklists
 
 Run `palace-download` without arguments to see available tasklists.
+
+## palace-mcpstart
+
+Start a PALACE MCP (Model Context Protocol) SSE server, allowing external tools to run evaluations via MCP.
+
+### Usage
+
+```bash
+palace-mcpstart [--host HOST] [--port PORT]
+```
+
+### Optional Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--host` | `0.0.0.0` | Host to bind the server to |
+| `--port` | `8080` | Port to listen on |
+
+## Environment Variables
+
+PALACE uses the following environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_LIKE_API_BASE_URL` | API endpoint for the judge model | Required for QA and Report Generation |
+| `OPENAI_LIKE_API_KEY` | API key for the judge endpoint | Required for QA and Report Generation |
+| `JUDGE_MODEL` | Model used for LLM-based judging (QA and Report Generation) | `minimax-m2` |
+| `ENABLE_CITATION_VERIFIER` | Enable the citation verifier analyzer (`true`/`false`) | `false` |
 
 ## Common Workflows
 

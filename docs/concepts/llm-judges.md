@@ -91,7 +91,7 @@ The judge evaluates each criterion by comparing the two reports and deciding whi
 
 ### Default Judge
 
-By default, PALACE uses the same API endpoint for judging as for the model being evaluated.
+By default, PALACE uses the same API endpoint for judging as for the model being evaluated, but with a separate model (`minimax-m2` by default). The judge model can be changed via the `JUDGE_MODEL` environment variable.
 
 ### Judge Configuration
 
@@ -214,15 +214,16 @@ When evaluating many criteria, they're processed in batches:
 
 ### Scoring
 
-| Score | Meaning |
-|-------|---------|
-| +5 | A is much better |
-| +3 | A is moderately better |
-| +1 | A is slightly better |
+The judge assigns a gap score (0-5) per criterion per comparison, indicating the quality difference:
+
+| Gap | Meaning |
+|-----|---------|
+| 5 | Winner is much better |
+| 3 | Winner is moderately better |
+| 1 | Winner is slightly better |
 | 0 | Equivalent |
-| -1 | B is slightly better |
-| -3 | B is moderately better |
-| -5 | B is much better |
+
+The "best" field indicates which report won. After running both comparisons (AB and BA), scores are combined into a per-criterion score ranging from -10 to +10, where positive means the generated report is better.
 
 ---
 

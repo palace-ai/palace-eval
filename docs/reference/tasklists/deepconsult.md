@@ -112,13 +112,13 @@ The use of Deep Research for reference generation ensures high-quality baselines
 
 ```bash
 # Download the tasklist
-palace-download --tasklist DeepConsult
+palace-download -t DeepConsult
 
 # Run evaluation (note: generates long reports, may be slow)
-palace-run --tasklist DeepConsult --limit 10
+palace-run -u https://api.example.com/v1 -m gpt-4o -t DeepConsult -l 10
 
 # Run with specific model
-palace-run --tasklist DeepConsult --model gpt-4o --limit 5
+palace-run -u https://api.example.com/v1 -m gpt-4o -t DeepConsult -l 5
 ```
 
 ### Considerations

@@ -74,7 +74,7 @@ The model's output is parsed and compared exactly against expected values.
 
 ### Limitations
 
-- **Rigid**: No tolerance for variations
+- **Rigid**: No tolerance for variations (leading/trailing whitespace is stripped, but comparison is otherwise exact)
 - **Format-dependent**: Model must use exact XML format
 - **Case-sensitive**: "Yes" ≠ "yes"
 
@@ -112,9 +112,9 @@ An LLM compares the model's output against a reference document across multiple 
 
 1. Present both reports to judge (generated vs reference)
 2. For each criterion, judge decides which is better
-3. Judge assigns score (-5 to +5) per criterion
+3. Judge assigns gap score (0 to 5) per criterion indicating quality difference
 4. Run comparison twice with positions swapped (reduces bias)
-5. Aggregate weighted scores
+5. Aggregate weighted scores into per-criterion scores (range -10 to +10)
 6. Task passes if generated report scores higher
 
 ### Strengths

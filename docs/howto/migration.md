@@ -11,6 +11,8 @@ PALACE consolidated several legacy task types into three configurable types:
 | MLC (Multi-Label Classification) | Classification | Use `labels` array |
 | Sycophancy-Binary | Classification | Use custom labels |
 | Sycophancy-OpenEnded | QA | Use custom criterion and references |
+| Long Context QA | QA | No changes needed, just rename `task_type` |
+| Claim Verification | QA | No changes needed, just rename `task_type` |
 
 ## MLC → Classification
 
@@ -200,7 +202,7 @@ After migration, verify your tasklist works:
 python -c "import json; json.load(open('info.json')); json.load(open('tasks.json')); print('Valid!')"
 
 # Run a test evaluation
-palace-run --tasklist YourTasklist --limit 5
+palace-run -u https://api.example.com/v1 -m gpt-4o -t YourTasklist -l 5
 ```
 
 ## Common Issues

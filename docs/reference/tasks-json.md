@@ -29,6 +29,9 @@ The `tasks.json` file contains an array of tasks to evaluate. Each task has an o
 | `expected` | string | Depends | Reference answer (required for QA, Report Generation) |
 | `difficulty` | string | No | Difficulty level for analysis |
 | `attachment` | string | No | Additional context or data |
+| `document` | string | No | Document text associated with the task |
+| `references` | string | No | Reference material for the task |
+| `custom_verificator` | string | No | Inline Python function for custom verification (overrides task-type verification) |
 
 ## QA Tasks
 
@@ -107,11 +110,9 @@ When `per_task_criteria: true` in info.json:
     "id": "report_002",
     "objective": "Write a financial analysis...",
     "expected": "...",
-    "task_type_fields": {
-        "criteria": [
-            {"name": "numerical_accuracy", "description": "...", "weight": 3.0}
-        ]
-    }
+    "criteria": [
+        {"name": "numerical_accuracy", "description": "...", "weight": 3.0}
+    ]
 }
 ```
 
@@ -133,6 +134,8 @@ Or with dimensions:
     }
 }
 ```
+
+Per-task `task_type_fields` are merged with tasklist `task_type_fields` (task values override on conflict). Alternatively, flat `criteria` can be placed at the top level of the task for name-based merging (new names are added, same names override).
 
 ## Field Details
 

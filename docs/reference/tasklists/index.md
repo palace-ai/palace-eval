@@ -26,8 +26,8 @@ Use `palace-download` to fetch any official tasklist:
 palace-download
 
 # Direct download by name
-palace-download --tasklist GuardBench-EN
-palace-download --tasklist DeepResearchBench
+palace-download -t GuardBench-EN
+palace-download -t DeepResearchBench
 ```
 
 Tasklists are cached in `~/.cache/palace/tasklists/` and can be used immediately with `palace-run` or `palace-cli`.

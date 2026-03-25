@@ -58,37 +58,30 @@ from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 class Judge:
     """LLM-based judge that extracts structured XML data from responses.
-    
+
     The judge sends a prompt to an LLM and parses the response according to
     a specified tag structure. It automatically retries on parse failures.
-    
-    Parameters
-    ----------
-    judge_model : str
-        Model identifier (e.g., "minimax-m2", "openai/gpt-oss-120b").
-    judge_prompt : str
-        System prompt instructing the LLM how to format its response.
-        Must specify the XML tag structure matching output_keywords.
-    output_keywords : list[str] | dict
-        Specifies which XML tags to extract:
-        - list[str]: Flat tags at root level. Returns dict[str, str].
-        - dict: Nested structure. Values can be:
-          - []: Leaf tag, extracts content as string
-          - ["a", "b"]: Extract these child tags
-          - {...}: Recurse into nested structure
-        Returns nested dict mirroring the input structure.
-    
-    Examples
-    --------
-    >>> judge = Judge("minimax-m2", prompt, ["reasoning", "judgement"])
-    >>> result = judge.judge("Evaluate this answer")
-    >>> result["judgement"]
-    'Correct'
-    
-    >>> judge = Judge("minimax-m2", prompt, {"quality": ["score", "explanation"]})
-    >>> result = judge.judge("Rate this text")
-    >>> result["quality"]["score"]
-    '8'
+
+    Args:
+        judge_model: Model identifier (e.g., "minimax-m2", "openai/gpt-oss-120b").
+        judge_prompt: System prompt instructing the LLM how to format its response.
+            Must specify the XML tag structure matching output_keywords.
+        output_keywords: Specifies which XML tags to extract.
+            As a list of strings: flat tags at root level, returns dict[str, str].
+            As a dict: nested structure where values can be [] (leaf tag),
+            ["a", "b"] (extract child tags), or {...} (recurse).
+            Returns nested dict mirroring the input structure.
+
+    Examples:
+        >>> judge = Judge("minimax-m2", prompt, ["reasoning", "judgement"])
+        >>> result = judge.judge("Evaluate this answer")
+        >>> result["judgement"]
+        'Correct'
+
+        >>> judge = Judge("minimax-m2", prompt, {"quality": ["score", "explanation"]})
+        >>> result = judge.judge("Rate this text")
+        >>> result["quality"]["score"]
+        '8'
     """
 
     def __init__(
@@ -148,23 +141,16 @@ class Judge:
 
     def judge(self, prompt: str) -> dict:
         """Send prompt to judge LLM and extract structured response.
-        
-        Parameters
-        ----------
-        prompt : str
-            The user prompt to evaluate.
-            
-        Returns
-        -------
-        dict
+
+        Args:
+            prompt: The user prompt to evaluate.
+
+        Returns:
             Extracted values. Structure matches output_keywords:
-            - Flat dict[str, str] for list input
-            - Nested dict for dict input
-            
-        Raises
-        ------
-        ValueError
-            If parsing fails after max retries (5 attempts).
+            flat dict[str, str] for list input, nested dict for dict input.
+
+        Raises:
+            ValueError: If parsing fails after max retries (5 attempts).
         """
         conversation = []
         if self.judge_prompt is not None:

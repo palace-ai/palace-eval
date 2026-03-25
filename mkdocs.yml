@@ -43,6 +43,7 @@ nav:
     - howto/index.md
     - Run Evaluations: howto/run-evaluations.md
     - Custom Criteria: howto/custom-criteria.md
+    - Model Adapters: howto/model-adapters.md
     - Publish to HuggingFace: howto/publish-huggingface.md
     - Debug Evaluations: howto/debug-evaluations.md
     - Migration Guide: howto/migration.md
@@ -63,6 +64,15 @@ nav:
     - Task Type Fields: reference/task-type-fields.md
     - Output Metrics: reference/metrics.md
     - CLI Reference: reference/cli.md
+    - API Reference:
+      - reference/api/index.md
+      - evaluate(): reference/api/evaluate.md
+      - Evaluation: reference/api/evaluation.md
+      - Task Types: reference/api/task-types.md
+      - Agents: reference/api/agents.md
+      - Judge: reference/api/judge.md
+      - Analyzers: reference/api/analyzers.md
+      - I/O Adapters: reference/api/io-adapters.md
   - Concepts:
     - concepts/index.md
     - Evaluation Pipeline: concepts/evaluation-pipeline.md
@@ -95,5 +105,17 @@ markdown_extensions:
 
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+            show_root_heading: true
+            show_symbol_type_heading: true
 
 use_directory_urls: false

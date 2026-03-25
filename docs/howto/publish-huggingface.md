@@ -14,7 +14,7 @@ Ensure your tasklist is complete and tested:
 
 ```bash
 # Verify the tasklist works
-palace-run --tasklist MyBenchmark --limit 5
+palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 5
 ```
 
 Your tasklist directory should contain:
@@ -126,13 +126,13 @@ A PALACE benchmark for evaluating [describe what it tests].
 Download with PALACE:
 
 ```bash
-palace-download --tasklist MyBenchmark
+palace-download -t MyBenchmark
 ```
 
 Run evaluation:
 
 ```bash
-palace-run --tasklist MyBenchmark
+palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark
 ```
 
 ## Task Type
@@ -173,7 +173,7 @@ Check that your dataset is accessible:
 3. Test downloading:
 
 ```bash
-palace-download --tasklist your-username/MyBenchmark
+palace-download -t your-username/MyBenchmark
 ```
 
 ## Adding to the PALACE Collection

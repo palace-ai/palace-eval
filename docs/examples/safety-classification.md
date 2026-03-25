@@ -157,8 +157,13 @@ Results show per-label correctness:
     "reasoning": "Label-wise correctness\n✅ Unsafe",
     "elapsed_time": 1.2,
     "metrics": {
-        "per_label_correct": {
-            "Unsafe": true
+        "per_label": {
+            "Unsafe": {
+                "predicted": "Yes",
+                "expected": "Yes",
+                "correct": true,
+                "positive_class": "Yes"
+            }
         }
     }
 }

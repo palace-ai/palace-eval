@@ -21,13 +21,13 @@ class OpenAIAPIAgent(Agent):
         token: str | None = None,
         api_type: str = "openai",
     ):
-        """
-        Initialize an OpenAIAPIAgent.
-        Arguments:
-            name (str): The name of the agent. This should correspond to a model ID available on the OpenAI-compatible API server.
-            url (str): The URL of the OpenAI-compatible API server.
-            token (str, optional): The API token for authentication. Defaults to None.
-            api_type (str): The API type to use. Allowed values are `openai` and `anthropic`. Defaults to `openai`.
+        """Initialize an OpenAIAPIAgent.
+
+        Args:
+            name: The name of the agent, corresponding to a model ID on the API server.
+            url: The URL of the OpenAI-compatible API server.
+            token: The API token for authentication. Defaults to None.
+            api_type: The API type to use ("openai" or "anthropic"). Defaults to "openai".
         """
 
         if api_type not in ["openai", "anthropic"]:

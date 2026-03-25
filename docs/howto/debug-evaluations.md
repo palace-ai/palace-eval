@@ -68,10 +68,9 @@ The `reasoning` field explains why the judge marked it incorrect.
 
 **Common causes**:
 
-1. **Case mismatch**: "yes" vs "Yes"
-2. **Extra whitespace**: " Yes " vs "Yes"
-3. **Missing tags**: Model didn't use XML format
-4. **Wrong tag name**: `<unsafe>` vs `<Unsafe>`
+1. **Case mismatch**: "yes" vs "Yes" — comparison is case-sensitive
+2. **Missing tags**: Model didn't use XML format
+3. **Wrong tag name**: `<unsafe>` vs `<Unsafe>`
 
 **Solutions**:
 
@@ -107,20 +106,25 @@ Negative scores mean the reference was better for that criterion.
 
 ## Verbose Logging
 
-Enable detailed logging to see what's happening:
+PALACE outputs evaluation progress to the console using rich formatting. To see detailed per-task output including prompts, model responses, and judge verdicts, reduce the task limit and observe the console output:
 
 ```bash
-palace-run --tasklist MyBenchmark --verbose
+palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 3
 ```
 
 Or in Python:
 
 ```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
 from palace import evaluate
-results = evaluate(tasklist="MyBenchmark", ...)
+
+evaluate(
+    run_name="debug",
+    output_folder="./debug-results",
+    url="https://api.example.com/v1",
+    name="gpt-4o",
+    tasklist="MyBenchmark",
+    limit=3,
+)
 ```
 
 This shows:
@@ -156,14 +160,14 @@ print(task.adapt_prompt())
 
 ### Judge Prompts
 
-For QA tasks, the judge sees a prompt constructed from your criterion and references. Enable verbose logging to see the exact prompt.
+For QA tasks, the judge sees a prompt constructed from your criterion and references. Run with `-l 1` to see the full evaluation output including judge inputs.
 
 ## Testing Individual Tasks
 
 Test a single task to isolate issues:
 
 ```bash
-palace-run --tasklist MyBenchmark --limit 1
+palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 1
 ```
 
 Or create a minimal test tasklist:
@@ -207,8 +211,8 @@ curl -H "Authorization: Bearer $OPENAI_LIKE_API_KEY" \
 
 If you see 429 errors:
 
-- Reduce concurrent requests with `--limit`
-- Add delays between tasks
+- PALACE retries automatically with exponential backoff
+- Use `-l` to run fewer tasks per session
 - Check your API tier limits
 
 ### Timeout Errors
@@ -268,7 +272,7 @@ If you're stuck:
 
 1. Check the [task type documentation](../task-types/index.md) for your task type
 2. Review the [examples](../examples/index.md) for similar benchmarks
-3. Enable verbose logging and examine the full output
+3. Run with `-l 1` and examine the full console output
 4. Create a minimal reproduction case
 
 ---

@@ -61,7 +61,7 @@ palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint
 | `-k`, `--token` | API authentication token | None |
 | `-l`, `--limit` | Maximum number of tasks to run | All tasks |
 | `--output-folder` | Output directory for results | `~/.cache/palace/results/` |
-| `--run-name` | Name for this evaluation run | Auto-generated |
+| `--run-name` | Name for this evaluation run | `eval` |
 | `--runs-per-configuration` | Number of runs to perform | 1 |
 | `--endpoint-type` | `openai` or `mcp` | `openai` |
 
@@ -143,6 +143,10 @@ See [Model Adapters](model-adapters.md) for the full adapter reference.
 | `runs_per_configuration` | int | Number of runs | 1 |
 | `endpoint_type` | str | `"openai"` or `"mcp"` | `"openai"` |
 | `io_adapter` | dict | I/O adapter config (see [Model Adapters](model-adapters.md)) | None |
+| `on_task_complete` | callable | Callback invoked after each task with `(current, total)` for progress tracking | None |
+
+!!! tip "Anthropic Models"
+    When the model name contains "claude", PALACE automatically uses the Anthropic API format. No extra configuration needed—just pass the Anthropic API URL and model name.
 
 ### Return Value
 
@@ -313,9 +317,9 @@ curl -H "Authorization: Bearer $OPENAI_LIKE_API_KEY" \
 
 If you hit rate limits:
 
-- Use `-l` to reduce concurrent requests
+- PALACE retries automatically with exponential backoff
+- Use `-l` to run fewer tasks per session
 - Add delays between evaluations in batch scripts
-- Consider using a higher-tier API plan
 
 ### Out of Memory
 

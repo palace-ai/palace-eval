@@ -233,16 +233,18 @@ For **research reports**:
 from palace import evaluate
 
 evaluate(
-    model_url="https://api.example.com/v1",
-    model_token="your-token",
+    run_name="report-eval",
+    output_folder="./results",
+    url="https://api.example.com/v1",
+    token="your-token",
+    name="gpt-4o",
     tasklist="MyReportBench",
-    output_path="./results"
 )
 ```
 
 Or via CLI:
 ```bash
-palace-run --tasklist MyReportBench --model-url https://api.example.com/v1
+palace-run -u https://api.example.com/v1 -m gpt-4o -t MyReportBench
 ```
 
 ## Output Metrics
@@ -374,7 +376,7 @@ With `per_task_criteria: true`, tasks can provide their own dimensions via `task
 }
 ```
 
-Task `task_type_fields` merge with tasklist `task_type_fields` (task values override on conflict).
+Task `task_type_fields` are merged with tasklist `task_type_fields` (task values override on conflict).
 
 ## Batched Evaluation
 

@@ -26,13 +26,13 @@ Share your benchmark with the community by publishing to HuggingFace. Covers aut
 
 Troubleshoot common issues when running evaluations. Diagnose task failures, inspect prompts, and compare results across runs.
 
-**You'll learn**: Verbose logging, JSON validation, judge debugging, result comparison.
+**You'll learn**: Task isolation, JSON validation, judge debugging, result comparison.
 
 ### [Migration Guide](migration.md)
 
-Migrate tasklists from deprecated task types (MLC, Sycophancy-Binary, Sycophancy-OpenEnded) to the current PALACE format.
+Migrate tasklists from deprecated task types (MLC, Sycophancy-Binary, Sycophancy-OpenEnded, Long Context QA, Claim Verification) to the current PALACE format.
 
-**You'll learn**: MLC → Classification, Sycophancy → QA/Classification, field mapping.
+**You'll learn**: MLC → Classification, Sycophancy → QA/Classification, Long Context QA → QA, field mapping.
 
 ### [Add Public Benchmark](add-public-benchmark.md)
 

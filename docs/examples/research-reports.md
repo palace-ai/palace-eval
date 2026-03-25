@@ -140,17 +140,15 @@ Report Generation uses pairwise comparison:
 
 ### Scoring
 
-For each criterion, the judge assigns a score from -5 to +5:
+For each criterion, the judge assigns a gap score (0-5) indicating the quality difference, along with which report is better. After running both comparisons (AB and BA), scores are combined into a per-criterion score ranging from -10 to +10:
 
-| Score | Meaning |
-|-------|---------|
-| +5 | Generated report is much better |
-| +3 | Generated report is moderately better |
-| +1 | Generated report is slightly better |
+| Per-Criterion Score | Meaning |
+|---------------------|---------|
+| +10 | Generated report is much better |
+| +5 | Generated report is moderately better |
 | 0 | Reports are equivalent |
-| -1 | Reference report is slightly better |
-| -3 | Reference report is moderately better |
-| -5 | Reference report is much better |
+| -5 | Reference report is moderately better |
+| -10 | Reference report is much better |
 
 ## Output
 
@@ -191,7 +189,7 @@ This is the structure for a single task within the `detailed_report` object, key
 
 ### Interpreting Scores
 
-- **criteria_scores**: Per-criterion comparison (-5 to +5)
+- **criteria_scores**: Per-criterion comparison (-10 to +10)
 - **dimension_scores**: Aggregated scores per dimension
 - **overall_gap**: Weighted sum of all criteria scores
 - **normalized_score**: Gap rescaled to [0, 1] where 0.5 = tie

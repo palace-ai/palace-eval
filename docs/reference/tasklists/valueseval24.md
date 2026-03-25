@@ -177,13 +177,13 @@ The construction ensures that the original human annotations are preserved while
 
 ```bash
 # Download the tasklist
-palace-download --tasklist ValuesEval24
+palace-download -t ValuesEval24
 
 # Run evaluation
-palace-run --tasklist ValuesEval24 --limit 500
+palace-run -u https://api.example.com/v1 -m gpt-4o -t ValuesEval24 -l 500
 
 # Full evaluation (may take significant time due to 14,904 tasks)
-palace-run --tasklist ValuesEval24
+palace-run -u https://api.example.com/v1 -m gpt-4o -t ValuesEval24
 ```
 
 ## Interpreting Results

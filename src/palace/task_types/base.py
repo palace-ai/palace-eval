@@ -51,7 +51,15 @@ class Task:
     @classmethod
     def aggregate(cls, results: list[TaskVerificationResult]) -> dict[str, Any]:
         """Compute aggregate metrics from all task results.
-        Default: accuracy only. Subclasses override for richer metrics.
+
+        Default implementation computes accuracy only.
+        Subclasses override for richer metrics (e.g., F1, normalized scores).
+
+        Args:
+            results: List of verification results from all evaluated tasks.
+
+        Returns:
+            Dict of metric names to values. Always includes "accuracy".
         """
         if not results:
             return {"accuracy": 0}
@@ -60,7 +68,21 @@ class Task:
 
     @classmethod
     def from_dict(cls, data: dict) -> Self:
-        """Create a Task instance from a dictionary."""
+        """Create a Task instance from a dictionary.
+
+        Dispatches to the appropriate subclass based on the ``task_type`` field.
+
+        Args:
+            data: Task dictionary with required keys ``id``, ``objective``,
+                and ``task_type``, plus optional fields like ``expected``,
+                ``references``, ``difficulty``, ``document``, ``attachment``.
+
+        Returns:
+            A Task subclass instance matching the specified task type.
+
+        Raises:
+            ValueError: If required fields are missing or task_type is unknown.
+        """
         # Import here to avoid circular imports
         from palace.task_types.classification import ClassificationTask
         from palace.task_types.qa import QATask

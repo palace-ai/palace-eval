@@ -178,14 +178,14 @@ The generation uses data from multiple LLMs to ensure diversity and reduce singl
 
 ```bash
 # Download both variants
-palace-download --tasklist Sycophancy-Binary
-palace-download --tasklist Sycophancy-OpenEnded
+palace-download -t Sycophancy-Binary
+palace-download -t Sycophancy-OpenEnded
 
 # Run binary evaluation (fast)
-palace-run --tasklist Sycophancy-Binary --limit 500
+palace-run -u https://api.example.com/v1 -m gpt-4o -t Sycophancy-Binary -l 500
 
 # Run open-ended evaluation (requires judge model)
-palace-run --tasklist Sycophancy-OpenEnded --limit 100
+palace-run -u https://api.example.com/v1 -m gpt-4o -t Sycophancy-OpenEnded -l 100
 ```
 
 ## Interpreting Results
