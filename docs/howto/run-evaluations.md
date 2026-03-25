@@ -103,6 +103,32 @@ evaluate(
 )
 ```
 
+### With I/O Adapter
+
+For specialized models (e.g., guardrail classifiers) that need custom input/output formatting:
+
+```python
+from palace import evaluate
+
+evaluate(
+    run_name="llamaguard-test",
+    output_folder="./my-results",
+    url="http://localhost:8000/v1",
+    name="llamaguard-7b",
+    tasklist="GuardBench-EN",
+    io_adapter={
+        "input": {"template": "{objective}"},
+        "output": {
+            "pattern": "(?P<result>safe|unsafe)",
+            "template": "<Unsafe>{result}</Unsafe>",
+            "mapping": {"result": {"safe": "No", "unsafe": "Yes"}}
+        }
+    }
+)
+```
+
+See [Model Adapters](model-adapters.md) for the full adapter reference.
+
 ### Parameters
 
 | Parameter | Type | Description | Default |
@@ -116,6 +142,7 @@ evaluate(
 | `limit` | int | Maximum tasks to run | None (all) |
 | `runs_per_configuration` | int | Number of runs | 1 |
 | `endpoint_type` | str | `"openai"` or `"mcp"` | `"openai"` |
+| `io_adapter` | dict | I/O adapter config (see [Model Adapters](model-adapters.md)) | None |
 
 ### Return Value
 
@@ -302,5 +329,6 @@ For large tasklists:
 ## Related Pages
 
 - [Quick Start](../getting-started/quickstart.md) — Run your first evaluation
+- [Model Adapters](model-adapters.md) — Per-model I/O transformations for specialized models
 - [Debug Evaluations](debug-evaluations.md) — Troubleshooting guide
 - [CLI Reference](../reference/cli.md) — Complete command documentation
