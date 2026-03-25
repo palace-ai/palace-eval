@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from palace.task_types import Task, TaskVerificationResult
-from palace.task_types.base import TaskType
 
 
 class Analyzer(ABC):
@@ -21,8 +20,8 @@ class Analyzer(ABC):
         pass
 
     @property
-    def supported_task_types(self) -> list[type[TaskType]]:
-        """TaskType classes this analyzer applies to. Empty = none (must override)."""
+    def supported_task_types(self) -> list[type[Task]]:
+        """Task classes this analyzer applies to. Empty = none (must override)."""
         return []
 
     @abstractmethod

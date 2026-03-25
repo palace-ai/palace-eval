@@ -94,8 +94,7 @@ from palace.prompts.fact_prompts import (
     VALIDATE_PROMPT,
 )
 from palace.task_types import Task, TaskVerificationResult
-from palace.task_types.base import TaskType
-from palace.task_types.report_generation import ReportGenerationTaskType
+from palace.task_types.report_generation import ReportGenerationTask
 from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
 from palace.utils.secrets import OPENAI_LIKE_API_KEY
@@ -146,7 +145,7 @@ class CitationVerifier(Analyzer):
 
     Attributes:
         name: "citation_verifier" (used as metrics key)
-        supported_task_types: [ReportGenerationTaskType]
+        supported_task_types: [ReportGenerationTask]
 
     Example:
         >>> from palace.analyzers.fetch import get_fetch_fn
@@ -160,8 +159,8 @@ class CitationVerifier(Analyzer):
         return "citation_verifier"
 
     @property
-    def supported_task_types(self) -> list[type[TaskType]]:
-        return [ReportGenerationTaskType]
+    def supported_task_types(self) -> list[type[Task]]:
+        return [ReportGenerationTask]
 
     def __init__(
         self,

@@ -292,9 +292,9 @@ Each evaluated task produces:
     "is_correct": true,
     "reasoning": "Label-wise correctness\n✅ Toxicity\n✅ Category",
     "metrics": {
-        "per_label_correct": {
-            "Toxicity": true,
-            "Category": true
+        "per_label": {
+            "Toxicity": {"predicted": "Toxic", "expected": "Toxic", "correct": true, "positive_class": "Toxic"},
+            "Category": {"predicted": "Hate Speech", "expected": "Hate Speech", "correct": true, "positive_class": "Hate Speech"}
         }
     }
 }
@@ -302,7 +302,7 @@ Each evaluated task produces:
 
 - `is_correct`: True only if ALL labels match exactly
 - `reasoning`: Shows which labels passed/failed
-- `metrics.per_label_correct`: Per-label breakdown
+- `metrics.per_label`: Per-label breakdown with predicted/expected values
 
 For a partial match (some labels correct, others wrong):
 
@@ -311,13 +311,32 @@ For a partial match (some labels correct, others wrong):
     "is_correct": false,
     "reasoning": "Label-wise correctness\n✅ Toxicity\n❌ Category",
     "metrics": {
-        "per_label_correct": {
-            "Toxicity": true,
-            "Category": false
+        "per_label": {
+            "Toxicity": {"predicted": "Toxic", "expected": "Toxic", "correct": true, "positive_class": "Toxic"},
+            "Category": {"predicted": "Violence", "expected": "Hate Speech", "correct": false, "positive_class": "Hate Speech"}
         }
     }
 }
 ```
+
+## Aggregate Metrics
+
+After all tasks are evaluated, PALACE computes aggregate classification metrics:
+
+| Metric | Description |
+|--------|-------------|
+| `classification.per_label.<name>.precision` | Precision for this label |
+| `classification.per_label.<name>.recall` | Recall for this label |
+| `classification.per_label.<name>.f1` | F1 score for this label |
+| `classification.per_label.<name>.fpr` | False positive rate |
+| `classification.per_label.<name>.fnr` | False negative rate |
+| `classification.per_label.<name>.confusion` | `{tp, fp, tn, fn}` counts |
+| `classification.macro` | Macro-averaged metrics across all labels |
+| `classification.micro` | Micro-averaged metrics across all labels |
+
+The **positive class** for each label is the first class listed in the label's `classes` configuration. For example, if classes are `["Yes", "No"]`, then "Yes" is the positive class.
+
+For binary tasklists (1 label, 2 classes), macro and micro averages are identical to the per-label metrics. For multi-label tasklists, macro averages treat all labels equally while micro averages weight by sample count.
 
 ## Designing Effective Labels
 

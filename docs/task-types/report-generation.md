@@ -271,6 +271,18 @@ The evaluation returns per-task metrics:
 - `normalized_score`: Gap rescaled to [0, 1] where 0.5 = tie, 1.0 = max win
 - `is_correct`: True if `score_provided > score_expected`
 
+## Aggregate Metrics
+
+After all tasks are evaluated, PALACE computes aggregate report generation metrics:
+
+| Metric | Description |
+|--------|-------------|
+| `avg_normalized_score` | Average normalized score across all tasks (0=worst, 0.5=tie, 1=best) |
+| `per_criteria_avg` | Average gap score per criterion across all tasks |
+| `per_dimension_avg` | Average gap score per dimension (if hierarchical criteria used) |
+
+These appear in the top-level `metrics` object of the JSONL output alongside universal metrics like `task_count` and `accuracy`.
+
 ## Hierarchical Criteria (Dimensions)
 
 For complex benchmarks with many criteria, group them into weighted dimensions:

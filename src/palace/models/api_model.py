@@ -1,5 +1,5 @@
 from anthropic import Anthropic, omit
-from openai import OpenAI, OpenAIError, RateLimitError
+from openai import APITimeoutError, OpenAI, OpenAIError, RateLimitError, InternalServerError, APIConnectionError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -93,9 +93,9 @@ class APIModel(Model):
     @retry(
         stop=stop_after_attempt(10),
         wait=wait_exponential(multiplier=10, max=600),
-        retry=retry_if_exception_type((RateLimitError, TimeoutException, OpenAIError)),
+        retry=retry_if_exception_type((RateLimitError, InternalServerError, APITimeoutError, APIConnectionError, TimeoutException)),
         before_sleep=lambda retry_state: print(
-            f"Waiting for {retry_state.next_action.sleep:.0f} seconds due to rate limit..."  # type: ignore
+            f"Retrying in {retry_state.next_action.sleep:.0f}s due to: {retry_state.outcome.exception()}"  # type: ignore
         ),
     )
     def generate_with_retry(self, messages: list[Message], **_) -> str:

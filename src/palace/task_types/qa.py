@@ -1,13 +1,9 @@
 """Configurable QA task type with LLM judge verification."""
 
 import os
-from typing import TYPE_CHECKING
 
 from palace.judge import Judge
-from palace.task_types.base import TaskType, TaskVerificationResult
-
-if TYPE_CHECKING:
-    from palace.task_types.base import Task
+from palace.task_types.base import Task, TaskVerificationResult
 
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
@@ -18,24 +14,24 @@ DEFAULT_CORRECTNESS_CRITERION = {
 DEFAULT_REFERENCES = {"correct": ["expected"], "incorrect": []}
 
 
-class QATaskType(TaskType):
+class QATask(Task):
     """Configurable QA task type with LLM judge verification."""
 
-    def adapt_prompt(self, task: "Task") -> str:
-        return f"Provide the direct answer, without any additional text:\n\n{task.objective}"
+    def adapt_prompt(self) -> str:
+        return f"Provide the direct answer, without any additional text:\n\n{self.objective}"
 
-    def _get_config(self, task: "Task") -> tuple[dict, dict]:
+    def _get_config(self) -> tuple[dict, dict]:
         """Get correctness_criterion and references from config or defaults."""
-        task_type_fields = task.custom_fields.get("task_type_fields", {})
+        task_type_fields = self.custom_fields.get("task_type_fields", {})
         criterion = task_type_fields.get("correctness_criterion", DEFAULT_CORRECTNESS_CRITERION)
         references = task_type_fields.get("references", DEFAULT_REFERENCES)
         return criterion, references
 
-    def _get_reference_value(self, task: "Task", field_name: str) -> str | None:
+    def _get_reference_value(self, field_name: str) -> str | None:
         """Get reference value from task by field name."""
         if field_name == "expected":
-            return task.expected
-        return task.custom_fields.get(field_name)
+            return self.expected
+        return self.custom_fields.get(field_name)
 
     def _build_judge_prompt(self, criterion: dict, references: dict, has_incorrect: bool) -> str:
         """Build judge prompt dynamically from configuration."""
@@ -86,14 +82,14 @@ Your observations and reasoning about why the provided answer might or might not
 Either Correct or Incorrect. No other text can be here.
 </judgement>"""
 
-    def _build_judge_input(self, task: "Task", answer: str, references: dict) -> str:
+    def _build_judge_input(self, answer: str, references: dict) -> str:
         """Build the input for the judge from task and references."""
-        parts = [f"QUESTION\n{task.objective}"]
+        parts = [f"QUESTION\n{self.objective}"]
 
         correct_fields = references.get("correct", ["expected"])
         correct_parts = []
         for field in correct_fields:
-            value = self._get_reference_value(task, field)
+            value = self._get_reference_value(field)
             if value:
                 correct_parts.append(f"{field}: {value}")
         if correct_parts:
@@ -103,7 +99,7 @@ Either Correct or Incorrect. No other text can be here.
         if incorrect_fields:
             incorrect_parts = []
             for field in incorrect_fields:
-                value = self._get_reference_value(task, field)
+                value = self._get_reference_value(field)
                 if value:
                     incorrect_parts.append(f"{field}: {value}")
             if incorrect_parts:
@@ -112,27 +108,27 @@ Either Correct or Incorrect. No other text can be here.
         parts.append(f"PROVIDED ANSWER\n{answer}")
         return "\n\n".join(parts)
 
-    def expected_display(self, task: "Task") -> str | None:
+    def expected_display(self) -> str | None:
         """Derive expected value from first correct reference field."""
-        _, references = self._get_config(task)
+        _, references = self._get_config()
         correct_fields = references.get("correct", ["expected"])
         if correct_fields:
-            return self._get_reference_value(task, correct_fields[0])
-        return task.expected
+            return self._get_reference_value(correct_fields[0])
+        return self.expected
 
-    def verify(self, task: "Task", answer: str) -> TaskVerificationResult:
-        criterion, references = self._get_config(task)
+    def verify(self, answer: str) -> TaskVerificationResult:
+        criterion, references = self._get_config()
 
         correct_fields = references.get("correct", ["expected"])
-        has_correct = any(self._get_reference_value(task, f) for f in correct_fields)
+        has_correct = any(self._get_reference_value(f) for f in correct_fields)
         if not has_correct:
             raise ValueError(f"Cannot verify QA task without at least one correct reference. Fields checked: {correct_fields}")
 
         incorrect_fields = references.get("incorrect", [])
-        has_incorrect = bool(incorrect_fields) and any(self._get_reference_value(task, f) for f in incorrect_fields)
+        has_incorrect = bool(incorrect_fields) and any(self._get_reference_value(f) for f in incorrect_fields)
 
         judge_prompt = self._build_judge_prompt(criterion, references, has_incorrect)
-        judge_input = self._build_judge_input(task, answer, references)
+        judge_input = self._build_judge_input(answer, references)
 
         verifier = Judge(judge_model=JUDGE_MODEL, judge_prompt=judge_prompt)
         keyword_values = verifier.judge(judge_input)

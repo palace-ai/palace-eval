@@ -16,13 +16,65 @@ from palace.utils.multimodal import is_image_attachment
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import loading, print
 
-agent_run_stats: list[dict[str, Any]] = [
-    {"name": "n_steps", "pass@k": True, "pass@k_symbol": "s"},
-    {"name": "n_toolcalls", "pass@k": True, "pass@k_symbol": "tc"},
-    {"name": "n_tool_hallucinations"},
-    {"name": "tools_list"},
-    {"name": "tool_calls_list"},
-]
+
+def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
+    """Compute agent-execution metrics: pass@k, averages, tool hallucination rate."""
+    agent_run_stats: list[dict[str, Any]] = [
+        {"name": "n_steps", "pass@k": True, "pass@k_symbol": "s"},
+        {"name": "n_toolcalls", "pass@k": True, "pass@k_symbol": "tc"},
+        {"name": "n_tool_hallucinations"},
+        {"name": "tools_list"},
+        {"name": "tool_calls_list"},
+    ]
+
+    def _stat_present(name: str) -> bool:
+        return any(name in r for r in report.values())
+
+    metrics: dict[str, float] = {}
+
+    # pass@k scores
+    for stat, k_value in itertools.product(
+        [s for s in agent_run_stats if s.get("pass@k") and _stat_present(s["name"])],
+        [1, 3, 6, 10],
+    ):
+        n_tasks = len([r for r in report.values() if stat["name"] in r])
+        if n_tasks == 0:
+            continue
+        metrics[f"pass@{k_value}{stat['pass@k_symbol']}"] = (
+            len([r for r in report.values() if r["is_correct"] and stat["name"] in r and r[stat["name"]] <= k_value])
+            / n_tasks
+        )
+
+    # metric averages (overall, passed, failed)
+    for stat in agent_run_stats:
+        if not stat.get("pass@k") or not _stat_present(stat["name"]):
+            continue
+        total = count = total_passed = count_passed = total_failed = count_failed = 0
+        for r in report.values():
+            if stat["name"] not in r:
+                continue
+            total += r[stat["name"]]
+            count += 1
+            if r["is_correct"]:
+                total_passed += r[stat["name"]]
+                count_passed += 1
+            else:
+                total_failed += r[stat["name"]]
+                count_failed += 1
+        if count > 0:
+            metrics[f"avg_{stat['name']}"] = total / count
+        if count_passed > 0:
+            metrics[f"avg_{stat['name']}_passed"] = total_passed / count_passed
+        if count_failed > 0:
+            metrics[f"avg_{stat['name']}_failed"] = total_failed / count_failed
+
+    # tool hallucination rate
+    if any("n_toolcalls" in r for r in report.values()):
+        n_hallucinations = sum(r.get("n_tool_hallucinations", 0) for r in report.values())
+        n_toolcalls = sum(r.get("n_toolcalls", 0) for r in report.values())
+        metrics["tool_hallucination_rate"] = n_hallucinations / n_toolcalls if n_toolcalls > 0 else 0
+
+    return metrics
 
 
 class Evaluation:
@@ -74,7 +126,7 @@ class Evaluation:
         analyzer_metrics = {}
         for analyzer in self.analyzers:
             # Skip if analyzer doesn't support this task type
-            if type(task.task_type) not in analyzer.supported_task_types:
+            if type(task) not in analyzer.supported_task_types:
                 continue
             try:
                 with loading():
@@ -107,114 +159,18 @@ class Evaluation:
 :scroll: on tasklist [blue]{tasklist}[/]
 """)
 
-                report = self.evaluate(agent, tasklist)
+                report, verification_results, task_cls = self.evaluate(agent, tasklist)
 
-                # aggregate relevant information from individual tasklist
-                correct_tasks = sum(
-                    [task_report["is_correct"] for _, task_report in report.items()]
-                )
-                total_time = sum(
-                    [task_report["elapsed_time"] for _, task_report in report.items()]
-                )
-                accuracy = (correct_tasks / len(report)) if correct_tasks > 0 else 0
+                correct_tasks = sum(r.is_correct for r in verification_results)
+                total_time = sum(t["elapsed_time"] for t in report.values())
 
-                # compute pass@k scores
-                # pass@{N}{metric} is the probability of completing a given task successfully by using not more than N metric
-                # the score is not based only on passed tasks but on failed tasks too! (they will decrease the final score)
-                # basically, any pass@{N}{metric} score can never be greater than the accuracy; it's just accuracy with extra constraints
-                pass_at_k_scores = {}
-                for metric, k_value in itertools.product(
-                    [
-                        stat
-                        for stat in agent_run_stats
-                        if stat.get("pass@k") and stat["name"] in report
-                    ],
-                    [1, 3, 6, 10],
-                ):
-                    n_tasks_with_metric = len(
-                        [
-                            task_report
-                            for task_report in report.values()
-                            if metric["name"] in task_report
-                        ]
-                    )
-                    if n_tasks_with_metric == 0:
-                        continue  # skip to avoid division by zero
-                    pass_at_k_scores[f"pass@{k_value}{metric['pass@k_symbol']}"] = (
-                        len(
-                            [
-                                task_report
-                                for task_report in report.values()
-                                if task_report["is_correct"]
-                                and metric["name"] in task_report
-                                and task_report[metric["name"]] <= k_value
-                            ]
-                        )
-                        / n_tasks_with_metric
-                    )
+                # Task-type aggregation (F1, avg_normalized_score, etc.)
+                task_type_metrics = task_cls.aggregate(verification_results)
 
-                # compute averages for each task-specific metric, including average when the task is successful and average when the task failed
-                metrics_averages = {}
-                for stat in agent_run_stats:
-                    if not stat.get("pass@k") or stat["name"] not in report:
-                        continue
-                    total = 0
-                    count = 0
-                    total_passed = 0
-                    count_passed = 0
-                    total_failed = 0
-                    count_failed = 0
-                    for task_report in report.values():
-                        total += task_report[stat["name"]]
-                        count += 1
-                        if task_report["is_correct"]:
-                            total_passed += task_report[stat["name"]]
-                            count_passed += 1
-                        elif not task_report["is_correct"]:
-                            total_failed += task_report[stat["name"]]
-                            count_failed += 1
-                        else:
-                            raise Exception("Task is neither correct nor not correct")
-                    if count > 0:
-                        metrics_averages[f"avg_{stat['name']}"] = total / count
-                    if count_passed > 0:
-                        metrics_averages[f"avg_{stat['name']}_passed"] = (
-                            total_passed / count_passed
-                        )
-                    if count_failed > 0:
-                        metrics_averages[f"avg_{stat['name']}_failed"] = (
-                            total_failed / count_failed
-                        )
+                # Agent-execution metrics (pass@k, averages, tool hallucination)
+                agent_metrics = compute_agent_metrics(report)
 
-                # compute tool hallucination rate: total number of tool hallucinations over total number of tool calls
-                tool_hallucination_rate = {}
-                if (  # if there is at least one task with number of toolcalls recorded (to avoid divion by zero)
-                    len(
-                        [
-                            task_report
-                            for task_report in report.values()
-                            if "n_toolcalls" in task_report
-                        ]
-                    )
-                    > 0
-                ):
-                    n_tool_hallucinations = sum(
-                        [
-                            task_report.get("n_tool_hallucinations", 0)
-                            for task_report in report.values()
-                        ]
-                    )
-                    n_toolcalls = sum(
-                        [
-                            task_report.get("n_toolcalls", 0)
-                            for task_report in report.values()
-                        ]
-                    )
-                    tool_hallucination_rate = {
-                        "tool_hallucination_rate": n_tool_hallucinations / n_toolcalls
-                        if n_toolcalls > 0
-                        else 0
-                    }
+                accuracy = task_type_metrics.get("accuracy", 0)
 
                 print()
                 print(
@@ -227,30 +183,14 @@ class Evaluation:
                     box_title="Evaluation Report",
                 )
 
-                # Build metrics dict with universal metrics
+                # Build metrics dict
                 metrics: dict[str, int | float | dict] = {
                     "task_count": len(report),
                     "correct_count": correct_tasks,
                     "total_time": total_time,
                 }
-                metrics |= pass_at_k_scores
-                metrics |= metrics_averages
-                if tool_hallucination_rate:
-                    metrics |= tool_hallucination_rate
-
-                # Aggregate task-type-specific metrics (e.g., avg normalized_score for ReportGeneration)
-                task_type_metrics = {}
-                normalized_scores = [
-                    r["metrics"]["normalized_score"]
-                    for r in report.values()
-                    if r.get("metrics") and "normalized_score" in r["metrics"]
-                ]
-                if normalized_scores:
-                    task_type_metrics["avg_normalized_score"] = sum(
-                        normalized_scores
-                    ) / len(normalized_scores)
-                if task_type_metrics:
-                    metrics["task_type_metrics"] = task_type_metrics
+                metrics |= task_type_metrics
+                metrics |= agent_metrics
 
                 run_results = {
                     "agent": agent.name,
@@ -280,13 +220,26 @@ class Evaluation:
         self,
         agent: Agent,
         tasklist: str,
-    ):
+    ) -> tuple[dict[str, dict], list[TaskVerificationResult], type[Task]]:
         report: dict[str, dict] = {}
+        verification_results: list[TaskVerificationResult] = []
         tasklist_path = TASKLISTS_PATH / tasklist
 
         # load tasklist and metadata
         with open(tasklist_path / "info.json") as f:
             tasklist_info = json.load(f)
+
+        # Resolve task class for aggregation
+        from palace.task_types.classification import ClassificationTask
+        from palace.task_types.qa import QATask
+        from palace.task_types.report_generation import ReportGenerationTask
+
+        task_type_map = {
+            "QA": QATask,
+            "Classification": ClassificationTask,
+            "Report Generation": ReportGenerationTask,
+        }
+        task_cls = task_type_map.get(tasklist_info["task_type"], Task)
 
         with open(tasklist_path / "tasks.json") as f:
             json_tasks = json.load(f)
@@ -368,7 +321,7 @@ class Evaluation:
                 box_title=f":memo: Task {i + 1}",
             )
             print(
-                task.task_type.expected_display(task),
+                task.expected_display(),
                 box=True,
                 box_title=":fleur_de_lis: Expected Answer",
             )
@@ -390,6 +343,7 @@ class Evaluation:
                 )
                 is_correct = False
                 reasoning = None
+                verification_results.append(TaskVerificationResult(is_correct=False, reasoning="No response"))
             elif task.custom_verificator is not None and task.custom_verificator != "":
 
                 def load_function(code: str):
@@ -402,6 +356,7 @@ class Evaluation:
                     verificator = load_function(task.custom_verificator)
                     is_correct = verificator(result, task.expected)
                     reasoning = None
+                    verification_results.append(TaskVerificationResult(is_correct=is_correct, reasoning=reasoning))
                 except Exception as e:
                     print(
                         f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task.custom_verificator}\nThe exception is:\n{e}.\nSkipping to next task.[/"
@@ -416,11 +371,13 @@ class Evaluation:
                     is_correct = verification_result.is_correct
                     reasoning = verification_result.reasoning
                     task_metrics = verification_result.metrics
+                    verification_results.append(verification_result)
                 else:
                     print(
                         f"[bold yellow]Legacy verification result format detected for task type {type(task).__name__}. Consider updating the task.verify() method to return a TaskVerificationResult for richer metrics and reasoning.[/]"
                     )
                     is_correct, reasoning = verification_result
+                    verification_results.append(TaskVerificationResult(is_correct=is_correct, reasoning=reasoning))
 
                 if is_correct:
                     print("[bold green]:white_check_mark: Correct[/]")
@@ -433,7 +390,7 @@ class Evaluation:
             elapsed_time = time.time() - start_time
             report[task.id] = {
                 "objective": task.objective,
-                "expected": task.task_type.expected_display(task),
+                "expected": task.expected_display(),
                 "actual": result,
                 "is_correct": is_correct if result is not None else False,
                 "reasoning": reasoning,
@@ -466,4 +423,4 @@ class Evaluation:
                 i + 1, len(tasks)
             ) if self.on_task_complete is not None else None
 
-        return report
+        return report, verification_results, task_cls

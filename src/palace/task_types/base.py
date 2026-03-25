@@ -1,4 +1,4 @@
-"""Base classes for task types and task verification."""
+"""Base classes for tasks and task verification."""
 
 from dataclasses import dataclass, field
 from typing import Any, Self
@@ -13,38 +13,15 @@ class TaskVerificationResult:
     metrics: dict[str, Any] = field(default_factory=dict)
 
 
-class TaskType:
-    """Base class for task types."""
-
-    def adapt_prompt(self, task: "Task") -> str:
-        """Adapt the prompt of the given task according to the specific task type logic."""
-        raise NotImplementedError("Subclasses must implement the adapt_prompt method.")
-
-    def verify(
-        self, task: "Task", answer: str
-    ) -> tuple[bool, str | None] | TaskVerificationResult:
-        """Verify the task using task type-specific logic."""
-        raise NotImplementedError("Subclasses must implement the verify method.")
-
-    def expected_display(self, task: "Task") -> str | None:
-        """Return a human-readable expected answer for display/logging purposes.
-        
-        Subclasses should override this to provide task-type-specific formatting.
-        Default implementation returns task.expected.
-        """
-        return task.expected
-
-
 class Task:
     """
-    Represents a task.
+    Base class for all tasks. Subclasses implement task-type-specific behavior.
 
     Instances must be created using the `from_dict()` factory method.
     """
 
     id: str
     objective: str
-    task_type: TaskType
     expected: str | None
     references: str | None
     difficulty: str | None
@@ -53,13 +30,41 @@ class Task:
     custom_verificator: str | None
     custom_fields: dict[str, Any]
 
+    def adapt_prompt(self) -> str:
+        """Build the task prompt. Subclasses must override."""
+        raise NotImplementedError("Subclasses must implement adapt_prompt().")
+
+    def verify(self, answer: str) -> tuple[bool, str | None] | TaskVerificationResult:
+        """Verify the answer. Subclasses must override."""
+        raise NotImplementedError("Subclasses must implement verify().")
+
+    def expected_display(self) -> str | None:
+        """Return a human-readable expected answer for display/logging.
+        Subclasses may override for task-type-specific formatting.
+        """
+        return self.expected
+
+    def create_prompt(self) -> str:
+        """Adapt the task prompt based on its task type."""
+        return self.adapt_prompt()
+
+    @classmethod
+    def aggregate(cls, results: list[TaskVerificationResult]) -> dict[str, Any]:
+        """Compute aggregate metrics from all task results.
+        Default: accuracy only. Subclasses override for richer metrics.
+        """
+        if not results:
+            return {"accuracy": 0}
+        correct = sum(1 for r in results if r.is_correct)
+        return {"accuracy": correct / len(results)}
+
     @classmethod
     def from_dict(cls, data: dict) -> Self:
         """Create a Task instance from a dictionary."""
         # Import here to avoid circular imports
-        from palace.task_types.classification import ClassificationTaskType
-        from palace.task_types.qa import QATaskType
-        from palace.task_types.report_generation import ReportGenerationTaskType
+        from palace.task_types.classification import ClassificationTask
+        from palace.task_types.qa import QATask
+        from palace.task_types.report_generation import ReportGenerationTask
         from palace.utils.printing import print
 
         required_fields = ["id", "objective", "task_type"]
@@ -92,18 +97,18 @@ class Task:
             task_type_name = new_name
 
         task_type_map = {
-            "QA": QATaskType,
-            "Report Generation": ReportGenerationTaskType,
-            "Classification": ClassificationTaskType,
+            "QA": QATask,
+            "Classification": ClassificationTask,
+            "Report Generation": ReportGenerationTask,
         }
 
         if task_type_name not in task_type_map:
             raise ValueError(f"Unknown task_type '{task_type_name}'. Valid types: {list(task_type_map.keys())}")
 
-        task = cls.__new__(cls)
+        subclass = task_type_map[task_type_name]
+        task = subclass.__new__(subclass)
         task.id = data["id"]
         task.objective = data["objective"]
-        task.task_type = task_type_map[task_type_name]()
         task.expected = data.get("expected")
         task.references = data.get("references")
         task.difficulty = data.get("difficulty")
@@ -117,11 +122,3 @@ class Task:
 
     def __init__(self):
         raise NotImplementedError("Use Task.from_dict() to create Task instances.")
-
-    def create_prompt(self) -> str:
-        """Adapt the task prompt based on its task type."""
-        return self.task_type.adapt_prompt(self)
-
-    def verify(self, result: str) -> tuple[bool, str | None] | TaskVerificationResult:
-        """Verify the task using task type-specific logic."""
-        return self.task_type.verify(self, result)

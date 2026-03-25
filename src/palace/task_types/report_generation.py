@@ -2,16 +2,13 @@
 
 import os
 import re
-from typing import TYPE_CHECKING
+from typing import Any
 
 from palace.judge import Judge
-from palace.task_types.base import TaskType, TaskVerificationResult
+from palace.task_types.base import Task, TaskVerificationResult
 from palace.utils.printing import print
 
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
-
-if TYPE_CHECKING:
-    from palace.task_types.base import Task
 
 DEFAULT_CRITERIA = [
     {
@@ -87,31 +84,59 @@ def _create_batches(criteria: list[dict], max_per_batch: int) -> list[list[dict]
     return batches if batches else [criteria]
 
 
-class ReportGenerationTaskType(TaskType):
+class ReportGenerationTask(Task):
     """Configurable report generation evaluation using pairwise comparison.
 
     Supports flat criteria or hierarchical dimensions with nested criteria.
     Evaluates in batches to handle large numbers of criteria.
     """
 
-    def adapt_prompt(self, task: "Task") -> str:
-        return f"Generate a detailed report based on the following prompt:\n\n{task.objective}"
+    @classmethod
+    def aggregate(cls, results: list["TaskVerificationResult"]) -> dict[str, Any]:
+        """Compute avg_normalized_score and per-dimension/criteria averages."""
+        base = super().aggregate(results)
+        if not results:
+            return base
 
-    def _get_criteria(
-        self, task: "Task"
-    ) -> tuple[list[dict], dict[str, list[str]] | None]:
+        # avg_normalized_score
+        scores = [r.metrics["normalized_score"] for r in results if "normalized_score" in r.metrics]
+        if scores:
+            base["avg_normalized_score"] = round(sum(scores) / len(scores), 4)
+
+        # per-dimension averages
+        dim_totals: dict[str, list[float]] = {}
+        for r in results:
+            for dim, score in r.metrics.get("dimension_scores", {}).items():
+                dim_totals.setdefault(dim, []).append(score)
+        if dim_totals:
+            base["per_dimension_avg"] = {d: round(sum(v) / len(v), 4) for d, v in dim_totals.items()}
+
+        # per-criteria averages
+        crit_totals: dict[str, list[float]] = {}
+        for r in results:
+            for crit, score in r.metrics.get("criteria_scores", {}).items():
+                crit_totals.setdefault(crit, []).append(score)
+        if crit_totals:
+            base["per_criteria_avg"] = {c: round(sum(v) / len(v), 4) for c, v in crit_totals.items()}
+
+        return base
+
+    def adapt_prompt(self) -> str:
+        return f"Generate a detailed report based on the following prompt:\n\n{self.objective}"
+
+    def _get_criteria(self) -> tuple[list[dict], dict[str, list[str]] | None]:
         """Get criteria from task_type_fields or use defaults.
 
         Returns:
             (criteria_list, dimension_map) - dimension_map is None for flat format
         """
-        task_type_fields = task.custom_fields.get("task_type_fields", {})
+        task_type_fields = self.custom_fields.get("task_type_fields", {})
 
         # Hierarchical format: dimensions with nested criteria
         if "dimensions" in task_type_fields:
             base_dims = task_type_fields["dimensions"]
             if task_type_fields.get("per_task_criteria", False):
-                task_dims = task.custom_fields.get("dimensions", [])
+                task_dims = self.custom_fields.get("dimensions", [])
                 # Merge: task dimensions override by name, add new ones
                 merged = {d["name"]: d for d in base_dims}
                 for d in task_dims:
@@ -125,7 +150,7 @@ class ReportGenerationTaskType(TaskType):
             return tasklist_criteria, None
 
         # Merge: task criteria override by name, add new ones
-        task_criteria = task.custom_fields.get("criteria", [])
+        task_criteria = self.custom_fields.get("criteria", [])
         merged_criteria = {c["name"]: c for c in tasklist_criteria}
         for c in task_criteria:
             merged_criteria[c["name"]] = c
@@ -185,7 +210,7 @@ The length of a report is not necessarily an indicator of quality - focus on the
         )
         return verifier.judge(prompt_AB), verifier.judge(prompt_BA)
 
-    def verify(self, task: "Task", answer: str) -> TaskVerificationResult:
+    def verify(self, answer: str) -> TaskVerificationResult:
         """Verify using configurable criteria with pairwise comparison."""
         if not answer or not answer.strip():
             return TaskVerificationResult(
@@ -195,31 +220,31 @@ The length of a report is not necessarily an indicator of quality - focus on the
             )
 
         try:
-            criteria, dimension_map = self._get_criteria(task)
-            task_type_fields = task.custom_fields.get("task_type_fields", {})
+            criteria, dimension_map = self._get_criteria()
+            task_type_fields = self.custom_fields.get("task_type_fields", {})
             max_per_batch = task_type_fields.get(
                 "max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH
             )
 
             prompt_AB = f"""
     QUESTION
-    {task.objective}
+    {self.objective}
 
     REPORT A
-    {task.expected}
+    {self.expected}
 
     REPORT B
     {answer}
     """
             prompt_BA = f"""
     QUESTION
-    {task.objective}
+    {self.objective}
 
     REPORT A
     {answer}
 
     REPORT B
-    {task.expected}
+    {self.expected}
     """
 
             # Evaluate in batches

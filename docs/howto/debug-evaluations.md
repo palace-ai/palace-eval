@@ -147,12 +147,11 @@ Provide the direct answer, without any additional text:
 View the generated prompt by checking verbose output or:
 
 ```python
-from palace.task_types.classification import ClassificationTaskType
-from palace.task import Task
+from palace.task_types.classification import ClassificationTask
+from palace.task_types.base import Task
 
-task_type = ClassificationTaskType()
-task = Task(id="test", objective="Test content", custom_fields={...})
-print(task_type.adapt_prompt(task))
+task = Task.from_dict({"id": "test", "objective": "Test content", "task_type": "Classification", ...})
+print(task.adapt_prompt())
 ```
 
 ### Judge Prompts
