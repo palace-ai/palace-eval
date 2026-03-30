@@ -53,6 +53,9 @@ nav:
     - Official Tasklists:
       - reference/tasklists/index.md
       - GuardBench: reference/tasklists/guardbench.md
+      - RTVLM: reference/tasklists/rtvlm.md
+      - VLGuard: reference/tasklists/vlguard.md
+      - MM-SafetyBench: reference/tasklists/mmsafetybench.md
       - Sycophancy: reference/tasklists/sycophancy.md
       - ValuesEval24: reference/tasklists/valueseval24.md
       - DocRetrieval: reference/tasklists/docretrieval.md

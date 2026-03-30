@@ -2,7 +2,7 @@
 
 This section documents the official benchmark tasklists developed by the JRC AI team. These tasklists are designed to evaluate specific capabilities of large language models, from safety classification to complex research report generation.
 
-All official tasklists are available on HuggingFace under the `jrc-ai` organization and can be downloaded using `palace-download`.
+Most official tasklists are available on HuggingFace under the `jrc-ai` organization and can be downloaded using `palace-download`. Multimodal safety benchmarks (RTVLM, VLGuard, MM-SafetyBench) use conversion scripts instead — see their individual pages for setup instructions.
 
 ## Overview
 
@@ -11,6 +11,9 @@ The official PALACE tasklists span three task types and cover a diverse range of
 | Tasklist | Task Type | Category | Tasks | Description |
 |----------|-----------|----------|------:|-------------|
 | [GuardBench](guardbench.md) | Classification | Safety | 30,852+ | Multilingual safety content classification |
+| [RTVLM](rtvlm.md) | Classification | Safety | 921 | Multimodal red-teaming safety classification |
+| [VLGuard](vlguard.md) | Classification | Safety | 1,558 | Multimodal safety with paired safe/unsafe instructions |
+| [MM-SafetyBench](mmsafetybench.md) | Classification | Safety | 5,040 | Adversarial image jailbreak stress test |
 | [Sycophancy](sycophancy.md) | Classification / QA | Reliability | 26,188 | Sycophancy detection in two modalities |
 | [ValuesEval24](valueseval24.md) | Classification | Alignment | 14,904 | Human values detection across 9 languages |
 | [DocRetrieval](docretrieval.md) | QA | Agentic | 1,420 | Multi-document retrieval and synthesis |
@@ -51,6 +54,9 @@ The official PALACE tasklists share several design principles:
 ### Safety & Reliability
 
 - **[GuardBench](guardbench.md)**: Tests whether models can identify unsafe or potentially harmful content across five European languages.
+- **[RTVLM](rtvlm.md)**: Tests whether multimodal guardrail models can identify unsafe content in image+text inputs, including jailbreak images, sensitive photographs, and misleading visuals.
+- **[VLGuard](vlguard.md)**: Tests whether models can determine safety when the same image is paired with both safe and unsafe instructions.
+- **[MM-SafetyBench](mmsafetybench.md)**: Pure adversarial stress test — every task is a jailbreak attempt using query-relevant images across 13 harmful scenarios.
 - **[Sycophancy](sycophancy.md)**: Evaluates whether models maintain objectivity when users express opinions, rather than agreeing with stated beliefs.
 
 ### Alignment & Values

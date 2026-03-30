@@ -9,6 +9,9 @@ Technical specifications and complete documentation for PALACE configuration and
 Comprehensive documentation for the official benchmark tasklists developed by the JRC AI team:
 
 - [GuardBench](tasklists/guardbench.md) — Multilingual safety content classification
+- [RTVLM](tasklists/rtvlm.md) — Multimodal red-teaming safety classification
+- [VLGuard](tasklists/vlguard.md) — Multimodal safety with paired safe/unsafe instructions
+- [MM-SafetyBench](tasklists/mmsafetybench.md) — Adversarial image jailbreak stress test
 - [Sycophancy](tasklists/sycophancy.md) — Sycophancy detection in two modalities
 - [ValuesEval24](tasklists/valueseval24.md) — Human values detection across 9 languages
 - [DocRetrieval](tasklists/docretrieval.md) — Multi-document retrieval and synthesis
