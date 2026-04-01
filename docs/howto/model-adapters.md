@@ -56,6 +56,43 @@ Adapters are defined in a YAML file at:
 
 On Linux, this resolves to `/home/<user>/.config/palace/io_adapters.yaml`. The file is optional — if it doesn't exist, PALACE uses default behavior.
 
+## Bundled Adapters
+
+PALACE ships with pre-configured adapters for popular specialized models (guardrails, safety classifiers, etc.) inside the package. These work out of the box — no configuration needed.
+
+When you evaluate a model, PALACE checks your local adapter file first, then falls back to bundled adapters. This means bundled adapters activate automatically for supported models, but you can always override them.
+
+### Overriding a Bundled Adapter
+
+Add a matching glob pattern to your local `io_adapters.yaml`. Your entry takes priority over the bundled one:
+
+```yaml
+# ~/.config/palace/io_adapters.yaml
+
+# Override bundled adapter with custom output parsing
+"granite-guardian-*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>Yes|No|safe|unsafe)"
+    mapping:
+      result:
+        safe: "No"
+        unsafe: "Yes"
+```
+
+### Disabling a Bundled Adapter
+
+To disable a bundled adapter entirely and use default PALACE behavior, add the matching pattern with an empty body:
+
+```yaml
+# ~/.config/palace/io_adapters.yaml
+
+"granite-guardian-*":  # disables bundled adapter — uses default PALACE prompts
+```
+
+An empty entry produces a passthrough adapter: the model receives the standard task prompt and its raw output is used as-is.
+
 ### Schema
 
 ```yaml
@@ -266,10 +303,17 @@ Patterns are **case-sensitive** on Linux. The first matching pattern in the file
 PALACE resolves adapters in this order:
 
 1. **Programmatic adapter** — passed directly to `evaluate(io_adapter={...})`. Used by palace-gradin.
-2. **File adapter** — first glob match in `~/.config/palace/io_adapters.yaml`. Used by CLI users.
-3. **No adapter** — default PALACE behavior.
+2. **User file adapter** — first glob match in `~/.config/palace/io_adapters.yaml`. Used by CLI users.
+3. **Bundled adapter** — first glob match in the package's `bundled_io_adapters.yaml`. Ships with PALACE.
+4. **No adapter** — default PALACE behavior.
 
-If both a programmatic adapter and a file adapter could match, the programmatic one wins.
+The first match wins. If your user file has a pattern that matches the model, bundled adapters are never checked. The evaluation log shows which source was used:
+
+```
+🔧 Using I/O adapter for granite-guardian-3.1-8b (bundled)
+🔧 Using I/O adapter for nemotron_moderator (user)
+🔧 Using I/O adapter for custom-model (explicit)
+```
 
 ## Gradin Usage
 

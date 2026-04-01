@@ -101,6 +101,8 @@ def parse_io_adapter_config(config: dict) -> IOAdapter:
 
     Raises ValueError on invalid config (bad regex, template references unknown groups).
     """
+    if not config:
+        return IOAdapter()
     input_template = None
     output_pattern = None
     output_template = None
@@ -183,20 +185,31 @@ def get_io_adapter(
     model_name: str,
     explicit_adapter: dict | None = None,
     file_io_adapters: dict[str, IOAdapter] | None = None,
-) -> IOAdapter | None:
-    """Get I/O adapter for model. Priority: explicit > file > None.
+    bundled_io_adapters: dict[str, IOAdapter] | None = None,
+) -> tuple[IOAdapter, str] | None:
+    """Get I/O adapter for model. Priority: explicit > user file > bundled > None.
 
     Args:
-        model_name: The model name to match against adapter patterns
-        explicit_adapter: Programmatic adapter dict (highest priority)
-        file_io_adapters: Pre-loaded file adapters from load_io_adapters()
+        model_name: The model name to match against adapter patterns.
+        explicit_adapter: Programmatic adapter dict (highest priority).
+        file_io_adapters: Pre-loaded user file adapters from load_io_adapters().
+        bundled_io_adapters: Pre-loaded bundled adapters from load_io_adapters().
+
+    Returns:
+        Tuple of (adapter, source) where source is "explicit", "user", or
+        "bundled". Returns None if no adapter matches.
     """
     if explicit_adapter is not None:
-        return parse_io_adapter_config(explicit_adapter)
+        return parse_io_adapter_config(explicit_adapter), "explicit"
 
     if file_io_adapters:
         for pattern, adapter in file_io_adapters.items():
             if fnmatch.fnmatch(model_name, pattern):
-                return adapter
+                return adapter, "user"
+
+    if bundled_io_adapters:
+        for pattern, adapter in bundled_io_adapters.items():
+            if fnmatch.fnmatch(model_name, pattern):
+                return adapter, "bundled"
 
     return None

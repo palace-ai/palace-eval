@@ -60,5 +60,6 @@ palace-download = "palace.entrypoints.download.palace_download:main"
 [tool.setuptools.package-data]
 palace = [
     "prompts/*.md",
-    "entrypoints/download/*.json"
+    "entrypoints/download/*.json",
+    "bundled_io_adapters.yaml",
 ]

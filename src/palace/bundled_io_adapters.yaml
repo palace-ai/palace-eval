@@ -1,0 +1,107 @@
+# Bundled I/O Adapters for PALACE
+#
+# Pre-configured adapters for popular specialized models (guardrails, safety
+# classifiers, etc.) that ship with the palace package. Users get working
+# evaluations out of the box for these models.
+#
+# Priority: explicit (programmatic) > user file > bundled (this file) > none
+#
+# To override a bundled adapter, add a matching glob pattern to your local
+# file at ~/.config/palace/io_adapters.yaml. To disable a bundled adapter
+# entirely (use default palace behavior), add an empty entry:
+#
+#   "model-glob*":
+#
+# Same YAML schema as user adapters. See docs/howto/model-adapters.md.
+#
+# All adapters assume the serving infrastructure applies the model's chat
+# template. The input template sends only the raw task text; the output
+# adapter parses the model's native response format into what PALACE
+# expects for verification.
+
+# =============================================================================
+# IBM Granite Guardian (all versions)
+# Output: "Yes" (unsafe) or "No" (safe)
+# https://huggingface.co/ibm-granite/granite-guardian-3.1-8b
+# =============================================================================
+"*granite-guardian*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>Yes|No)"
+    template: "<Unsafe>{result}</Unsafe>"
+
+# =============================================================================
+# Meta LlamaGuard family
+# Output: "safe" or "unsafe\nS1,S2,..." (first token is safe/unsafe)
+# https://huggingface.co/meta-llama/Llama-Guard-3-8B
+# =============================================================================
+"*LlamaGuard*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>safe|unsafe)"
+    template: "<Unsafe>{result}</Unsafe>"
+    mapping:
+      result:
+        safe: "No"
+        unsafe: "Yes"
+
+"*Llama-Guard*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>safe|unsafe)"
+    template: "<Unsafe>{result}</Unsafe>"
+    mapping:
+      result:
+        safe: "No"
+        unsafe: "Yes"
+
+# =============================================================================
+# NVIDIA Aegis (LoRA on LlamaGuard)
+# Output: "safe" or "unsafe\nO1,O2,..." (same format as LlamaGuard)
+# https://huggingface.co/nvidia/Aegis-AI-Content-Safety-LlamaGuard-Defensive-1.0
+# =============================================================================
+"*Aegis*Content*Safety*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>safe|unsafe)"
+    template: "<Unsafe>{result}</Unsafe>"
+    mapping:
+      result:
+        safe: "No"
+        unsafe: "Yes"
+
+# =============================================================================
+# NVIDIA NemoGuard V2 (llama-3.1-nemoguard-8b-content-safety)
+# Output: JSON {"User Safety": "safe"/"unsafe", ...}
+# https://huggingface.co/nvidia/llama-3.1-nemoguard-8b-content-safety
+# =============================================================================
+"*nemoguard*content*safety*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "\"User Safety\":\\s*\"(?P<result>safe|unsafe)\""
+    template: "<Unsafe>{result}</Unsafe>"
+    mapping:
+      result:
+        safe: "No"
+        unsafe: "Yes"
+
+# =============================================================================
+# AllenAI WildGuard
+# Output: "Harmful request: yes/no\nResponse refusal: ...\nHarmful response: ..."
+# https://huggingface.co/allenai/wildguard
+# =============================================================================
+"*wildguard*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "Harmful request:\\s*(?P<result>yes|no)"
+    template: "<Unsafe>{result}</Unsafe>"
+    mapping:
+      result:
+        "yes": "Yes"
+        "no": "No"

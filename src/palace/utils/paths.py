@@ -12,6 +12,7 @@ CONFIG_DIR = Path(user_config_dir("palace"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 IO_ADAPTERS_FILE = CONFIG_DIR / "io_adapters.yaml"
+BUNDLED_IO_ADAPTERS_FILE = PACKAGE_ROOT / "bundled_io_adapters.yaml"
 
 TASKLISTS_PATH = USER_DIR / "tasklists"
 TASKLISTS_PATH.mkdir(parents=True, exist_ok=True)
