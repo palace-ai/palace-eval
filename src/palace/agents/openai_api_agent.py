@@ -54,7 +54,7 @@ class OpenAIAPIAgent(Agent):
     def environment(self) -> Environment:
         return self._environment
 
-    def run(self, prompt: str, image: str | None = None) -> tuple[str, dict[str, Any] | None]:
+    def run(self, prompt: str, image: str | None = None) -> tuple[str | None, dict[str, Any] | None]:
         agent = APIModel(
             model_id=self.name, url=self.url, token=self.token, api_type=self.api_type
         )
@@ -62,7 +62,7 @@ class OpenAIAPIAgent(Agent):
         try:
             output = agent.generate([{"role": "user", "content": content}])
         except Exception as e:
-            print(f"OpenAIAPI agent returned the following exception: \n{e}")
-            raise e
+            print(f"[bold red]OpenAIAPI agent error: {e}[/]")
+            return None, None
 
         return output, {}

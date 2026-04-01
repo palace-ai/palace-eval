@@ -2,7 +2,7 @@ import json
 from typing import Any, Callable
 
 from mcp.types import CallToolResult, TextContent
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from palace.agents import Agent
 from palace.environments.base_environment import Environment
@@ -90,7 +90,7 @@ class MCPAgent(Agent):
 
     @retry(
         stop=stop_after_attempt(5),
-        wait=wait_fixed(5),
+        wait=wait_exponential(multiplier=5, max=60),
         before_sleep=lambda retry_state: print(
             "Remote agent raised an exception, retrying...",
         ),

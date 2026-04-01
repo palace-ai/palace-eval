@@ -11,7 +11,7 @@ class Agent(ABC):
 
     @property
     @abstractmethod
-    def name(str) -> str:
+    def name(self) -> str:
         pass
 
     @property
@@ -30,11 +30,14 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def run(self, prompt: str, image: str | None = None) -> tuple[str, dict[str, Any] | None]:
+    def run(self, prompt: str, image: str | None = None) -> tuple[str | None, dict[str, Any] | None]:
         """Run the agent on the given prompt and return an answer.
 
         Args:
             prompt: The text prompt for the agent
             image: Optional path to an image file for multimodal tasks
+
+        Returns:
+            Tuple of (answer, metrics). answer is None if the agent failed to respond.
         """
         pass

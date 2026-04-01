@@ -13,6 +13,7 @@ from palace.agents import Agent
 from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
 from palace.task_types import Task, TaskVerificationResult
+from palace.utils.exceptions import ConvergenceError
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.multimodal import is_image_attachment
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
@@ -205,36 +206,42 @@ class Evaluation:
 
                 report, verification_results, task_cls = self.evaluate(agent, tasklist)
 
-                correct_tasks = sum(r.is_correct for r in verification_results)
+                evaluated = [r for r in verification_results if not r.is_skipped]
+                skipped = [r for r in verification_results if r.is_skipped]
+                correct_tasks = sum(r.is_correct for r in evaluated)
                 total_time = sum(t["elapsed_time"] for t in report.values())
 
                 # Task-type aggregation (F1, avg_normalized_score, etc.)
                 task_type_metrics = task_cls.aggregate(verification_results)
+                accuracy = task_type_metrics.pop("accuracy", 0)
 
                 # Agent-execution metrics (pass@k, averages, tool hallucination)
-                agent_metrics = compute_agent_metrics(report)
-
-                accuracy = task_type_metrics.get("accuracy", 0)
+                evaluated_report = {k: v for k, v in report.items() if not v.get("is_skipped")}
+                agent_metrics = compute_agent_metrics(evaluated_report)
 
                 print()
                 print(
                     f"[blue]:robot: {agent.name} ({agent.model_name} x {agent.paradigm_name})[/]:\n"
                     + f"on :package: [blue]{agent.environment.name}[/]\n"
                     + f"on :scroll: [blue]{tasklist}[/]\n\n"
-                    + f"[blue]{correct_tasks}[/] / [blue]{len(report)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completely successfully.\n"
-                    + f"Total time: [blue]{total_time}[/]",
+                    + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
+                    + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
+                    + f"\nTotal time: [blue]{total_time}[/]",
                     box=True,
                     box_title="Evaluation Report",
                 )
 
-                # Build metrics dict
+                # Build metrics dict with standardized structure
                 metrics: dict[str, int | float | dict] = {
                     "task_count": len(report),
+                    "evaluated_count": len(evaluated),
                     "correct_count": correct_tasks,
+                    "skipped_count": len(skipped),
                     "total_time": total_time,
+                    "accuracy": accuracy,
+                    "task_type": task_type_metrics,
+                    "agent": agent_metrics,
                 }
-                metrics |= task_type_metrics
-                metrics |= agent_metrics
 
                 run_results = {
                     "agent": agent.name,
@@ -327,6 +334,8 @@ class Evaluation:
             verification_result = None  # Initialize for analyzer check
             image_path = None  # For multimodal tasks
             attachment_content = ""  # Raw text attachment content for adapter
+            is_skipped = False
+            skip_reason = None
 
             if task.attachment is not None and task.attachment != "":
                 attachment_file = tasklist_path / "task_files" / task.attachment
@@ -345,6 +354,19 @@ class Evaluation:
                         print(
                             f"[yellow bold]Skipping task {task.id}: unsupported attachment type '{task.attachment}' (not text or image)[/]"
                         )
+                        vr = TaskVerificationResult(is_correct=False, is_skipped=True, skip_reason="unsupported_attachment")
+                        verification_results.append(vr)
+                        report[task.id] = {
+                            "objective": task.objective,
+                            "expected": task.expected_display(),
+                            "actual": None,
+                            "is_correct": False,
+                            "is_skipped": True,
+                            "skip_reason": "unsupported_attachment",
+                            "reasoning": None,
+                            "elapsed_time": 0.0,
+                        }
+                        self.on_task_complete(i + 1, len(tasks)) if self.on_task_complete is not None else None
                         continue
 
                     max_attachment_len = 200000
@@ -384,10 +406,21 @@ class Evaluation:
             )
 
             start_time = time.time()
-            with loading():
-                result, run_stats = agent.run(
-                    prompt=agent_prompt, image=image_path
-                )
+
+            # Run agent with error handling
+            try:
+                with loading():
+                    result, run_stats = agent.run(
+                        prompt=agent_prompt, image=image_path
+                    )
+            except ConvergenceError:
+                print("[bold red]:cross_mark: Agent did not converge (max steps reached)[/]")
+                result, run_stats = None, None
+                skip_reason = "no_response"
+            except Exception as e:
+                print(f"[bold red]:cross_mark: Agent error: {e}[/]")
+                result, run_stats = None, None
+                skip_reason = "agent_error"
 
             # Apply output adapter if configured
             if result is not None and adapter is not None:
@@ -400,7 +433,11 @@ class Evaluation:
                 )
                 is_correct = False
                 reasoning = None
-                verification_results.append(TaskVerificationResult(is_correct=False, reasoning="No response"))
+                is_skipped = True
+                skip_reason = skip_reason or "no_response"
+                verification_results.append(TaskVerificationResult(
+                    is_correct=False, is_skipped=True, skip_reason=skip_reason,
+                ))
             elif task.custom_verificator is not None and task.custom_verificator != "":
 
                 def load_function(code: str):
@@ -416,32 +453,49 @@ class Evaluation:
                     verification_results.append(TaskVerificationResult(is_correct=is_correct, reasoning=reasoning))
                 except Exception as e:
                     print(
-                        f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task.custom_verificator}\nThe exception is:\n{e}.\nSkipping to next task.[/"
+                        f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task.custom_verificator}\nThe exception is:\n{e}.\nSkipping to next task.[/]"
                     )
-                    continue
+                    is_correct = False
+                    reasoning = None
+                    is_skipped = True
+                    skip_reason = "custom_verificator_error"
+                    verification_results.append(TaskVerificationResult(
+                        is_correct=False, is_skipped=True, skip_reason="custom_verificator_error",
+                    ))
             else:
                 print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
-                verification_result = task.verify(result)
 
-                # Handle both tuple (legacy) and TaskVerificationResult
-                if isinstance(verification_result, TaskVerificationResult):
-                    is_correct = verification_result.is_correct
-                    reasoning = verification_result.reasoning
-                    task_metrics = verification_result.metrics
-                    verification_results.append(verification_result)
-                else:
-                    print(
-                        f"[bold yellow]Legacy verification result format detected for task type {type(task).__name__}. Consider updating the task.verify() method to return a TaskVerificationResult for richer metrics and reasoning.[/]"
-                    )
-                    is_correct, reasoning = verification_result
-                    verification_results.append(TaskVerificationResult(is_correct=is_correct, reasoning=reasoning))
+                try:
+                    verification_result = task.verify(result)
 
-                if is_correct:
-                    print("[bold green]:white_check_mark: Correct[/]")
-                else:
-                    print("[bold red]:cross_mark: Incorrect[/]")
-                if reasoning is not None:
-                    print(reasoning, box=True, box_title=":judge: Reasoning")
+                    # Handle both tuple (legacy) and TaskVerificationResult
+                    if isinstance(verification_result, TaskVerificationResult):
+                        is_correct = verification_result.is_correct
+                        reasoning = verification_result.reasoning
+                        task_metrics = verification_result.metrics
+                        verification_results.append(verification_result)
+                    else:
+                        print(
+                            f"[bold yellow]Legacy verification result format detected for task type {type(task).__name__}. Consider updating the task.verify() method to return a TaskVerificationResult for richer metrics and reasoning.[/]"
+                        )
+                        is_correct, reasoning = verification_result
+                        verification_results.append(TaskVerificationResult(is_correct=is_correct, reasoning=reasoning))
+
+                    if is_correct:
+                        print("[bold green]:white_check_mark: Correct[/]")
+                    else:
+                        print("[bold red]:cross_mark: Incorrect[/]")
+                    if reasoning is not None:
+                        print(reasoning, box=True, box_title=":judge: Reasoning")
+                except Exception as e:
+                    print(f"[bold red]:cross_mark: Verification error: {e}[/]")
+                    is_correct = False
+                    reasoning = None
+                    is_skipped = True
+                    skip_reason = "verification_error"
+                    verification_results.append(TaskVerificationResult(
+                        is_correct=False, is_skipped=True, skip_reason="verification_error",
+                    ))
 
             # prepare report
             elapsed_time = time.time() - start_time
@@ -450,6 +504,8 @@ class Evaluation:
                 "expected": task.expected_display(),
                 "actual": result,
                 "is_correct": is_correct if result is not None else False,
+                "is_skipped": is_skipped,
+                "skip_reason": skip_reason,
                 "reasoning": reasoning,
                 "elapsed_time": elapsed_time,
             }
@@ -459,7 +515,7 @@ class Evaluation:
                 report[task.id]["metrics"] = task_metrics
 
             # Run analyzers and add their metrics
-            if result is not None and isinstance(
+            if result is not None and not is_skipped and isinstance(
                 verification_result, TaskVerificationResult
             ):
                 analyzer_metrics = self._run_analyzers(

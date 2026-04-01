@@ -128,7 +128,11 @@ class LocalAgent(Agent):
         return final_answer, metrics
 
     def step(self) -> tuple[str, list[dict[str, Any]]]:
-        generated_text = self.model.generate(messages=self.conversation)
+        try:
+            generated_text = self.model.generate(messages=self.conversation)
+        except Exception as e:
+            print(f"[bold yellow]Model generation failed during step: {e}[/]")
+            generated_text = ""
         if VERBOSE_MODE:
             print(f"[bold]Generated text: [/] \n{generated_text}\n")
 

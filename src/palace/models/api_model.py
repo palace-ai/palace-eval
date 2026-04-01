@@ -71,22 +71,11 @@ class APIModel(Model):
 
         Returns:
             str: The generated text.
+
+        Raises:
+            Exception: If generation fails after exhausting all retries.
         """
-        try:
-            return self.generate_with_retry(messages, **kwargs)
-        except TimeoutException as e:
-            print(
-                f"[bold yellow on_red]\nTimeoutException raised during model generation! This likely comes from a threading issue and not from the API.\n[/][yellow]{messages}\n"
-            )
-            return f"Timeout occurred: {e}"
-        except OpenAIError as e:
-            print(
-                f"[bold yellow]The model could not generate text for this request. An unexpected exception occurred or the request timed out:\n{e}[/]"
-            )
-            return "The model could not generate text because it timed out. Please try again."
-        except Exception as e:
-            print(f"[bold yellow]Critical unknown error while generating text:\n{e}[/]")
-            return "The model could not generate text due to an unknown error. Please try again."
+        return self.generate_with_retry(messages, **kwargs)
 
     # Exponential backoff (total 40m10s)
     # x > 10s > x > 20s > x > 40s > x > 1m20s > x > 2m40s > x > 5m > x > 10m > x > 10m > x > 10m > x

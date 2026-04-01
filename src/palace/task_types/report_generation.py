@@ -94,6 +94,7 @@ class ReportGenerationTask(Task):
     @classmethod
     def aggregate(cls, results: list["TaskVerificationResult"]) -> dict[str, Any]:
         """Compute avg_normalized_score and per-dimension/criteria averages."""
+        results = [r for r in results if not r.is_skipped]
         base = super().aggregate(results)
         if not results:
             return base

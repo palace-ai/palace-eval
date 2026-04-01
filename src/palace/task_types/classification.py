@@ -12,6 +12,7 @@ class ClassificationTask(Task):
     @classmethod
     def aggregate(cls, results: list["TaskVerificationResult"]) -> dict[str, Any]:
         """Compute classification metrics: per-label P/R/F1/FPR/FNR + macro/micro."""
+        results = [r for r in results if not r.is_skipped]
         base = super().aggregate(results)
         if not results:
             return base
@@ -91,11 +92,9 @@ class ClassificationTask(Task):
             "fnr": round(micro_fnr, 4),
         }
 
-        base["classification"] = {
-            "per_label": per_label_metrics,
-            "macro": macro,
-            "micro": micro,
-        }
+        base["per_label"] = per_label_metrics
+        base["macro"] = macro
+        base["micro"] = micro
         return base
 
     def adapt_prompt(self) -> str:

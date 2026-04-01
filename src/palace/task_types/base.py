@@ -11,6 +11,8 @@ class TaskVerificationResult:
     is_correct: bool
     reasoning: str | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
+    is_skipped: bool = False
+    skip_reason: str | None = None
 
 
 class Task:
@@ -54,6 +56,7 @@ class Task:
 
         Default implementation computes accuracy only.
         Subclasses override for richer metrics (e.g., F1, normalized scores).
+        Skipped tasks are excluded from all calculations.
 
         Args:
             results: List of verification results from all evaluated tasks.
@@ -61,10 +64,11 @@ class Task:
         Returns:
             Dict of metric names to values. Always includes "accuracy".
         """
-        if not results:
+        evaluated = [r for r in results if not r.is_skipped]
+        if not evaluated:
             return {"accuracy": 0}
-        correct = sum(1 for r in results if r.is_correct)
-        return {"accuracy": correct / len(results)}
+        correct = sum(1 for r in evaluated if r.is_correct)
+        return {"accuracy": correct / len(evaluated)}
 
     @classmethod
     def from_dict(cls, data: dict) -> Self:

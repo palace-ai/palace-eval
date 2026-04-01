@@ -184,23 +184,26 @@ def download_tasklist(
         ]:
             # attachment is present as a file name to download
             if not inline_attachment:
+                temp_dir = tasklist_path / ".dl_tmp"
                 try:
                     temp_path = hf_hub_download(
                         repo_id=id,
                         filename=os.path.join(attachment_path, attachment),  # type: ignore
                         repo_type="dataset",
-                        local_dir=os.path.join(tasklist_path, "task_files"),
+                        local_dir=temp_dir,
                         force_download=True,
                     )
 
                     # Move to final location
-                    shutil.move(temp_path, attachments_dir / attachment)
+                    dest = attachments_dir / attachment
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(temp_path, dest)
 
                 except Exception as e:
                     print(f"Error downloading {attachment}: {e}")
 
                 try:
-                    shutil.rmtree(os.path.join(tasklist_path, "task_files/.cache"))
+                    shutil.rmtree(temp_dir)
                 except OSError as e:
                     print(f"Error removing subdirectories: {e}")
 
