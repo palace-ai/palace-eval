@@ -100,12 +100,10 @@ The semantic equivalence criterion handles common variations:
 
 ## Output
 
-Results are saved as JSONL. Each task in `detailed_report` contains:
+Results are saved as JSONL. Each task in `detailed_report` is keyed by task ID and contains:
 
 ```json
 {
-    "objective": "What is the chemical symbol for gold?",
-    "expected": "Au",
     "actual": "The chemical symbol for gold is Au.",
     "is_correct": true,
     "reasoning": "The answer correctly states that Au is the chemical symbol for gold, matching the reference answer.",
@@ -116,7 +114,7 @@ Results are saved as JSONL. Each task in `detailed_report` contains:
 }
 ```
 
-This is the structure for a single task within the `detailed_report` object, keyed by task ID (e.g., `"fact_001": {...}`).
+This is the structure for a single task within the `detailed_report` object, keyed by task ID (e.g., `"fact_001": {...}`). Use `--report-detail=full` to include `objective` and `expected` fields.
 
 ## Customization Ideas
 

@@ -119,6 +119,9 @@ class Evaluation:
         enable_citation_verifier: Enable the citation verifier analyzer.
             None falls back to the ENABLE_CITATION_VERIFIER env var.
         io_adapter: Optional model I/O adapter config dict for specialized models.
+        report_detail: Level of detail in per-task report. ``"none"`` omits
+            ``detailed_report`` entirely, ``"default"`` includes it without
+            ``objective``/``expected`` fields, ``"full"`` includes everything.
     """
 
     def __init__(
@@ -130,13 +133,17 @@ class Evaluation:
         on_task_complete: Callable[[int, int], None] | None = None,
         enable_citation_verifier: bool | None = None,
         io_adapter: dict | None = None,
+        report_detail: str = "default",
     ):
+        if report_detail not in ("none", "default", "full"):
+            raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
         self.name = name
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.output_path = output_path or RESULTS_PATH
         self.on_task_complete = on_task_complete
         self.io_adapter = io_adapter
+        self.report_detail = report_detail
 
         # Initialize analyzers based on toggles
         self.analyzers = []
@@ -265,8 +272,9 @@ class Evaluation:
                     "tasklist": tasklist,
                     "accuracy": accuracy,
                     "metrics": metrics,
-                    "detailed_report": report,
                 }
+                if self.report_detail != "none":
+                    run_results["detailed_report"] = report
                 results.append(run_results)
 
                 # append results to jsonl file
@@ -381,8 +389,6 @@ class Evaluation:
                         )
                         verification_results.append(vr)
                         report[task.id] = {
-                            "objective": task.objective,
-                            "expected": task.expected_display(),
                             "actual": None,
                             "is_correct": False,
                             "is_skipped": True,
@@ -390,6 +396,9 @@ class Evaluation:
                             "reasoning": None,
                             "elapsed_time": 0.0,
                         }
+                        if self.report_detail == "full":
+                            report[task.id]["objective"] = task.objective
+                            report[task.id]["expected"] = task.expected_display()
                         self.on_task_complete(
                             i + 1, len(tasks)
                         ) if self.on_task_complete is not None else None
@@ -545,10 +554,8 @@ class Evaluation:
                     )
 
             # prepare report
-            elapsed_time = time.time() - start_time
+            elapsed_time = round(time.time() - start_time, 2)
             report[task.id] = {
-                "objective": task.objective,
-                "expected": task.expected_display(),
                 "actual": result,
                 "is_correct": is_correct if result is not None else False,
                 "is_skipped": is_skipped,
@@ -556,6 +563,9 @@ class Evaluation:
                 "reasoning": reasoning,
                 "elapsed_time": elapsed_time,
             }
+            if self.report_detail == "full":
+                report[task.id]["objective"] = task.objective
+                report[task.id]["expected"] = task.expected_display()
 
             # Add task-type-specific metrics to report
             if task_metrics:

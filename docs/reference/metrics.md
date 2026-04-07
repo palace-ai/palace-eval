@@ -23,7 +23,7 @@ Each line represents a complete evaluation run containing all task results.
 | `tasklist` | string | Name of the tasklist evaluated |
 | `accuracy` | float | Overall accuracy (0.0 to 1.0) |
 | `metrics` | object | Aggregated metrics (see below) |
-| `detailed_report` | object | Per-task results keyed by task ID |
+| `detailed_report` | object | Per-task results keyed by task ID. Omitted with `--report-detail=none`. |
 
 ## Metrics Object
 
@@ -124,19 +124,24 @@ For `OpenAIAPIAgent` and `MCPAgent`, the `agent` object is empty (no execution s
 
 ## Per-Task Fields (`detailed_report`)
 
-Each task in `detailed_report` contains:
+Each task in `detailed_report` is keyed by task ID and contains:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `objective` | string | The prompt sent to the model |
-| `expected` | string\|null | Expected output (format varies by task type) |
 | `actual` | string\|null | Raw model response. `null` if the agent did not respond. |
 | `is_correct` | boolean | Whether the task passed verification. Always `false` for skipped tasks. |
 | `is_skipped` | boolean | Whether the task was excluded from metrics due to an infrastructure failure. Always present. |
 | `skip_reason` | string\|null | Machine-readable reason for skipping. `null` for non-skipped tasks. Always present. |
 | `reasoning` | string\|null | Judge or verification explanation. `null` for skipped tasks. |
-| `elapsed_time` | float | Time taken for this task in seconds |
+| `elapsed_time` | float | Time taken for this task in seconds (rounded to 2 decimal places) |
 | `metrics` | object | Task-type-specific per-task metrics (optional) |
+| `objective` | string | The prompt sent to the model. Only present with `--report-detail=full`. |
+| `expected` | string\|null | Expected output. Only present with `--report-detail=full`. |
+
+!!! note "Report detail levels"
+    By default, `objective` and `expected` are omitted from per-task entries to reduce file size.
+    Use `--report-detail=full` to include them, or `--report-detail=none` to omit `detailed_report` entirely.
+    The task text can always be looked up in the tasklist's `tasks.json` by task ID.
 
 ### Skip Reasons
 
@@ -256,8 +261,6 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
     },
     "detailed_report": {
         "task_001": {
-            "objective": "What is the capital of France?",
-            "expected": "Paris",
             "actual": "Paris",
             "is_correct": true,
             "is_skipped": false,
@@ -266,8 +269,6 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
             "elapsed_time": 2.3
         },
         "task_002": {
-            "objective": "Solve this complex problem...",
-            "expected": "42",
             "actual": null,
             "is_correct": false,
             "is_skipped": true,
@@ -323,7 +324,6 @@ for run in results:
     for task_id, task in run["detailed_report"].items():
         if not task["is_correct"] and not task["is_skipped"]:
             print(f"INCORRECT: {task_id}")
-            print(f"  Expected: {task['expected']}")
             print(f"  Got: {task['actual'][:100]}")
 ```
 

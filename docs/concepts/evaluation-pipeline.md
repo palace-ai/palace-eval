@@ -153,8 +153,6 @@ Results are saved as JSONL. Each line is a complete evaluation run:
     "metrics": {"task_count": 20, "correct_count": 17, "total_time": 120.5},
     "detailed_report": {
         "task_001": {
-            "objective": "...",
-            "expected": "...",
             "actual": "...",
             "is_correct": true,
             "reasoning": "...",

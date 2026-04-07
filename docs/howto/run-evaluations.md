@@ -235,8 +235,6 @@ Each evaluation produces a JSON object:
     },
     "detailed_report": {
         "GuardBench-EN_0": {
-            "objective": "The prompt that was evaluated",
-            "expected": "The expected output",
             "actual": "What the model produced",
             "is_correct": true,
             "reasoning": "Explanation of the verification result",

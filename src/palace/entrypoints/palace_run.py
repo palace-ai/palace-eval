@@ -20,6 +20,7 @@ def evaluate(
     on_task_complete: Callable[[int, int], None] | None = None,
     endpoint_type: str = "openai",
     io_adapter: dict | None = None,
+    report_detail: str = "default",
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -35,6 +36,8 @@ def evaluate(
         on_task_complete: Optional callback invoked after each task with (current, total).
         endpoint_type: The type of endpoint ("openai" or "mcp").
         io_adapter: Optional model I/O adapter config dict for specialized models.
+        report_detail: Level of detail in per-task report: "none" (omit report),
+            "default" (slimmed), "full" (includes task text).
     """
     if endpoint_type == "mcp":
         agent = MCPAgent(url=url, token=token, name=name)
@@ -56,6 +59,7 @@ def evaluate(
         output_path=output_path,
         on_task_complete=on_task_complete,
         io_adapter=io_adapter,
+        report_detail=report_detail,
     )
     evaluation.evaluate_all([agent], tasklists=[tasklist])
 
@@ -113,6 +117,13 @@ def run():
         choices=["openai", "mcp"],
         help="The type of endpoint (openai or mcp).",
     )
+    argparser.add_argument(
+        "--report-detail",
+        type=str,
+        default="default",
+        choices=["none", "default", "full"],
+        help="Level of detail in per-task report: none (omit report), default (slimmed), full (includes task text).",
+    )
     args = argparser.parse_args()
 
     evaluate(
@@ -125,4 +136,5 @@ def run():
         limit=args.limit,
         runs_per_configuration=args.runs_per_configuration,
         endpoint_type=args.endpoint_type,
+        report_detail=args.report_detail,
     )

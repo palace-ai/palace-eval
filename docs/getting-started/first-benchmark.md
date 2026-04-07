@@ -165,7 +165,7 @@ View the detailed results:
 cat ~/.cache/palace/results/eval.jsonl | python -m json.tool
 ```
 
-The output contains a `detailed_report` with each task's result:
+The output contains a `detailed_report` with each task's result (keyed by task ID):
 
 ```json
 {
@@ -179,8 +179,6 @@ The output contains a `detailed_report` with each task's result:
     },
     "detailed_report": {
         "capitals_001": {
-            "objective": "What is the capital of France?",
-            "expected": "Paris",
             "actual": "The capital of France is Paris.",
             "is_correct": true,
             "reasoning": "The answer correctly identifies Paris as the capital of France..."
@@ -198,8 +196,6 @@ If a task is marked incorrect, check the `reasoning` field:
 ```json
 {
     "capitals_003": {
-        "objective": "What is the capital of Italy?",
-        "expected": "Rome",
         "actual": "Milan is the largest city in Italy.",
         "is_correct": false,
         "reasoning": "The answer mentions Milan, which is not the capital of Italy. The reference answer is Rome."

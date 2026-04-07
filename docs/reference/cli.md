@@ -62,6 +62,7 @@ palace-run -u <url> -m <model-name> -t <tasklist> [options]
 | `--run-name` | `eval` | Name for this evaluation run |
 | `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
 | `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
+| `--report-detail` | `default` | Per-task report detail: `none`, `default`, or `full` |
 
 ### Examples
 

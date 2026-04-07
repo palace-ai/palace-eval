@@ -152,12 +152,10 @@ For each criterion, the judge assigns a gap score (0-5) indicating the quality d
 
 ## Output
 
-Results include detailed scoring. Each task in `detailed_report` contains:
+Results include detailed scoring. Each task in `detailed_report` is keyed by task ID and contains:
 
 ```json
 {
-    "objective": "Write a comprehensive report analyzing...",
-    "expected": "# AI and the Future of Work...",
     "actual": "# Generated Report...",
     "is_correct": true,
     "reasoning": "## accuracy (+2)\n...\n## Summary\n...",
@@ -185,7 +183,7 @@ Results include detailed scoring. Each task in `detailed_report` contains:
 }
 ```
 
-This is the structure for a single task within the `detailed_report` object, keyed by task ID (e.g., `"report_001": {...}`).
+This is the structure for a single task within the `detailed_report` object, keyed by task ID (e.g., `"report_001": {...}`). Use `--report-detail=full` to include `objective` and `expected` fields.
 
 ### Interpreting Scores
 
