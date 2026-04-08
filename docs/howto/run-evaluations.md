@@ -99,7 +99,8 @@ evaluate(
     name="gpt-4o",
     tasklist="GuardBench-EN",
     limit=10,
-    runs_per_configuration=3
+    runs_per_configuration=3,
+    report_detail="full"  # "none", "default", or "full"
 )
 ```
 
@@ -230,13 +231,19 @@ Each evaluation produces a JSON object:
     "accuracy": 0.85,
     "metrics": {
         "task_count": 20,
+        "evaluated_count": 20,
         "correct_count": 17,
-        "total_time": 120.5
+        "skipped_count": 0,
+        "total_time": 120.5,
+        "task_type": {},
+        "agent": {}
     },
     "detailed_report": {
         "GuardBench-EN_0": {
             "actual": "What the model produced",
             "is_correct": true,
+            "is_skipped": false,
+            "skip_reason": null,
             "reasoning": "Explanation of the verification result",
             "elapsed_time": 1.2
         }

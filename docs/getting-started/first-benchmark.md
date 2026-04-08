@@ -174,13 +174,19 @@ The output contains a `detailed_report` with each task's result (keyed by task I
     "accuracy": 1.0,
     "metrics": {
         "task_count": 5,
+        "evaluated_count": 5,
         "correct_count": 5,
-        "total_time": 12.5
+        "skipped_count": 0,
+        "total_time": 12.5,
+        "task_type": {},
+        "agent": {}
     },
     "detailed_report": {
         "capitals_001": {
             "actual": "The capital of France is Paris.",
             "is_correct": true,
+            "is_skipped": false,
+            "skip_reason": null,
             "reasoning": "The answer correctly identifies Paris as the capital of France..."
         }
     }
@@ -198,12 +204,16 @@ If a task is marked incorrect, check the `reasoning` field:
     "capitals_003": {
         "actual": "Milan is the largest city in Italy.",
         "is_correct": false,
+        "is_skipped": false,
+        "skip_reason": null,
         "reasoning": "The answer mentions Milan, which is not the capital of Italy. The reference answer is Rome."
     }
 }
 ```
 
 The reasoning explains why the judge marked it incorrect—helpful for debugging model behavior.
+
+If a task was skipped due to an infrastructure issue (e.g., API timeout), it appears with `is_skipped: true` and a `skip_reason` such as `"agent_error"` or `"no_response"`. Skipped tasks are excluded from the accuracy calculation.
 
 ## Step 8: Iterate and Improve
 

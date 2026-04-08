@@ -120,13 +120,19 @@ Each evaluation run produces a JSON object with:
     "accuracy": 0.8,
     "metrics": {
         "task_count": 10,
+        "evaluated_count": 10,
         "correct_count": 8,
-        "total_time": 45.2
+        "skipped_count": 0,
+        "total_time": 45.2,
+        "task_type": {},
+        "agent": {}
     },
     "detailed_report": {
         "GuardBench-EN_0": {
             "actual": "<Unsafe>\nYes\n</Unsafe>",
             "is_correct": true,
+            "is_skipped": false,
+            "skip_reason": null,
             "reasoning": "Label-wise correctness\n✅ Unsafe",
             "elapsed_time": 1.2
         }
@@ -141,18 +147,19 @@ Each evaluation run produces a JSON object with:
 | `agent` | Model name used for evaluation |
 | `tasklist` | Name of the benchmark |
 | `accuracy` | Overall accuracy (0.0 to 1.0) |
-| `metrics` | Aggregated metrics including `total_time`, `task_count`, `correct_count` |
+| `metrics` | Aggregated metrics including counters, timing, and task-type-specific data |
 | `detailed_report` | Per-task results keyed by task ID |
 
 Each task in `detailed_report` contains:
 
 | Field | Description |
 |-------|-------------|
-| `objective` | The prompt sent to the model |
-| `expected` | What the correct answer should be |
 | `actual` | What the model actually produced |
 | `is_correct` | Whether the model's answer was correct |
+| `is_skipped` | Whether the task was skipped due to infrastructure failure |
+| `skip_reason` | Machine-readable reason for skipping (null if not skipped) |
 | `reasoning` | Explanation of the verification result |
+| `elapsed_time` | Time taken for this task in seconds |
 
 ## Alternative: Interactive CLI
 

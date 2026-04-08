@@ -150,11 +150,13 @@ Results are saved as JSONL. Each line is a complete evaluation run:
     "agent": "gpt-4o",
     "tasklist": "GuardBench-EN",
     "accuracy": 0.85,
-    "metrics": {"task_count": 20, "correct_count": 17, "total_time": 120.5},
+    "metrics": {"task_count": 20, "evaluated_count": 20, "correct_count": 17, "skipped_count": 0, "total_time": 120.5, "task_type": {}, "agent": {}},
     "detailed_report": {
         "task_001": {
             "actual": "...",
             "is_correct": true,
+            "is_skipped": false,
+            "skip_reason": null,
             "reasoning": "...",
             "elapsed_time": 1.2
         }
@@ -260,16 +262,31 @@ The judge uses the same API endpoint configured via environment variables:
 
 ## Error Handling
 
+### Task Failure Handling
+
+When a task fails due to infrastructure issues (API errors, timeouts, empty responses), it is **skipped** rather than marked incorrect. Skipped tasks are excluded from accuracy calculations, ensuring that infrastructure failures don't penalise model scores.
+
+Each skipped task records a machine-readable `skip_reason`:
+
+| Reason | Trigger |
+|--------|---------|
+| `no_response` | Agent returned empty or whitespace-only response |
+| `agent_error` | Agent raised an exception (API error, timeout, etc.) |
+| `unsupported_attachment` | Task has an attachment type the model can't process |
+| `verification_error` | Judge/verification failed on a valid response |
+
+Skipped tasks appear in the JSONL output with `is_skipped: true` and `is_correct: false`. The run-level metrics report both `evaluated_count` (tasks with real answers) and `skipped_count` separately. Accuracy is computed as `correct_count / evaluated_count`.
+
 ### API Errors
 
-- Connection failures are logged and task is marked as failed
-- Rate limiting triggers automatic retry with backoff
-- Timeout errors are logged with task context
+- Connection failures trigger retry with exponential backoff
+- Rate limiting (429) triggers automatic retry with backoff
+- After all retries exhausted, the task is skipped with `agent_error`
 
 ### Parsing Errors
 
-- **Classification**: If XML tags can't be parsed, task fails
-- **QA/Report Gen**: If judge output is malformed, task fails
+- **Classification**: If XML tags can't be parsed, task is marked incorrect (not skipped — the model responded, just badly)
+- **QA/Report Gen**: If judge output is malformed, task is skipped with `verification_error`
 
 ### Validation Errors
 
