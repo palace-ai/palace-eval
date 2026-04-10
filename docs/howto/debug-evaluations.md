@@ -96,7 +96,7 @@ The `reasoning` field explains why the judge marked it incorrect.
 }
 ```
 
-Negative scores mean the reference was better for that criterion.
+Negative scores mean the reference was better for that criterion. For hierarchical tasklists, criteria are nested by dimension (e.g., `"content_quality": {"accuracy": -3, "completeness": 2}`).
 
 **Solutions**:
 

@@ -112,13 +112,25 @@ class ReportGenerationTask(Task):
         if dim_totals:
             base["per_dimension_avg"] = {d: round(sum(v) / len(v), 4) for d, v in dim_totals.items()}
 
-        # per-criteria averages
-        crit_totals: dict[str, list[float]] = {}
+        # per-criteria averages (handle both flat and nested formats)
+        crit_totals: dict[tuple[str | None, str], list[float]] = {}
         for r in results:
-            for crit, score in r.metrics.get("criteria_scores", {}).items():
-                crit_totals.setdefault(crit, []).append(score)
+            for key, val in r.metrics.get("criteria_scores", {}).items():
+                if isinstance(val, dict):
+                    for crit, score in val.items():
+                        crit_totals.setdefault((key, crit), []).append(score)
+                else:
+                    crit_totals.setdefault((None, key), []).append(val)
         if crit_totals:
-            base["per_criteria_avg"] = {c: round(sum(v) / len(v), 4) for c, v in crit_totals.items()}
+            grouped: dict[str, dict[str, float]] = {}
+            flat: dict[str, float] = {}
+            for (dim, crit), vals in crit_totals.items():
+                avg = round(sum(vals) / len(vals), 4)
+                if dim:
+                    grouped.setdefault(dim, {})[crit] = avg
+                else:
+                    flat[crit] = avg
+            base["per_criteria_avg"] = grouped if grouped else flat
 
         return base
 
@@ -359,13 +371,19 @@ The length of a report is not necessarily an indicator of quality - focus on the
                 "normalized_score": normalized_score,
             }
 
-            # Add dimension scores if hierarchical
+            # Add dimension scores and nest criteria if hierarchical
             if dimension_map:
                 dimension_scores = {}
                 for dim_name, crit_names in dimension_map.items():
-                    dim_total = sum(criteria_scores.get(cn, 0) for cn in crit_names)
-                    dimension_scores[dim_name] = dim_total
+                    if crit_names:
+                        dim_vals = [criteria_scores.get(cn, 0) for cn in crit_names]
+                        dimension_scores[dim_name] = sum(dim_vals) / len(dim_vals)
                 metrics["dimension_scores"] = dimension_scores
+                metrics["criteria_scores"] = {
+                    dim: {cn: criteria_scores[cn] for cn in cns}
+                    for dim, cns in dimension_map.items()
+                    if cns
+                }
 
             return TaskVerificationResult(
                 is_correct=score_provided > score_expected,

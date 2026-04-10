@@ -268,7 +268,7 @@ The evaluation returns per-task metrics:
 }
 ```
 
-- `criteria_scores`: Per-criterion score (-10 to +10, positive = generated better)
+- `criteria_scores`: Per-criterion score (-10 to +10, positive = generated better). Nested by dimension for hierarchical tasklists.
 - `overall_gap`: Weighted sum of criteria scores
 - `normalized_score`: Gap rescaled to [0, 1] where 0.5 = tie, 1.0 = max win
 - `is_correct`: True if `score_provided > score_expected`
@@ -280,8 +280,8 @@ After all tasks are evaluated, PALACE computes aggregate report generation metri
 | Metric | Description |
 |--------|-------------|
 | `avg_normalized_score` | Average normalized score across all tasks (0=worst, 0.5=tie, 1=best) |
-| `per_criteria_avg` | Average gap score per criterion across all tasks |
-| `per_dimension_avg` | Average gap score per dimension (if hierarchical criteria used) |
+| `per_criteria_avg` | Average gap score per criterion across all tasks. Nested by dimension for hierarchical tasklists. |
+| `per_dimension_avg` | Average gap score per dimension (if hierarchical criteria used). Each dimension score is the mean of its criteria scores. |
 
 These appear in the top-level `metrics` object of the JSONL output alongside universal metrics like `task_count` and `accuracy`.
 
@@ -342,13 +342,16 @@ In the example above:
 
 ### Dimension Metrics
 
-When using hierarchical criteria, output includes `dimension_scores`:
+When using hierarchical criteria, output includes `dimension_scores` (average of criteria in each dimension) and `criteria_scores` nested by dimension:
 
 ```json
 {
   "metrics": {
-    "criteria_scores": {"topic_coverage": 3, "detail_depth": 2, "analysis_quality": 4, "conclusions": 1},
-    "dimension_scores": {"comprehensiveness": 5, "insight": 5},
+    "criteria_scores": {
+      "comprehensiveness": {"topic_coverage": 3, "detail_depth": 2},
+      "insight": {"analysis_quality": 4, "conclusions": 1}
+    },
+    "dimension_scores": {"comprehensiveness": 2.5, "insight": 2.5},
     "overall_gap": 10.0,
     "normalized_score": 0.75
   }

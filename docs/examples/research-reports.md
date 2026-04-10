@@ -162,18 +162,24 @@ Results include detailed scoring. Each task in `detailed_report` is keyed by tas
     "elapsed_time": 45.2,
     "metrics": {
         "criteria_scores": {
-            "accuracy": 2,
-            "comprehensiveness": 1,
-            "depth": 3,
-            "structure": 0,
-            "clarity": 2,
-            "analysis": 4,
-            "actionability": 1
+            "content_quality": {
+                "accuracy": 2,
+                "comprehensiveness": 1,
+                "depth": 3
+            },
+            "presentation": {
+                "structure": 0,
+                "clarity": 2
+            },
+            "insight": {
+                "analysis": 4,
+                "actionability": 1
+            }
         },
         "dimension_scores": {
-            "content_quality": 6,
-            "presentation": 2,
-            "insight": 5
+            "content_quality": 2.0,
+            "presentation": 1.0,
+            "insight": 2.5
         },
         "overall_gap": 8.5,
         "normalized_score": 0.68,
@@ -187,8 +193,8 @@ This is the structure for a single task within the `detailed_report` object, key
 
 ### Interpreting Scores
 
-- **criteria_scores**: Per-criterion comparison (-10 to +10)
-- **dimension_scores**: Aggregated scores per dimension
+- **criteria_scores**: Per-criterion comparison (-10 to +10), nested by dimension for hierarchical tasklists
+- **dimension_scores**: Average score per dimension (mean of its criteria scores)
 - **overall_gap**: Weighted sum of all criteria scores
 - **normalized_score**: Gap rescaled to [0, 1] where 0.5 = tie
 - **is_correct**: True if generated report scored higher overall

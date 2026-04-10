@@ -101,8 +101,8 @@ Present when evaluating Report Generation tasklists (e.g., DeepConsult, DeepRese
 | Field | Type | Description |
 |-------|------|-------------|
 | `task_type.avg_normalized_score` | float | Average normalized pairwise comparison score (0=worst, 0.5=tie, 1=best) |
-| `task_type.per_dimension_avg.<name>` | float | Average gap score per dimension (if hierarchical criteria used) |
-| `task_type.per_criteria_avg.<name>` | float | Average gap score per criterion |
+| `task_type.per_dimension_avg.<name>` | float | Average gap score per dimension, computed as mean of criteria averages (if hierarchical criteria used) |
+| `task_type.per_criteria_avg.<name>` | float | Average gap score per criterion. Nested by dimension for hierarchical tasklists (e.g., `per_criteria_avg.<dim>.<crit>`) |
 
 ### Agent Execution Metrics (`agent`)
 
@@ -234,8 +234,11 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
         "accuracy": 1.0,
         "task_type": {
             "avg_normalized_score": 0.72,
-            "per_dimension_avg": {"content_quality": 0.8, "writing": 0.65},
-            "per_criteria_avg": {"instruction_following": 3.2, "comprehensiveness": 1.5}
+            "per_dimension_avg": {"content_quality": 2.35, "writing": 1.8},
+            "per_criteria_avg": {
+                "content_quality": {"instruction_following": 3.2, "comprehensiveness": 1.5},
+                "writing": {"clarity": 2.1, "structure": 1.5}
+            }
         },
         "agent": {}
     }
