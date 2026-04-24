@@ -63,7 +63,7 @@
 # Output: "safe" or "unsafe\nO1,O2,..." (same format as LlamaGuard)
 # https://huggingface.co/nvidia/Aegis-AI-Content-Safety-LlamaGuard-Defensive-1.0
 # =============================================================================
-"*Aegis*Content*Safety*":
+"*Aegis*":
   input:
     template: "{objective}"
   output:
@@ -105,3 +105,31 @@
       result:
         "yes": "Yes"
         "no": "No"
+
+# =============================================================================
+# Google ShieldGemma
+# Output: "Yes" or "No" (Yes = violates policy = unsafe)
+# https://huggingface.co/google/shieldgemma-2b
+# =============================================================================
+"*shieldgemma*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>Yes|No)"
+    template: "<Unsafe>{result}</Unsafe>"
+
+# =============================================================================
+# OpenSafetyLab MD-Judge
+# Output: "safe" or "unsafe\nO1" (same format as LlamaGuard)
+# https://huggingface.co/OpenSafetyLab/MD-Judge-v0.1
+# =============================================================================
+"*MD-Judge*":
+  input:
+    template: "{objective}"
+  output:
+    pattern: "(?P<result>safe|unsafe)"
+    template: "<Unsafe>{result}</Unsafe>"
+    mapping:
+      result:
+        safe: "No"
+        unsafe: "Yes"

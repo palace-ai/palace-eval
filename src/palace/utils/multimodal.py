@@ -66,16 +66,30 @@ def build_multimodal_content(
 def _load_and_resize_image(image_path: str) -> tuple[str, str]:
     """Load image, resize if too large, return base64 and MIME type.
 
-    Preserves PNG format for smaller images to maintain fidelity.
+    If the image doesn't need resizing or mode conversion, sends the original
+    file bytes to avoid re-encoding artifacts and compatibility issues.
     Falls back to high-quality JPEG for large images to avoid payload size issues.
     """
+    MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+                  ".gif": "image/gif", ".webp": "image/webp"}
     MAX_BASE64_BYTES = 1_000_000  # ~1MB base64 threshold
 
-    with Image.open(image_path) as img:
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
+    ext = Path(image_path).suffix.lower()
 
-        if max(img.size) > MAX_IMAGE_DIMENSION:
+    with Image.open(image_path) as img:
+        needs_resize = max(img.size) > MAX_IMAGE_DIMENSION
+        needs_convert = img.mode in ("RGBA", "P")
+
+        if not needs_resize and not needs_convert and ext in MIME_TYPES:
+            # Send original file bytes — avoids re-encoding issues
+            raw = Path(image_path).read_bytes()
+            b64 = base64.b64encode(raw).decode("utf-8")
+            if len(b64) <= MAX_BASE64_BYTES:
+                return b64, MIME_TYPES[ext]
+
+        if needs_convert:
+            img = img.convert("RGB")
+        if needs_resize:
             img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
 
         # Try PNG first for lossless fidelity
