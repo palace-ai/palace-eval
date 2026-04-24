@@ -8,7 +8,8 @@ RTVLM (Red Teaming Visual Language Models) is a multimodal safety classification
 |----------|-------|
 | **Task Type** | Classification |
 | **Category** | Safety |
-| **Modalities** | Text + Image |
+| **Input Modalities** | Text + Image |
+| **Output Modalities** | Text |
 | **Labels** | Binary (Unsafe: Yes/No) |
 | **Source** | [MMInstruction/RedTeamingVLM](https://huggingface.co/datasets/MMInstruction/RedTeamingVLM) |
 

@@ -133,7 +133,8 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 "name": t.name,
                 **(info := json.load(open(t / "info.json"))),
                 "category": info.get("category", ""),
-                "modalities": info.get("modalities", ["text"]),
+                "input_modalities": info.get("input_modalities", info.get("modalities", ["text"])),
+                "output_modalities": info.get("output_modalities", ["text"]),
             }
             for t in (TASKLISTS_PATH).iterdir()
             if t.is_dir()
@@ -372,7 +373,7 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                     ),
                     (
                         "",
-                        f"[{', '.join(tasklist['modalities'])}] ",
+                        f"[{', '.join(tasklist['input_modalities'])}→{', '.join(tasklist['output_modalities'])}] ",
                     ),
                     ("class:bold", tasklist["name"]),
                 ],

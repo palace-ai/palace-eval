@@ -8,7 +8,8 @@ MM-SafetyBench is a multimodal safety classification benchmark focused on advers
 |----------|-------|
 | **Task Type** | Classification |
 | **Category** | Safety |
-| **Modalities** | Text + Image |
+| **Input Modalities** | Text + Image |
+| **Output Modalities** | Text |
 | **Tasks** | 5,040 |
 | **Labels** | Binary (Unsafe: Yes/No), all Unsafe=Yes |
 | **Source** | [isXinLiu/MM-SafetyBench](https://github.com/isXinLiu/MM-SafetyBench) |

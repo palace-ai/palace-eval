@@ -8,7 +8,8 @@ VLGuard is a multimodal safety classification benchmark that tests whether guard
 |----------|-------|
 | **Task Type** | Classification |
 | **Category** | Safety |
-| **Modalities** | Text + Image |
+| **Input Modalities** | Text + Image |
+| **Output Modalities** | Text |
 | **Tasks** | 1,558 |
 | **Labels** | Binary (Unsafe: Yes/No) |
 | **Source** | [ys-zong/VLGuard](https://huggingface.co/datasets/ys-zong/VLGuard) |

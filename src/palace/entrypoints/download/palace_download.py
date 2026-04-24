@@ -162,10 +162,13 @@ def download_tasklist(
     info_path = tasklist_path / "info.json"
     with open(info_path) as f:
         info_data = json.load(f)
-    if "modalities" not in info_data:
+    if "input_modalities" not in info_data:
         from palace.utils.multimodal import detect_modalities
 
-        info_data["modalities"] = detect_modalities(tasks)
+        info_data["input_modalities"] = detect_modalities(tasks)
+        info_data.setdefault("output_modalities", ["text"])
+        # Remove legacy key if present
+        info_data.pop("modalities", None)
         with open(info_path, "w", encoding="utf-8") as f:
             json.dump(info_data, f, ensure_ascii=False, indent=4)
 

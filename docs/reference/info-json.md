@@ -22,7 +22,8 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 | `category` | string | `""` | Grouping category |
 | `original` | boolean | `false` | `true` for custom-built PALACE tasklists, `false` for auto-converted public benchmarks |
 | `task_type_fields` | object | `{}` | Task-type-specific configuration |
-| `modalities` | array | `["text"]` | Data types in tasks: `"text"`, `"image"`, `"video"`, `"audio"`. Auto-detected by `palace-download` from task attachments. |
+| `input_modalities` | array | `["text"]` | Input data types in tasks: `"text"`, `"image"`, `"video"`, `"audio"`. Auto-detected by `palace-download` from task attachments. |
+| `output_modalities` | array | `["text"]` | Expected output data types: `"text"`, `"image"`, `"video"`, `"audio"`. Defaults to `["text"]`. |
 
 ## Minimal Example
 
@@ -44,7 +45,8 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
     "version": "1.0.0",
     "original": true,
     "category": "Safety",
-    "modalities": ["text"],
+    "input_modalities": ["text"],
+    "output_modalities": ["text"],
     "task_type": "Classification",
     "task_type_fields": {
         "labels": [
@@ -97,17 +99,30 @@ Grouping category for organization.
 
 Common categories: Safety, Knowledge, Reliability, Agentic, Deep Research
 
-### modalities
+### input_modalities
 
-List of data types present in the tasklist's tasks. Auto-detected by `palace-download` from task attachment file extensions. Always includes `"text"`.
+List of input data types present in the tasklist's tasks. Auto-detected by `palace-download` from task attachment file extensions. Always includes `"text"`.
 
 ```json
-{"modalities": ["text", "image"]}
+{"input_modalities": ["text", "image"]}
 ```
 
-Supported values: `"text"`, `"image"`, `"video"`, `"audio"`. PDF attachments count as `"text"` (auto-extracted by palace-lib). If `modalities` already exists in `info.json` (e.g., custom tasklists), `palace-download` preserves the existing value.
+Supported values: `"text"`, `"image"`, `"video"`, `"audio"`. PDF attachments count as `"text"` (auto-extracted by palace-lib). If `input_modalities` already exists in `info.json` (e.g., custom tasklists), `palace-download` preserves the existing value.
 
-Used by palace-gradin for compatibility matching: a model is compatible with a tasklist when `tasklist.modalities ⊆ model.modalities`.
+!!! note "Backward compatibility"
+    The legacy `modalities` key is still read as `input_modalities` if the new key is absent.
+
+### output_modalities
+
+List of output data types the tasklist expects from the model. Defaults to `["text"]`.
+
+```json
+{"output_modalities": ["text"]}
+```
+
+Supported values: `"text"`, `"image"`, `"video"`, `"audio"`. Unlike input modalities, output modalities are not auto-detected and must be declared manually for non-text output.
+
+Used by palace-gradin for compatibility matching: a model is compatible with a tasklist when `tasklist.input_modalities ⊆ model.input_modalities` AND `tasklist.output_modalities ⊆ model.output_modalities`.
 
 ### task_type
 
