@@ -48,9 +48,6 @@ def evaluate(
             name=name,
             api_type="openai" if "claude" not in name.lower() else "anthropic",
         )
-    elif endpoint_type == "vivarium":
-        from palace.agents.vivarium_agent import VivariumAgent
-        agent = VivariumAgent(name=name, url=url, token=token)
     else:
         raise ValueError(f"Unsupported endpoint type: {endpoint_type}")
     

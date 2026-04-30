@@ -136,7 +136,9 @@ class Evaluation:
         report_detail: str = "default",
     ):
         if report_detail not in ("none", "default", "full"):
-            raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
+            raise ValueError(
+                f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'"
+            )
         self.name = name
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
@@ -329,6 +331,32 @@ class Evaluation:
         }
         task_cls = task_type_map.get(tasklist_info["task_type"], Task)
 
+        # Route through vivarium for agentic tasklists
+        if tasklist_info["task_type"] == "Agentic":
+            import shutil
+
+            try:
+                from palace.agents.vivarium_agent import VivariumAgent
+            except ImportError:
+                raise RuntimeError(
+                    "Agentic evaluation requires palace-vivarium. "
+                    "Install with: pip install palace[agentic]"
+                )
+            if not isinstance(agent, VivariumAgent):
+                if not shutil.which("docker"):
+                    raise RuntimeError(
+                        "Agentic evaluation requires Docker. "
+                        "Install Docker and ensure it is running."
+                    )
+                print(
+                    f"[blue]:whale: Agentic tasklist — routing through vivarium (model: {agent.name})[/]"
+                )
+                agent = VivariumAgent(
+                    name=agent.name,
+                    url=getattr(agent, "url", ""),
+                    token=getattr(agent, "token", None),
+                )
+
         agent.on_tasklist_start(tasklist_path, tasklist_info)
 
         with open(tasklist_path / "tasks.json") as f:
@@ -441,11 +469,12 @@ class Evaluation:
                 box=True,
                 box_title=f":memo: Task {i + 1}",
             )
-            print(
-                task.expected_display(),
-                box=True,
-                box_title=":fleur_de_lis: Expected Answer",
-            )
+            if task.expected_display() is not None:
+                print(
+                    task.expected_display(),
+                    box=True,
+                    box_title=":fleur_de_lis: Expected Answer",
+                )
 
             start_time = time.time()
 

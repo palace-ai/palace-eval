@@ -23,11 +23,21 @@ class VivariumAgent(Agent):
     the agent loop (LLM + tool calling) to vivarium.
     """
 
-    def __init__(self, name: str, url: str, token: str | None, vivarium_url: str | None = None):
+    def __init__(
+        self,
+        name: str,
+        url: str,
+        token: str | None,
+        vivarium_url: str | None = None,
+        timeout_seconds: int = 300,
+        max_steps: int = 50,
+    ):
         self._name = name
         self._url = url
         self._token = token
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL")
+        self._timeout_seconds = timeout_seconds
+        self._max_steps = max_steps
         self._auto_started = False
         self._spec_id: str | None = None
         self._current_env_id: str | None = None
@@ -106,19 +116,24 @@ class VivariumAgent(Agent):
                 "model_url": self._url,
                 "model_key": self._token or "",
                 "model_name": self._name,
-                "timeout_seconds": 300,
-                "max_steps": 50,
+                "timeout_seconds": self._timeout_seconds,
+                "max_steps": self._max_steps,
             },
         )
         r.raise_for_status()
         run_id = r.json()["run_id"]
 
-        # Poll until done
-        while True:
-            data = req.get(f"{self._vivarium_url}/runs/{run_id}").json()
+        # Poll until done (client-side timeout = server timeout + 30s buffer)
+        deadline = time.time() + self._timeout_seconds + 30
+        while time.time() < deadline:
+            resp = req.get(f"{self._vivarium_url}/runs/{run_id}")
+            resp.raise_for_status()
+            data = resp.json()
             if data["status"] != "running":
                 break
-            time.sleep(1)
+            time.sleep(2)
+        else:
+            return None, None  # Client-side timeout
 
         if data["status"] == "completed":
             return data["answer"], data.get("agent_metrics")

@@ -24,6 +24,9 @@ class AgenticTask(Task):
     def adapt_prompt(self) -> str:
         return self.objective
 
+    def expected_display(self) -> str | None:
+        return None
+
     def verify(self, answer: str) -> TaskVerificationResult:
         if not self._vivarium_url or not self._env_id:
             return TaskVerificationResult(
@@ -55,7 +58,7 @@ class AgenticTask(Task):
         metric_keys = ["steps", "tool_calls", "wall_time_seconds"]
         avg_agent: dict[str, float] = {}
         for key in metric_keys:
-            values = [r.metrics.get(key) for r in evaluated if key in r.metrics]
+            values = [r.metrics[key] for r in evaluated if key in r.metrics and r.metrics[key] is not None]
             if values:
                 avg_agent[f"avg_{key}"] = sum(values) / len(values)
         return {"accuracy": accuracy, **avg_agent}
