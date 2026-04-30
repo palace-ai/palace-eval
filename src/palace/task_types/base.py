@@ -88,6 +88,7 @@ class Task:
             ValueError: If required fields are missing or task_type is unknown.
         """
         # Import here to avoid circular imports
+        from palace.task_types.agentic import AgenticTask
         from palace.task_types.classification import ClassificationTask
         from palace.task_types.qa import QATask
         from palace.task_types.report_generation import ReportGenerationTask
@@ -126,6 +127,7 @@ class Task:
             "QA": QATask,
             "Classification": ClassificationTask,
             "Report Generation": ReportGenerationTask,
+            "Agentic": AgenticTask,
         }
 
         if task_type_name not in task_type_map:
@@ -144,6 +146,7 @@ class Task:
         task.custom_fields = {
             k: v for k, v in data.items() if k not in required_fields + optional_fields
         }
+
         return task
 
     def __init__(self):

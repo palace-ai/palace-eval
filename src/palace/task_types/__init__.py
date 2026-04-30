@@ -1,5 +1,6 @@
 """Task types package - exports all task types and base classes."""
 
+from palace.task_types.agentic import AgenticTask
 from palace.task_types.base import Task, TaskVerificationResult
 from palace.task_types.classification import ClassificationTask
 from palace.task_types.qa import QATask
@@ -17,6 +18,7 @@ ReportGenerationTaskType = ReportGenerationTask
 __all__ = [
     "Task",
     "TaskVerificationResult",
+    "AgenticTask",
     "QATask",
     "ClassificationTask",
     "ReportGenerationTask",

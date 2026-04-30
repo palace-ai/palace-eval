@@ -316,6 +316,7 @@ class Evaluation:
             tasklist_info = json.load(f)
 
         # Resolve task class for aggregation
+        from palace.task_types.agentic import AgenticTask
         from palace.task_types.classification import ClassificationTask
         from palace.task_types.qa import QATask
         from palace.task_types.report_generation import ReportGenerationTask
@@ -324,8 +325,11 @@ class Evaluation:
             "QA": QATask,
             "Classification": ClassificationTask,
             "Report Generation": ReportGenerationTask,
+            "Agentic": AgenticTask,
         }
         task_cls = task_type_map.get(tasklist_info["task_type"], Task)
+
+        agent.on_tasklist_start(tasklist_path, tasklist_info)
 
         with open(tasklist_path / "tasks.json") as f:
             json_tasks = json.load(f)
@@ -358,6 +362,7 @@ class Evaluation:
             adapter = None
 
         for i, task in enumerate(tasks):
+            agent.on_task_start(task)
             task_metrics = {}  # Initialize before conditional branches
             verification_result = None  # Initialize for analyzer check
             image_path = None  # For multimodal tasks
@@ -402,6 +407,7 @@ class Evaluation:
                         self.on_task_complete(
                             i + 1, len(tasks)
                         ) if self.on_task_complete is not None else None
+                        agent.on_task_end(task)
                         continue
 
                     max_attachment_len = 200000
@@ -594,5 +600,7 @@ class Evaluation:
             self.on_task_complete(
                 i + 1, len(tasks)
             ) if self.on_task_complete is not None else None
+            agent.on_task_end(task)
 
+        agent.on_tasklist_end()
         return report, verification_results, task_cls

@@ -1,7 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from palace.environments.base_environment import Environment
+
+if TYPE_CHECKING:
+    from palace.task_types.base import Task
 
 
 class Agent(ABC):
@@ -40,4 +44,20 @@ class Agent(ABC):
         Returns:
             Tuple of (answer, metrics). answer is None if the agent failed to respond.
         """
+        pass
+
+    def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
+        """Called before evaluating a tasklist. Override for setup."""
+        pass
+
+    def on_tasklist_end(self) -> None:
+        """Called after evaluating a tasklist. Override for cleanup."""
+        pass
+
+    def on_task_start(self, task: "Task") -> None:
+        """Called before each task. Override for per-task setup."""
+        pass
+
+    def on_task_end(self, task: "Task") -> None:
+        """Called after each task (including verify). Override for per-task cleanup."""
         pass
