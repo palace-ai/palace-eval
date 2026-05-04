@@ -89,12 +89,15 @@ class VivariumAgent(Agent):
         """Create vivarium environment for this task, with task_files if present."""
         body = {"task_id": task.id, "initial_state": getattr(task, "initial_state", None)}
 
-        # Package task_files directory if it exists
+        # Package task_files: use attachment field (subfolder) or entire dir
         task_files_dir = self._tasklist_path / "task_files"
         files = None
-        if task_files_dir.is_dir() and any(task_files_dir.iterdir()):
-            task_files_archive = _create_archive(task_files_dir)
-            files = {"task_files": ("task_files.tar.gz", task_files_archive, "application/gzip")}
+        if task_files_dir.is_dir():
+            attachment = getattr(task, "attachment", None)
+            target = task_files_dir / attachment if attachment else task_files_dir
+            if target.is_dir() and any(target.iterdir()):
+                task_files_archive = _create_archive(target)
+                files = {"task_files": ("task_files.tar.gz", task_files_archive, "application/gzip")}
 
         r = req.post(
             f"{self._vivarium_url}/specs/{self._spec_id}/environments",

@@ -14,7 +14,7 @@ def evaluate(
     url: str,
     token: str | None,
     name: str,
-    tasklist: str,
+    tasklist: str | list[str],
     limit: int | None = None,
     runs_per_configuration: int = 1,
     on_task_complete: Callable[[int, int], None] | None = None,
@@ -30,7 +30,7 @@ def evaluate(
         url: The URL of the OpenAI API.
         token: The token to use for authentication, if required.
         name: The name of the model/agent.
-        tasklist: The tasklist to evaluate the model/agent on.
+        tasklist: The tasklist(s) to evaluate the model/agent on.
         limit: The maximum number of tasks to evaluate per tasklist.
         runs_per_configuration: The number of evaluation runs to perform.
         on_task_complete: Optional callback invoked after each task with (current, total).
@@ -61,7 +61,8 @@ def evaluate(
         io_adapter=io_adapter,
         report_detail=report_detail,
     )
-    evaluation.evaluate_all([agent], tasklists=[tasklist])
+    tasklists = [tasklist] if isinstance(tasklist, str) else tasklist
+    evaluation.evaluate_all([agent], tasklists=tasklists)
 
 
 def run():
@@ -95,7 +96,8 @@ def run():
         "--tasklist",
         type=str,
         required=True,
-        help="The tasklist to evaluate the model/agent on.",
+        action="append",
+        help="The tasklist(s) to evaluate on. Can be specified multiple times: -t T1 -t T2",
     )
     argparser.add_argument(
         "-l",
