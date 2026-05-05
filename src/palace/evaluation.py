@@ -313,6 +313,15 @@ class Evaluation:
         verification_results: list[TaskVerificationResult] = []
         tasklist_path = TASKLISTS_PATH / tasklist
 
+        # Validate tasklist exists
+        if not tasklist_path.exists():
+            available = [t.name for t in TASKLISTS_PATH.iterdir() if t.is_dir()]
+            raise FileNotFoundError(
+                f"Tasklist '{tasklist}' not found. "
+                f"Available tasklists: {', '.join(sorted(available)) if available else 'none (run palace-download first)'}. "
+                f"Note: tasklist names are case-sensitive."
+            )
+
         # load tasklist and metadata
         with open(tasklist_path / "info.json") as f:
             tasklist_info = json.load(f)

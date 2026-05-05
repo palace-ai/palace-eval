@@ -17,8 +17,21 @@ from palace.utils.secrets import HUGGINGFACE_TOKEN
 
 PALACE_HF_COLLECTION = "jrc-ai/palace"
 
-login(token=HUGGINGFACE_TOKEN)
+_logged_in = False
 disable_progress_bars()
+
+
+def _ensure_login():
+    global _logged_in
+    if _logged_in:
+        return
+    if not HUGGINGFACE_TOKEN:
+        raise EnvironmentError(
+            "A HuggingFace token is required for this dataset. "
+            "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
+        )
+    login(token=HUGGINGFACE_TOKEN)
+    _logged_in = True
 
 
 def download_tasklist(
@@ -320,55 +333,67 @@ def main():
     args = argparser.parse_args()
 
     # Download private (from palace hf)
-    collection = get_collection(PALACE_HF_COLLECTION)
-    collection = [
-        {"id": item.item_id, "name": item.item_id.replace("jrc-ai/", "")}
-        for item in collection.items
-        if item.item_type == "dataset"
-    ]
-    print(
-        f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
-    )
-
-    # filter by --tasklists argument if provided
-    if args.tasklists:
-        collection = [item for item in collection if item["name"] in args.tasklists]
-        print(
-            f"   [cyan]Filtered to [bold]{len(collection)}[/bold] items based on --tasklists argument."
-        )
-
-    # If --skip-existing is set, filter out items that already exist locally
-    if args.skip_existing:
-        exists = [
-            item for item in collection if (TASKLISTS_PATH / item["name"]).exists()
+    try:
+        _ensure_login()
+        collection = get_collection(PALACE_HF_COLLECTION)
+        collection = [
+            {"id": item.item_id, "name": item.item_id.replace("jrc-ai/", "")}
+            for item in collection.items
+            if item.item_type == "dataset"
         ]
-        collection = [item for item in collection if item not in exists]
         print(
-            f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
+            f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
         )
 
-    print(f"   [cyan]Downloading [bold]{len(collection)}[/bold] items...")
-    for item in collection:
-        with loading() as ld:
-            ld.description = (
-                f"[cyan]Downloading [bold]{item['name']} (from {item['id']})[/bold]..."
+        # filter by --tasklists argument if provided
+        if args.tasklists:
+            collection = [item for item in collection if item["name"] in args.tasklists]
+            print(
+                f"   [cyan]Filtered to [bold]{len(collection)}[/bold] items based on --tasklists argument."
             )
 
-            # Get dataset metadata
-            metadata = hf_hub_download(
-                repo_id=item["id"], filename="info.json", repo_type="dataset"
+        # If --skip-existing is set, filter out items that already exist locally
+        if args.skip_existing:
+            exists = [
+                item for item in collection if (TASKLISTS_PATH / item["name"]).exists()
+            ]
+            collection = [item for item in collection if item not in exists]
+            print(
+                f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
             )
-            with open(metadata) as f:
-                metadata = json.load(f)
 
-            download_tasklist(
-                name=item["name"],
-                id=item["id"],
-                split="test",
-                keep_custom_columns=True,
-                task_type=metadata.get("task_type", ""),
+        print(f"   [cyan]Downloading [bold]{len(collection)}[/bold] items...")
+        for item in collection:
+            with loading() as ld:
+                ld.description = (
+                    f"[cyan]Downloading [bold]{item['name']} (from {item['id']})[/bold]..."
+                )
+
+                # Get dataset metadata
+                metadata = hf_hub_download(
+                    repo_id=item["id"], filename="info.json", repo_type="dataset"
+                )
+                with open(metadata) as f:
+                    metadata = json.load(f)
+
+                download_tasklist(
+                    name=item["name"],
+                    id=item["id"],
+                    split="test",
+                    keep_custom_columns=True,
+                    task_type=metadata.get("task_type", ""),
+                )
+            print(f"   :check_box_with_check:[cyan] {item['name']}")
+    except EnvironmentError:
+        if not args.tasklists:
+            print(
+                "[red]Error: HUGGINGFACE_TOKEN is not set. It is required to download private datasets from the PALACE collection.\n"
+                "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
             )
-        print(f"   :check_box_with_check:[cyan] {item['name']}")
+            return
+        print(
+            "[yellow]Skipping private PALACE collection (no HUGGINGFACE_TOKEN set)."
+        )
 
     # Download public
     with open(Path(__file__).parent / "public_datasets_info.json") as f:
@@ -376,6 +401,13 @@ def main():
     print(
         f":small_blue_diamond: [blue]Starting to download [bold]{len(tasklists_info)}[/bold] items from public Hugging Face datasets"
     )
+
+    # Try to login if token is available (needed for gated public datasets)
+    if HUGGINGFACE_TOKEN:
+        try:
+            _ensure_login()
+        except Exception:
+            pass  # Continue without login for public datasets
 
     # convert items with list splits into multiple items with single splits
     tasklists_info = [
@@ -409,5 +441,14 @@ def main():
     for tasklist_info in tasklists_info:
         with loading() as ld:
             ld.description = f"[cyan]Downloading [bold]{tasklist_info['name']} (from {tasklist_info['id']})[/bold]..."
-            download_tasklist(**tasklist_info)
+            try:
+                download_tasklist(**tasklist_info)
+            except Exception as e:
+                if "token" in str(e).lower() or "authentication" in str(e).lower() or "unauthorized" in str(e).lower() or "gated" in str(e).lower():
+                    print(
+                        f"   [red]:cross_mark: {tasklist_info['name']} requires authentication. "
+                        "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
+                    )
+                    continue
+                raise
         print(f"   :check_box_with_check:[cyan]  {tasklist_info['name']}")

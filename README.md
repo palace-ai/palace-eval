@@ -27,42 +27,83 @@ Here are the steps:
 
 1. **Clone the project:**
    ```bash
-   $ git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib.git palace
+   git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib.git palace
+   cd palace
    ```
 
-2. _(Optional, but highly recommended)_ **Create a virtual environment:**
+2. **Install uv** (if not already installed):
    ```bash
-   $ conda create -n palace python=3.13.*
-   $ conda activate palace
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-3. **Install** (this will also install all required dependencies):
+3. **Install dependencies** (uv will automatically create a virtual environment):
    ```bash
-   $ python3 -m pip install -e palace
+   uv sync
    ```
 
 4. **Configure secrets and other variables:**
 
-   4.1. Open file `palace/.env.example` and **set** all relevant information.
+   4.1. Open file `.env.example` and **set** all relevant information.
 
    4.2. Then rename the file:
    ```bash
-   mv palace/.env.example palace/.env
+   mv .env.example .env
    ```
-
-5. **Download the included benchmark tasklists**, by simply running the global command:
-   ```bash
-   $ palace-download
-   ```
-
-   This command will both download custom tasklists stored on the [PALACE Hugging Face Collection](https://huggingface.co/collections/jrc-ai/palace), and also download public Hugging Face datasets and convert them to the PALACE format.
-
-   Tasklists are downloaded to the user data directory:
-   - Linux: `~/.cache/palace/tasklists/`
-   - macOS: `~/Library/Caches/palace/tasklists/`
-   - Windows: `C:\Users\<user>\AppData\Local\palace\Cache\tasklists\`
 
 That's it! You are ready to use PALACE.
+
+## Quick Start
+
+Here's a complete example to evaluate a model on the SimpleQA benchmark:
+
+```bash
+# 1. Download the SimpleQA tasklist (no HuggingFace token required for public datasets)
+uv run -- palace-download -t SimpleQA
+
+# 2. Run the evaluation against an OpenAI-compatible endpoint
+uv run -- palace-run -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o -t SimpleQA -l 20
+```
+
+This will evaluate `gpt-4o` on 20 tasks from SimpleQA and save results to `~/.cache/palace/results/`.
+
+## Downloading Tasklists
+
+Before running evaluations, you need to download the benchmark tasklists using `palace-download`.
+
+### Download all tasklists
+
+To download all available tasklists (requires a HuggingFace token for private datasets):
+
+```bash
+uv run -- palace-download
+```
+
+### Download specific tasklists
+
+To download only specific tasklists:
+
+```bash
+uv run -- palace-download -t SimpleQA HotpotQA
+```
+
+Public datasets like SimpleQA, HotpotQA, and AssistantBench can be downloaded without a HuggingFace token. Gated datasets (like GAIA) and private PALACE collection datasets require a token.
+
+### Skip existing tasklists
+
+To skip tasklists that are already downloaded:
+
+```bash
+uv run -- palace-download --skip-existing
+```
+
+### HuggingFace token
+
+For gated or private datasets, set the `HUGGINGFACE_TOKEN` environment variable in your `.env` file. You can get a token from [HuggingFace Settings](https://huggingface.co/settings/tokens).
+
+Tasklists are downloaded to the user data directory:
+- Linux: `~/.cache/palace/tasklists/`
+- macOS: `~/Library/Caches/palace/tasklists/`
+- Windows: `C:\Users\<user>\AppData\Local\palace\Cache\tasklists\`
 
 ## Usage
 
@@ -73,10 +114,10 @@ There are a total of **3** supported ways to use PALACE: (1) via the **interacti
 ### CLI
 
 The easiest way to start using PALACE right away is using the global CLI command `palace-cli`.
-Simply type it in your terminal (be sure to activate the Python environment where the package is installed):
+Simply type it in your terminal:
 
 ```bash
-$ palace-cli
+uv run -- palace-cli
 ```
 
 This command should open up the main CLI, and you should be initially be presented with something like this:
@@ -113,12 +154,14 @@ Besides that, you pass the same information that you would pass to the CLI.
 
 For an explanation of the command run:
 ```bash
-$ palace-run --help
+uv run -- palace-run --help
 ```
+
+The `-k/--token` parameter can be omitted if you set the `OPENAI_API_KEY` or `API_KEY` environment variable.
 
 As an example, consider the following command:
 ```bash
-$ palace-run \
+uv run -- palace-run \
    --run-name=MyEval \
    --output-folder=/path/to/palace-results \
    --url=https://api.mistral.ai/v1 \
@@ -130,7 +173,7 @@ $ palace-run \
 
 Or a shorter example:
 ```bash
-$ palace-run -u https://api.mistral.ai/v1 -k abc123def456 -m mistral-medium-latest -t ValuesEval24 -l 20
+uv run -- palace-run -u https://api.mistral.ai/v1 -k abc123def456 -m mistral-medium-latest -t ValuesEval24 -l 20
 ```
 
 ### Programmatic API
@@ -166,7 +209,7 @@ The package comes with an MCP server that you can use to debug or test the appli
 To start it, simply run the global command:
 
 ```bash
-$ palace-mcpstart
+uv run -- palace-mcpstart
 ```
 
 on another terminal and leave it running.
