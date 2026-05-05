@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-import requests as req
+import requests
 
 from palace.agents.base_agent import Agent
 from palace.environments.base_environment import Environment
@@ -17,10 +17,15 @@ from palace.task_types.base import Task
 
 
 class VivariumAgent(Agent):
-    """Agent that runs inside palace-vivarium's sandboxed Docker environments.
+    """Agent that delegates execution to palace-vivarium's sandboxed Docker environments.
 
-    Manages the vivarium spec/environment lifecycle via HTTP and delegates
-    the agent loop (LLM + tool calling) to vivarium.
+    Args:
+        name: Model name (passed to vivarium as model_name for LLM calls).
+        url: LLM API base URL.
+        token: LLM API key.
+        vivarium_url: Vivarium service URL. If None, auto-starts via palace_vivarium SDK.
+        timeout_seconds: Max time per agent run.
+        max_steps: Max agent loop iterations per task.
     """
 
     def __init__(
@@ -35,15 +40,15 @@ class VivariumAgent(Agent):
         self._name = name
         self._url = url
         self._token = token
-        self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL")
-        self._timeout_seconds = timeout_seconds
+        self._timeout = timeout_seconds
         self._max_steps = max_steps
+        self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL")
         self._auto_started = False
         self._spec_id: str | None = None
-        self._current_env_id: str | None = None
+        self._env_id: str | None = None
+        self._tasklist_path: Path | None = None
         self._environment = UnknownEnvironment()
 
-        # Auto-start vivarium if no URL provided
         if not self._vivarium_url:
             try:
                 from palace_vivarium import start
@@ -72,98 +77,96 @@ class VivariumAgent(Agent):
         return self._environment
 
     def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
-        """Register environment spec with vivarium."""
+        """Register environment spec with vivarium (upload archive once)."""
         self._tasklist_path = tasklist_path
-        env_config = info.get("environment", {})
         env_dir = tasklist_path / "environment"
-        archive = _create_archive(env_dir)
-        r = req.post(
+        r = requests.post(
             f"{self._vivarium_url}/specs",
-            data={"spec": json.dumps(env_config)},
-            files={"environment": ("environment.tar.gz", archive, "application/gzip")},
+            data={"spec": json.dumps(info.get("environment", {}))},
+            files={"environment": ("environment.tar.gz", _tar_gz(env_dir), "application/gzip")},
         )
         r.raise_for_status()
         self._spec_id = r.json()["id"]
 
     def on_task_start(self, task: Task) -> None:
-        """Create vivarium environment for this task, with task_files if present."""
-        body = {"task_id": task.id, "seed_args": getattr(task, "seed_args", None)}
+        """Create a sandboxed environment for this task."""
+        body = {"task_id": task.id, "seed_args": task.custom_fields.get("seed_args")}
+        files = self._package_task_files(task)
 
-        # Package task_files: use attachment field (subfolder) or entire dir
-        task_files_dir = self._tasklist_path / "task_files"
-        files = None
-        if task_files_dir.is_dir():
-            attachment = getattr(task, "attachment", None)
-            target = task_files_dir / attachment if attachment else task_files_dir
-            if target.is_dir() and any(target.iterdir()):
-                task_files_archive = _create_archive(target)
-                files = {"task_files": ("task_files.tar.gz", task_files_archive, "application/gzip")}
-
-        r = req.post(
+        r = requests.post(
             f"{self._vivarium_url}/specs/{self._spec_id}/environments",
             data={"body": json.dumps(body)},
             files=files,
         )
         r.raise_for_status()
-        self._current_env_id = r.json()["id"]
-        # Set env_id on task so AgenticTask.verify() can use it
-        task._env_id = self._current_env_id  # type: ignore[attr-defined]
+        self._env_id = r.json()["id"]
+        task._env_id = self._env_id  # type: ignore[attr-defined]
         task._vivarium_url = self._vivarium_url  # type: ignore[attr-defined]
 
     def run(self, prompt: str, image: str | None = None) -> tuple[str | None, dict[str, Any] | None]:
-        """Submit agent run to vivarium and poll until completion."""
-        r = req.post(
-            f"{self._vivarium_url}/environments/{self._current_env_id}/run",
+        """Submit agent run and poll until completion."""
+        r = requests.post(
+            f"{self._vivarium_url}/environments/{self._env_id}/run",
             json={
                 "objective": prompt,
                 "model_url": self._url,
                 "model_key": self._token or "",
                 "model_name": self._name,
-                "timeout_seconds": self._timeout_seconds,
+                "timeout_seconds": self._timeout,
                 "max_steps": self._max_steps,
             },
         )
         r.raise_for_status()
         run_id = r.json()["run_id"]
 
-        # Poll until done (client-side timeout = server timeout + 30s buffer)
-        deadline = time.time() + self._timeout_seconds + 30
+        deadline = time.time() + self._timeout + 30
         while time.time() < deadline:
-            resp = req.get(f"{self._vivarium_url}/runs/{run_id}")
+            resp = requests.get(f"{self._vivarium_url}/runs/{run_id}")
             resp.raise_for_status()
             data = resp.json()
             if data["status"] != "running":
                 break
             time.sleep(2)
         else:
-            return None, None  # Client-side timeout
+            return None, None
 
         if data["status"] == "completed":
             return data["answer"], data.get("agent_metrics")
         return None, None
 
     def on_task_end(self, task: Task) -> None:
-        """Destroy vivarium environment."""
-        if self._current_env_id:
-            req.delete(f"{self._vivarium_url}/environments/{self._current_env_id}")
-            self._current_env_id = None
+        """Destroy the environment container."""
+        if self._env_id:
+            requests.delete(f"{self._vivarium_url}/environments/{self._env_id}")
+            self._env_id = None
 
     def on_tasklist_end(self) -> None:
-        """Unregister spec and stop vivarium if auto-started."""
+        """Cleanup spec and stop vivarium if auto-started."""
         if self._spec_id:
-            req.delete(f"{self._vivarium_url}/specs/{self._spec_id}")
+            requests.delete(f"{self._vivarium_url}/specs/{self._spec_id}")
             self._spec_id = None
         if self._auto_started:
             from palace_vivarium import stop
             stop()
             self._auto_started = False
 
+    def _package_task_files(self, task: Task) -> dict | None:
+        """Package task_files for upload, if any exist for this task."""
+        assert self._tasklist_path is not None
+        task_files_dir = self._tasklist_path / "task_files"
+        if not task_files_dir.is_dir():
+            return None
+        target = task_files_dir / task.attachment if task.attachment else task_files_dir
+        if not target.is_dir() or not any(target.iterdir()):
+            return None
+        return {"task_files": ("task_files.tar.gz", _tar_gz(target), "application/gzip")}
 
-def _create_archive(env_dir: Path) -> bytes:
-    """Create tar.gz of environment directory."""
+
+def _tar_gz(directory: Path) -> bytes:
+    """Create a tar.gz archive of a directory's contents."""
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        for f in env_dir.rglob("*"):
+        for f in directory.rglob("*"):
             if f.is_file():
-                tar.add(f, arcname=str(f.relative_to(env_dir)))
+                tar.add(f, arcname=str(f.relative_to(directory)))
     return buf.getvalue()
