@@ -87,7 +87,7 @@ class VivariumAgent(Agent):
 
     def on_task_start(self, task: Task) -> None:
         """Create vivarium environment for this task, with task_files if present."""
-        body = {"task_id": task.id, "initial_state": getattr(task, "initial_state", None)}
+        body = {"task_id": task.id, "seed_args": getattr(task, "seed_args", None)}
 
         # Package task_files: use attachment field (subfolder) or entire dir
         task_files_dir = self._tasklist_path / "task_files"

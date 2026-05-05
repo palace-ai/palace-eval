@@ -14,8 +14,8 @@ class AgenticTask(Task):
     _env_id: str | None = None
 
     @property
-    def initial_state(self) -> dict | None:
-        return self.custom_fields.get("initial_state")
+    def seed_args(self) -> dict | None:
+        return self.custom_fields.get("seed_args")
 
     @property
     def expected_outcome(self) -> dict:

@@ -51,9 +51,6 @@ dependencies = [
 Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
 Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
 
-[project.optional-dependencies]
-agentic = ["palace-vivarium>=0.1.0"]
-
 [project.scripts]
 palace-cli = "palace.entrypoints.palace_cli:main"
 palace-run = "palace.entrypoints.palace_run:run"
