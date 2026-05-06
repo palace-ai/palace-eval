@@ -150,6 +150,13 @@ class Evaluation:
         # Initialize analyzers based on toggles
         self.analyzers = []
 
+        # Progress tracking
+        self._progress_start_time: float | None = None
+        self._progress_total_tasks = 0
+        self._progress_completed = 0
+        self._progress_successful = 0
+        self._progress_failed = 0
+
         # Resolve citation verifier toggle: param overrides env var
         if enable_citation_verifier is None:
             enable_citation_verifier = os.getenv(
@@ -158,6 +165,53 @@ class Evaluation:
 
         if enable_citation_verifier:
             self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
+
+    def _print_progress(self) -> None:
+        """Print a progress line showing completion status and time estimates."""
+        if self._progress_start_time is None or self._progress_total_tasks == 0:
+            return
+
+        elapsed = time.time() - self._progress_start_time
+        completed = self._progress_completed
+        total = self._progress_total_tasks
+        successful = self._progress_successful
+        failed = self._progress_failed
+
+        # Calculate percentages
+        success_pct = (successful / completed * 100) if completed > 0 else 0
+        fail_pct = (failed / completed * 100) if completed > 0 else 0
+
+        # Estimate remaining time
+        if completed > 0:
+            avg_time_per_task = elapsed / completed
+            remaining_tasks = total - completed
+            eta_seconds = avg_time_per_task * remaining_tasks
+            eta_str = self._format_duration(eta_seconds)
+        else:
+            eta_str = "calculating..."
+
+        elapsed_str = self._format_duration(elapsed)
+
+        print(
+            f"[dim]Progress: {completed}/{total} tasks | "
+            f"✓ {successful} ({success_pct:.1f}%) | "
+            f"✗ {failed} ({fail_pct:.1f}%) | "
+            f"Time: {elapsed_str} | ETA: {eta_str}[/dim]"
+        )
+
+    @staticmethod
+    def _format_duration(seconds: float) -> str:
+        """Format seconds into a human-readable duration string."""
+        if seconds < 60:
+            return f"{seconds:.0f}s"
+        elif seconds < 3600:
+            mins = int(seconds // 60)
+            secs = int(seconds % 60)
+            return f"{mins}m {secs}s"
+        else:
+            hours = int(seconds // 3600)
+            mins = int((seconds % 3600) // 60)
+            return f"{hours}h {mins}m"
 
     def _run_analyzers(
         self,
@@ -214,6 +268,24 @@ class Evaluation:
             and detailed report.
         """
         results = []
+
+        # Initialize progress tracking
+        self._progress_start_time = time.time()
+        self._progress_completed = 0
+        self._progress_successful = 0
+        self._progress_failed = 0
+
+        # Calculate total tasks across all tasklists
+        total_tasks = 0
+        for tasklist in tasklists:
+            tasklist_path = TASKLISTS_PATH / tasklist
+            if tasklist_path.exists():
+                with open(tasklist_path / "tasks.json") as f:
+                    tasks_count = len(json.load(f))
+                    if self.task_amount_limit is not None:
+                        tasks_count = min(tasks_count, self.task_amount_limit)
+                    total_tasks += tasks_count * len(agents) * self.runs_per_configuration
+        self._progress_total_tasks = total_tasks
 
         grid = list(itertools.product(agents, tasklists))
         for agent, tasklist in grid:
@@ -638,6 +710,17 @@ class Evaluation:
             self.on_task_complete(
                 i + 1, len(tasks)
             ) if self.on_task_complete is not None else None
+
+            # Update and print progress
+            self._progress_completed += 1
+            if is_skipped:
+                self._progress_failed += 1
+            elif is_correct:
+                self._progress_successful += 1
+            else:
+                self._progress_failed += 1
+            self._print_progress()
+
             agent.on_task_end(task)
 
         agent.on_tasklist_end()
