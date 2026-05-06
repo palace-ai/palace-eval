@@ -3,6 +3,7 @@
 import itertools
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -612,6 +613,15 @@ class Evaluation:
             # Apply output adapter if configured
             if result is not None and adapter is not None:
                 result = adapter.adapt_output(result)
+
+            # Strip common thinking/reasoning tags from output (e.g., <think>...</think>)
+            if result is not None:
+                # Remove <think>...</think>, <reasoning>...</reasoning>, etc.
+                cleaned = re.sub(r'<(think|reasoning|thought)>.*?</\1>', '', result, flags=re.DOTALL | re.IGNORECASE)
+                cleaned = cleaned.strip()
+                # Only use cleaned version if there's content left
+                if cleaned:
+                    result = cleaned
 
             # check if run completed successfully
             if result is None:
