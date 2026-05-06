@@ -282,3 +282,6 @@ def run():
     except EndpointError as e:
         print(f"[red]Error: {e}[/red]")
         exit(1)
+    except KeyboardInterrupt:
+        # Summary already printed by Evaluation, just exit cleanly
+        exit(130)  # Standard exit code for Ctrl+C

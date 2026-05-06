@@ -213,6 +213,34 @@ class Evaluation:
             mins = int((seconds % 3600) // 60)
             return f"{hours}h {mins}m"
 
+    def _print_final_summary(self, interrupted: bool = False) -> None:
+        """Print a final summary of the evaluation progress."""
+        if self._progress_start_time is None:
+            return
+
+        elapsed = time.time() - self._progress_start_time
+        completed = self._progress_completed
+        total = self._progress_total_tasks
+        successful = self._progress_successful
+        failed = self._progress_failed
+
+        success_pct = (successful / completed * 100) if completed > 0 else 0
+        fail_pct = (failed / completed * 100) if completed > 0 else 0
+        elapsed_str = self._format_duration(elapsed)
+
+        status = "[yellow]Interrupted by user[/yellow]" if interrupted else "[green]Completed[/green]"
+
+        print()
+        print(
+            f"{status}\n\n"
+            f"Tasks: [blue]{completed}[/blue] / [blue]{total}[/blue]\n"
+            f"Successful: [green]{successful}[/green] ({success_pct:.1f}%)\n"
+            f"Failed: [red]{failed}[/red] ({fail_pct:.1f}%)\n"
+            f"Total time: [blue]{elapsed_str}[/blue]",
+            box=True,
+            box_title=":bar_chart: Final Summary",
+        )
+
     def _run_analyzers(
         self,
         task: Task,
@@ -288,78 +316,85 @@ class Evaluation:
         self._progress_total_tasks = total_tasks
 
         grid = list(itertools.product(agents, tasklists))
-        for agent, tasklist in grid:
-            for run in range(self.runs_per_configuration):
-                print(f"""
+        try:
+            for agent, tasklist in grid:
+                for run in range(self.runs_per_configuration):
+                    print(f"""
 [bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
 :robot: agent [blue] {agent.name}[/]
 :package: on enviromnent [blue]{agent.environment.name}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
 """)
 
-                report, verification_results, task_cls = self.evaluate(agent, tasklist)
+                    report, verification_results, task_cls = self.evaluate(agent, tasklist)
 
-                evaluated = [r for r in verification_results if not r.is_skipped]
-                skipped = [r for r in verification_results if r.is_skipped]
-                correct_tasks = sum(r.is_correct for r in evaluated)
-                total_time = sum(t["elapsed_time"] for t in report.values())
+                    evaluated = [r for r in verification_results if not r.is_skipped]
+                    skipped = [r for r in verification_results if r.is_skipped]
+                    correct_tasks = sum(r.is_correct for r in evaluated)
+                    total_time = sum(t["elapsed_time"] for t in report.values())
 
-                # Task-type aggregation (F1, avg_normalized_score, etc.)
-                task_type_metrics = task_cls.aggregate(verification_results)
-                accuracy = task_type_metrics.pop("accuracy", 0)
+                    # Task-type aggregation (F1, avg_normalized_score, etc.)
+                    task_type_metrics = task_cls.aggregate(verification_results)
+                    accuracy = task_type_metrics.pop("accuracy", 0)
 
-                # Agent-execution metrics (pass@k, averages, tool hallucination)
-                evaluated_report = {
-                    k: v for k, v in report.items() if not v.get("is_skipped")
-                }
-                agent_metrics = compute_agent_metrics(evaluated_report)
+                    # Agent-execution metrics (pass@k, averages, tool hallucination)
+                    evaluated_report = {
+                        k: v for k, v in report.items() if not v.get("is_skipped")
+                    }
+                    agent_metrics = compute_agent_metrics(evaluated_report)
 
-                print()
-                print(
-                    f"[blue]:robot: {agent.name} ({agent.model_name} x {agent.paradigm_name})[/]:\n"
-                    + f"on :package: [blue]{agent.environment.name}[/]\n"
-                    + f"on :scroll: [blue]{tasklist}[/]\n\n"
-                    + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
-                    + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
-                    + f"\nTotal time: [blue]{total_time}[/]",
-                    box=True,
-                    box_title="Evaluation Report",
-                )
+                    print()
+                    print(
+                        f"[blue]:robot: {agent.name} ({agent.model_name} x {agent.paradigm_name})[/]:\n"
+                        + f"on :package: [blue]{agent.environment.name}[/]\n"
+                        + f"on :scroll: [blue]{tasklist}[/]\n\n"
+                        + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
+                        + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
+                        + f"\nTotal time: [blue]{total_time}[/]",
+                        box=True,
+                        box_title="Evaluation Report",
+                    )
 
-                # Build metrics dict with standardized structure
-                metrics: dict[str, int | float | dict] = {
-                    "task_count": len(report),
-                    "evaluated_count": len(evaluated),
-                    "correct_count": correct_tasks,
-                    "skipped_count": len(skipped),
-                    "total_time": total_time,
-                    "accuracy": accuracy,
-                    "task_type": task_type_metrics,
-                    "agent": agent_metrics,
-                }
+                    # Build metrics dict with standardized structure
+                    metrics: dict[str, int | float | dict] = {
+                        "task_count": len(report),
+                        "evaluated_count": len(evaluated),
+                        "correct_count": correct_tasks,
+                        "skipped_count": len(skipped),
+                        "total_time": total_time,
+                        "accuracy": accuracy,
+                        "task_type": task_type_metrics,
+                        "agent": agent_metrics,
+                    }
 
-                run_results = {
-                    "agent": agent.name,
-                    "model": agent.model_name,
-                    "paradigm": agent.paradigm_name,
-                    "environment": agent.environment.name,
-                    "tasklist": tasklist,
-                    "accuracy": accuracy,
-                    "metrics": metrics,
-                }
-                if self.report_detail != "none":
-                    run_results["detailed_report"] = report
-                results.append(run_results)
+                    run_results = {
+                        "agent": agent.name,
+                        "model": agent.model_name,
+                        "paradigm": agent.paradigm_name,
+                        "environment": agent.environment.name,
+                        "tasklist": tasklist,
+                        "accuracy": accuracy,
+                        "metrics": metrics,
+                    }
+                    if self.report_detail != "none":
+                        run_results["detailed_report"] = report
+                    results.append(run_results)
 
-                # append results to jsonl file
-                os.makedirs(self.output_path, exist_ok=True)
-                with open(
-                    self.output_path / f"{self.name}.jsonl",
-                    "a",
-                    encoding="utf-8",
-                ) as f:
-                    run_json = json.dumps(run_results, ensure_ascii=False)
-                    f.write(run_json + "\n")
+                    # append results to jsonl file
+                    os.makedirs(self.output_path, exist_ok=True)
+                    with open(
+                        self.output_path / f"{self.name}.jsonl",
+                        "a",
+                        encoding="utf-8",
+                    ) as f:
+                        run_json = json.dumps(run_results, ensure_ascii=False)
+                        f.write(run_json + "\n")
+
+            self._print_final_summary(interrupted=False)
+        except KeyboardInterrupt:
+            print("\n[bold][yellow]Evaluation cancelled by user (Ctrl+C)[/yellow][/bold]")
+            self._print_final_summary(interrupted=True)
+            raise
 
         return pd.DataFrame(results)
 
