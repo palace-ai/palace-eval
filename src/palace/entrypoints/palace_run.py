@@ -183,7 +183,7 @@ def run():
         help="The token to use for authentication. Falls back to OPENAI_API_KEY or API_KEY environment variables.",
     )
     argparser.add_argument(
-        "-m", "--name", type=str, required=True, help="The name of the model/agent."
+        "-m", "--name", type=str, default=None, help="The name of the model/agent. If omitted, lists available models."
     )
     argparser.add_argument(
         "-t",
@@ -221,6 +221,39 @@ def run():
         help="Level of detail in per-task report: none (omit report), default (slimmed), full (includes task text).",
     )
     args = argparser.parse_args()
+
+    # If no model specified, list available models and exit
+    if args.name is None:
+        try:
+            headers = {"Authorization": f"Bearer {args.token}"} if args.token else {}
+            response = httpx.get(f"{args.url}/models", headers=headers, timeout=30)
+            if response.status_code == 401:
+                print("[red]Error: Authentication failed. Please provide a token with -k or set OPENAI_API_KEY.[/red]")
+                exit(1)
+            if response.status_code != 200:
+                print(f"[red]Error: Failed to fetch models (status {response.status_code})[/red]")
+                exit(1)
+            data = response.json()
+            # Check for error in response body (some APIs return 200 with error)
+            if "error" in data or (data.get("base_resp", {}).get("status_code", 0) != 0):
+                error_msg = data.get("error", {}).get("message") or data.get("base_resp", {}).get("status_msg") or "Unknown error"
+                print(f"[red]Error: {error_msg}[/red]")
+                exit(1)
+            models = sorted([m["id"] for m in data.get("data", [])])
+            if models:
+                print("[cyan]Available models at this endpoint:[/cyan]")
+                for model in models:
+                    print(f"  - {model}")
+                print(f"\n[yellow]Run again with: -m <model_name>[/yellow]")
+            else:
+                print("[yellow]No models found at this endpoint.[/yellow]")
+            exit(0)
+        except httpx.ConnectError:
+            print(f"[red]Error: Cannot connect to endpoint: {args.url}[/red]")
+            exit(1)
+        except Exception as e:
+            print(f"[red]Error: {e}[/red]")
+            exit(1)
 
     try:
         evaluate(
