@@ -26,13 +26,15 @@ disable_progress_bars()
 @dataclass
 class DownloadEvent:
     """Progress event emitted during download_all()."""
-    status: str  # "downloading" | "done" | "skipped" | "error"
+    status: str  # "downloading" | "processing" | "files" | "done" | "skipped" | "error"
     name: str
     current: int  # dataset index (1-based)
     total: int  # total datasets
     rows_done: int = 0
     total_rows: int = 0
     total_bytes: int = 0
+    files_done: int = 0
+    total_files: int = 0
 
 
 def _ensure_login():
@@ -122,7 +124,7 @@ def download_tasklist(
             on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=i + 1, total_rows=total_rows, total_bytes=total_bytes))
 
     if on_progress:
-        on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=len(dataset_rows), total_rows=total_rows, total_bytes=total_bytes))
+        on_progress(DownloadEvent(status="processing", name=name, current=ctx_current, total=ctx_total, rows_done=len(dataset_rows), total_rows=total_rows, total_bytes=total_bytes))
 
     tasks = []
     for i, row in enumerate(dataset_rows):
@@ -231,11 +233,17 @@ def download_tasklist(
         attachments_dir = Path(tasklist_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
-        for attachment in [
+        attachments_to_download = [
             row[column_names["attachment"]]
             for row in dataset_rows
             if row.get(column_names["attachment"], "") != ""
-        ]:
+        ]
+        total_files = len(attachments_to_download)
+
+        if on_progress and total_files:
+            on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=total_files))
+
+        for file_idx, attachment in enumerate(attachments_to_download):
             # attachment is present as a file name to download
             if not inline_attachment:
                 temp_dir = tasklist_path / ".dl_tmp"
@@ -275,6 +283,9 @@ def download_tasklist(
                     encoding="utf-8" if attachment_type == "text" else None,
                 ) as f:
                     f.write(attachment)
+
+            if on_progress:
+                on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
 
 
 def _string_type(s):
