@@ -5,7 +5,9 @@ import json
 import os
 import re
 import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 import filetype
 from datasets import load_dataset
@@ -19,6 +21,18 @@ PALACE_HF_COLLECTION = "jrc-ai/palace"
 
 _logged_in = False
 disable_progress_bars()
+
+
+@dataclass
+class DownloadEvent:
+    """Progress event emitted during download_all()."""
+    status: str  # "downloading" | "done" | "skipped" | "error"
+    name: str
+    current: int  # dataset index (1-based)
+    total: int  # total datasets
+    rows_done: int = 0
+    total_rows: int = 0
+    total_bytes: int = 0
 
 
 def _ensure_login():
@@ -56,6 +70,8 @@ def download_tasklist(
     default_labels: dict[str, str] | None = None,
     label_mapping: dict[str, str] | None = None,
     custom_verificator: str | None = None,
+    on_progress: Callable[[DownloadEvent], None] | None = None,
+    _progress_ctx: tuple[int, int] | None = None,
 ) -> None:
     if isinstance(split, list):
         for s in split:
@@ -73,6 +89,8 @@ def download_tasklist(
                 default_labels=default_labels,
                 label_mapping=label_mapping,
                 custom_verificator=custom_verificator,
+                on_progress=on_progress,
+                _progress_ctx=_progress_ctx,
             )
         return
 
@@ -85,10 +103,29 @@ def download_tasklist(
         raise ValueError(
             f"If custom_verificator is specified, it must follow the signature 'def verify(pred, truth) -> bool', found {custom_verificator}."
         )
-    dataset = load_dataset(path=id, name=config, split=split)
-    dataset = dataset.to_list()  # type: ignore
-    tasks = []
+
+    # Use streaming to get row-level progress
+    dataset = load_dataset(path=id, name=config, split=split, streaming=True)
+    split_info = dataset.info.splits.get(split) if dataset.info.splits else None
+    total_rows = split_info.num_examples if split_info else 0
+    total_bytes = split_info.num_bytes if split_info else 0
+
+    ctx_current, ctx_total = _progress_ctx or (0, 0)
+    if on_progress:
+        on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, total_rows=total_rows, total_bytes=total_bytes))
+
+    # Iterate and collect rows
+    dataset_rows = []
     for i, row in enumerate(dataset):
+        dataset_rows.append(row)
+        if on_progress and i % 100 == 0:
+            on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=i + 1, total_rows=total_rows, total_bytes=total_bytes))
+
+    if on_progress:
+        on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=len(dataset_rows), total_rows=total_rows, total_bytes=total_bytes))
+
+    tasks = []
+    for i, row in enumerate(dataset_rows):
         # Get attachment name
         attachment = (
             row[column_names["attachment"]]
@@ -188,14 +225,15 @@ def download_tasklist(
     # Download and save task files (attachments)
     if (
         column_names.get("attachment") is not None
-        and column_names["attachment"] in dataset[0]
+        and dataset_rows
+        and column_names["attachment"] in dataset_rows[0]
     ):
         attachments_dir = Path(tasklist_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
         for attachment in [
             row[column_names["attachment"]]
-            for row in dataset
+            for row in dataset_rows
             if row.get(column_names["attachment"], "") != ""
         ]:
             # attachment is present as a file name to download
@@ -315,6 +353,100 @@ def _get_filename(s: str) -> str:
     return f"{filename}.{extension}"
 
 
+def download_all(
+    on_progress: Callable[[DownloadEvent], None] | None = None,
+    skip_existing: bool = False,
+    tasklists: list[str] | None = None,
+) -> None:
+    """Download all PALACE datasets (private collection + public).
+
+    Args:
+        on_progress: Optional callback invoked with DownloadEvent for real-time progress.
+        skip_existing: Skip datasets that already exist locally.
+        tasklists: If provided, only download these tasklist names.
+    """
+    # Build full list of datasets to download
+    all_items: list[dict] = []
+
+    # Private collection
+    try:
+        _ensure_login()
+        collection = get_collection(PALACE_HF_COLLECTION)
+        for item in collection.items:
+            if item.item_type == "dataset":
+                name = item.item_id.replace("jrc-ai/", "")
+                if tasklists and name not in tasklists:
+                    continue
+                if skip_existing and (TASKLISTS_PATH / name).exists():
+                    continue
+                all_items.append({"name": name, "id": item.item_id, "_private": True})
+    except EnvironmentError:
+        print("[yellow]Skipping private PALACE collection (no HUGGINGFACE_TOKEN set).")
+
+    # Public datasets
+    with open(Path(__file__).parent / "public_datasets_info.json") as f:
+        public_info = json.load(f)
+
+    if HUGGINGFACE_TOKEN:
+        try:
+            _ensure_login()
+        except Exception:
+            pass
+
+    # Expand list splits
+    expanded = []
+    for item in public_info:
+        if isinstance(item["split"], list):
+            for s in item["split"]:
+                expanded.append({**item, "split": s, "name": f"{item['name']}-{s}"})
+        else:
+            expanded.append(item)
+
+    for item in expanded:
+        if tasklists and item["name"] not in tasklists:
+            continue
+        if skip_existing and (TASKLISTS_PATH / item["name"]).exists():
+            continue
+        all_items.append({**item, "_private": False})
+
+    total = len(all_items)
+    for idx, item in enumerate(all_items, 1):
+        name = item["name"]
+
+        # Check gated
+        if not item.get("_private") and not HUGGINGFACE_TOKEN:
+            try:
+                info = hf_dataset_info(item["id"])
+                if info.gated:
+                    if on_progress:
+                        on_progress(DownloadEvent(status="skipped", name=name, current=idx, total=total))
+                    print(f"   [yellow]:cross_mark: {name} is gated. Skipping.")
+                    continue
+            except Exception:
+                pass
+
+        # Download
+        with loading() as ld:
+            ld.description = f"[cyan]Downloading [bold]{name}[/bold]..."
+
+            if item.get("_private"):
+                metadata = hf_hub_download(repo_id=item["id"], filename="info.json", repo_type="dataset")
+                with open(metadata) as f:
+                    metadata = json.load(f)
+                download_tasklist(
+                    name=name, id=item["id"], split="test",
+                    keep_custom_columns=True, task_type=metadata.get("task_type", ""),
+                    on_progress=on_progress, _progress_ctx=(idx, total),
+                )
+            else:
+                dl_args = {k: v for k, v in item.items() if k != "_private"}
+                download_tasklist(**dl_args, on_progress=on_progress, _progress_ctx=(idx, total))
+
+        if on_progress:
+            on_progress(DownloadEvent(status="done", name=name, current=idx, total=total))
+        print(f"   :check_box_with_check:[cyan] {name}")
+
+
 def main():
     argparser = argparse.ArgumentParser(
         description="Download PALACE datasets from Hugging Face."
@@ -332,126 +464,7 @@ def main():
     )
     args = argparser.parse_args()
 
-    # Download private (from palace hf)
-    try:
-        _ensure_login()
-        collection = get_collection(PALACE_HF_COLLECTION)
-        collection = [
-            {"id": item.item_id, "name": item.item_id.replace("jrc-ai/", "")}
-            for item in collection.items
-            if item.item_type == "dataset"
-        ]
-        print(
-            f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
-        )
-
-        # filter by --tasklists argument if provided
-        if args.tasklists:
-            collection = [item for item in collection if item["name"] in args.tasklists]
-            print(
-                f"   [cyan]Filtered to [bold]{len(collection)}[/bold] items based on --tasklists argument."
-            )
-
-        # If --skip-existing is set, filter out items that already exist locally
-        if args.skip_existing:
-            exists = [
-                item for item in collection if (TASKLISTS_PATH / item["name"]).exists()
-            ]
-            collection = [item for item in collection if item not in exists]
-            print(
-                f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
-            )
-
-        print(f"   [cyan]Downloading [bold]{len(collection)}[/bold] items...")
-        for item in collection:
-            with loading() as ld:
-                ld.description = (
-                    f"[cyan]Downloading [bold]{item['name']} (from {item['id']})[/bold]..."
-                )
-
-                # Get dataset metadata
-                metadata = hf_hub_download(
-                    repo_id=item["id"], filename="info.json", repo_type="dataset"
-                )
-                with open(metadata) as f:
-                    metadata = json.load(f)
-
-                download_tasklist(
-                    name=item["name"],
-                    id=item["id"],
-                    split="test",
-                    keep_custom_columns=True,
-                    task_type=metadata.get("task_type", ""),
-                )
-            print(f"   :check_box_with_check:[cyan] {item['name']}")
-    except EnvironmentError:
-        if not args.tasklists:
-            print(
-                "[red]Error: HUGGINGFACE_TOKEN is not set. It is required to download private datasets from the PALACE collection.\n"
-                "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
-            )
-            return
-        print(
-            "[yellow]Skipping private PALACE collection (no HUGGINGFACE_TOKEN set)."
-        )
-
-    # Download public
-    with open(Path(__file__).parent / "public_datasets_info.json") as f:
-        tasklists_info = json.load(f)
-    print(
-        f":small_blue_diamond: [blue]Starting to download [bold]{len(tasklists_info)}[/bold] items from public Hugging Face datasets"
+    download_all(
+        skip_existing=args.skip_existing,
+        tasklists=args.tasklists,
     )
-
-    # Login if token is available (needed for gated public datasets like GAIA)
-    if HUGGINGFACE_TOKEN:
-        try:
-            _ensure_login()
-        except Exception:
-            pass
-
-    # convert items with list splits into multiple items with single splits
-    tasklists_info = [
-        item
-        if isinstance(item["split"], str)
-        else {**item, "split": s, "name": f"{item['name']}-{s}"}
-        for item in tasklists_info
-        for s in (item["split"] if isinstance(item["split"], list) else [item["split"]])
-    ]
-
-    # filter by --tasklists argument if provided
-    if args.tasklists:
-        tasklists_info = [
-            info for info in tasklists_info if info["name"] in args.tasklists
-        ]
-        print(
-            f"   [cyan]Filtered to [bold]{len(tasklists_info)}[/bold] items based on --tasklists argument."
-        )
-
-    # If --skip-existing is set, filter out items that already exist locally
-    if args.skip_existing:
-        exists = [
-            info for info in tasklists_info if (TASKLISTS_PATH / info["name"]).exists()
-        ]
-        tasklists_info = [info for info in tasklists_info if info not in exists]
-        print(
-            f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
-        )
-
-    print(f"   [cyan]Downloading [bold]{len(tasklists_info)}[/bold] items...")
-    for tasklist_info in tasklists_info:
-        # Check if dataset is gated and skip if no token
-        if not HUGGINGFACE_TOKEN:
-            try:
-                info = hf_dataset_info(tasklist_info["id"])
-                if info.gated:
-                    print(
-                        f"   [yellow]:cross_mark: {tasklist_info['name']} is gated and requires a HuggingFace token. Skipping."
-                    )
-                    continue
-            except Exception:
-                pass  # If we can't check, try downloading anyway
-
-        with loading() as ld:
-            ld.description = f"[cyan]Downloading [bold]{tasklist_info['name']} (from {tasklist_info['id']})[/bold]..."
-            download_tasklist(**tasklist_info)
-        print(f"   :check_box_with_check:[cyan]  {tasklist_info['name']}")
