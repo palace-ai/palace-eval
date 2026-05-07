@@ -1,3 +1,5 @@
+import re
+
 from anthropic import Anthropic, omit
 from openai import APITimeoutError, OpenAI, OpenAIError, RateLimitError, InternalServerError, APIConnectionError
 from tenacity import (
@@ -10,6 +12,8 @@ from tenacity import (
 from palace.models.base_model import Message, Model
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
+
+_THINKING_TAG_RE = re.compile(r'<think>.*?</think>', re.DOTALL | re.IGNORECASE)
 
 
 class APIModel(Model):
@@ -27,6 +31,7 @@ class APIModel(Model):
         url: str,
         token: str | None = None,
         api_type: str = "openai",
+        strip_thinking_tags: bool = True,
     ):
         """
         A class to interact with OpenAI-compatible models.
@@ -37,12 +42,15 @@ class APIModel(Model):
             token (str): The API token for authentication.
             api_type (str): The API type to use. Allowed values are `openai` and `anthropic`.
                 Defaults to `openai`.
+            strip_thinking_tags (bool): Whether to strip <think>...</think> tags
+                from model output. Defaults to True.
         """
         assert api_type in {"openai", "anthropic"}, (
             "api_type must be either 'openai' or 'anthropic'"
         )
         self.api_type = api_type
         self.model_id = model_id
+        self.strip_thinking_tags = strip_thinking_tags
 
         if self.api_type == "openai":
             self.client = OpenAI(base_url=url, api_key=token or "no-key")
@@ -95,7 +103,7 @@ class APIModel(Model):
                     messages=messages,  # type: ignore
                     stream=False,
                 )
-                return chat_completion.choices[0].message.content
+                result = chat_completion.choices[0].message.content
             elif self.api_type == "anthropic":
                 system_prompt = None
                 if messages[0]["role"] == "system":
@@ -109,8 +117,15 @@ class APIModel(Model):
                     if system_prompt is not None
                     else omit,
                 )  # type: ignore
-                return chat_completion.content[0].text
+                result = chat_completion.content[0].text
             else:
                 raise ValueError(f"Unsupported API type: {self.api_type}")
+
+            if self.strip_thinking_tags and result:
+                cleaned = _THINKING_TAG_RE.sub('', result).strip()
+                if cleaned:
+                    result = cleaned
+
+            return result
         except (TimeoutException, OpenAIError, Exception):
             raise

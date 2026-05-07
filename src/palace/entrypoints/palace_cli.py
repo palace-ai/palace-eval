@@ -419,11 +419,14 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         runs_per_configuration=runs_per_configuration,
     )
 
-    evaluation.evaluate_all(
-        # [agent for agent in local_agents + mcp_agents + openai_agents],
-        agents,
-        tasklists=tasklists,
-    )
+    try:
+        evaluation.evaluate_all(
+            # [agent for agent in local_agents + mcp_agents + openai_agents],
+            agents,
+            tasklists=tasklists,
+        )
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == "__main__":

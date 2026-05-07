@@ -9,7 +9,7 @@ from pathlib import Path
 
 import filetype
 from datasets import load_dataset
-from huggingface_hub import get_collection, hf_hub_download, login
+from huggingface_hub import dataset_info as hf_dataset_info, get_collection, hf_hub_download, login
 from huggingface_hub.utils.tqdm import disable_progress_bars
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
@@ -17,8 +17,21 @@ from palace.utils.secrets import HUGGINGFACE_TOKEN
 
 PALACE_HF_COLLECTION = "jrc-ai/palace"
 
-login(token=HUGGINGFACE_TOKEN)
+_logged_in = False
 disable_progress_bars()
+
+
+def _ensure_login():
+    global _logged_in
+    if _logged_in:
+        return
+    if not HUGGINGFACE_TOKEN:
+        raise EnvironmentError(
+            "A HuggingFace token is required for this dataset. "
+            "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
+        )
+    login(token=HUGGINGFACE_TOKEN)
+    _logged_in = True
 
 
 def download_tasklist(
@@ -320,55 +333,67 @@ def main():
     args = argparser.parse_args()
 
     # Download private (from palace hf)
-    collection = get_collection(PALACE_HF_COLLECTION)
-    collection = [
-        {"id": item.item_id, "name": item.item_id.replace("jrc-ai/", "")}
-        for item in collection.items
-        if item.item_type == "dataset"
-    ]
-    print(
-        f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
-    )
-
-    # filter by --tasklists argument if provided
-    if args.tasklists:
-        collection = [item for item in collection if item["name"] in args.tasklists]
-        print(
-            f"   [cyan]Filtered to [bold]{len(collection)}[/bold] items based on --tasklists argument."
-        )
-
-    # If --skip-existing is set, filter out items that already exist locally
-    if args.skip_existing:
-        exists = [
-            item for item in collection if (TASKLISTS_PATH / item["name"]).exists()
+    try:
+        _ensure_login()
+        collection = get_collection(PALACE_HF_COLLECTION)
+        collection = [
+            {"id": item.item_id, "name": item.item_id.replace("jrc-ai/", "")}
+            for item in collection.items
+            if item.item_type == "dataset"
         ]
-        collection = [item for item in collection if item not in exists]
         print(
-            f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
+            f":small_blue_diamond: [blue]Starting to download [bold]{len(collection)}[/bold] items from the PALACE Hugging Face collection"
         )
 
-    print(f"   [cyan]Downloading [bold]{len(collection)}[/bold] items...")
-    for item in collection:
-        with loading() as ld:
-            ld.description = (
-                f"[cyan]Downloading [bold]{item['name']} (from {item['id']})[/bold]..."
+        # filter by --tasklists argument if provided
+        if args.tasklists:
+            collection = [item for item in collection if item["name"] in args.tasklists]
+            print(
+                f"   [cyan]Filtered to [bold]{len(collection)}[/bold] items based on --tasklists argument."
             )
 
-            # Get dataset metadata
-            metadata = hf_hub_download(
-                repo_id=item["id"], filename="info.json", repo_type="dataset"
+        # If --skip-existing is set, filter out items that already exist locally
+        if args.skip_existing:
+            exists = [
+                item for item in collection if (TASKLISTS_PATH / item["name"]).exists()
+            ]
+            collection = [item for item in collection if item not in exists]
+            print(
+                f"   [cyan]Skipping [bold]{len(exists)}[/bold] items that already exist locally."
             )
-            with open(metadata) as f:
-                metadata = json.load(f)
 
-            download_tasklist(
-                name=item["name"],
-                id=item["id"],
-                split="test",
-                keep_custom_columns=True,
-                task_type=metadata.get("task_type", ""),
+        print(f"   [cyan]Downloading [bold]{len(collection)}[/bold] items...")
+        for item in collection:
+            with loading() as ld:
+                ld.description = (
+                    f"[cyan]Downloading [bold]{item['name']} (from {item['id']})[/bold]..."
+                )
+
+                # Get dataset metadata
+                metadata = hf_hub_download(
+                    repo_id=item["id"], filename="info.json", repo_type="dataset"
+                )
+                with open(metadata) as f:
+                    metadata = json.load(f)
+
+                download_tasklist(
+                    name=item["name"],
+                    id=item["id"],
+                    split="test",
+                    keep_custom_columns=True,
+                    task_type=metadata.get("task_type", ""),
+                )
+            print(f"   :check_box_with_check:[cyan] {item['name']}")
+    except EnvironmentError:
+        if not args.tasklists:
+            print(
+                "[red]Error: HUGGINGFACE_TOKEN is not set. It is required to download private datasets from the PALACE collection.\n"
+                "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
             )
-        print(f"   :check_box_with_check:[cyan] {item['name']}")
+            return
+        print(
+            "[yellow]Skipping private PALACE collection (no HUGGINGFACE_TOKEN set)."
+        )
 
     # Download public
     with open(Path(__file__).parent / "public_datasets_info.json") as f:
@@ -376,6 +401,13 @@ def main():
     print(
         f":small_blue_diamond: [blue]Starting to download [bold]{len(tasklists_info)}[/bold] items from public Hugging Face datasets"
     )
+
+    # Login if token is available (needed for gated public datasets like GAIA)
+    if HUGGINGFACE_TOKEN:
+        try:
+            _ensure_login()
+        except Exception:
+            pass
 
     # convert items with list splits into multiple items with single splits
     tasklists_info = [
@@ -407,6 +439,18 @@ def main():
 
     print(f"   [cyan]Downloading [bold]{len(tasklists_info)}[/bold] items...")
     for tasklist_info in tasklists_info:
+        # Check if dataset is gated and skip if no token
+        if not HUGGINGFACE_TOKEN:
+            try:
+                info = hf_dataset_info(tasklist_info["id"])
+                if info.gated:
+                    print(
+                        f"   [yellow]:cross_mark: {tasklist_info['name']} is gated and requires a HuggingFace token. Skipping."
+                    )
+                    continue
+            except Exception:
+                pass  # If we can't check, try downloading anyway
+
         with loading() as ld:
             ld.description = f"[cyan]Downloading [bold]{tasklist_info['name']} (from {tasklist_info['id']})[/bold]..."
             download_tasklist(**tasklist_info)

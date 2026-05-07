@@ -1,11 +1,14 @@
 import argparse
+import os
 from pathlib import Path
 from typing import Callable
 
 from palace.agents.mcp_agent import MCPAgent
 from palace.agents.openai_api_agent import OpenAIAPIAgent
 from palace.evaluation import Evaluation
+from palace.models.api_model import APIModel
 from palace.utils.paths import RESULTS_PATH
+from palace.utils.printing import print
 
 
 def evaluate(
@@ -85,11 +88,11 @@ def run():
         "-k",
         "--token",
         type=str,
-        default=None,
-        help="The token to use for authentication, if required.",
+        default=os.environ.get("OPENAI_LIKE_API_KEY"),
+        help="The token to use for authentication. Falls back to OPENAI_LIKE_API_KEY environment variable.",
     )
     argparser.add_argument(
-        "-m", "--name", type=str, required=True, help="The name of the model/agent."
+        "-m", "--name", type=str, default=None, help="The name of the model/agent. If omitted, lists available models."
     )
     argparser.add_argument(
         "-t",
@@ -128,15 +131,39 @@ def run():
     )
     args = argparser.parse_args()
 
-    evaluate(
-        run_name=args.run_name,
-        output_folder=args.output_folder,
-        url=args.url,
-        token=args.token,
-        name=args.name,
-        tasklist=args.tasklist,
-        limit=args.limit,
-        runs_per_configuration=args.runs_per_configuration,
-        endpoint_type=args.endpoint_type,
-        report_detail=args.report_detail,
-    )
+    # If no model specified, list available models and exit
+    if args.name is None:
+        try:
+            models = sorted(APIModel.list_models(args.url, args.token))
+            if models:
+                print("[cyan]Available models at this endpoint:[/cyan]")
+                for model in models:
+                    print(f"  - {model}")
+                print(f"\n[yellow]Run again with: -m <model_name>[/yellow]")
+            else:
+                print("[yellow]No models found at this endpoint.[/yellow]")
+        except Exception as e:
+            print(f"[red]Error: {e}[/red]")
+        exit(0)
+
+    try:
+        evaluate(
+            run_name=args.run_name,
+            output_folder=args.output_folder,
+            url=args.url,
+            token=args.token,
+            name=args.name,
+            tasklist=args.tasklist,
+            limit=args.limit,
+            runs_per_configuration=args.runs_per_configuration,
+            endpoint_type=args.endpoint_type,
+            report_detail=args.report_detail,
+        )
+    except FileNotFoundError as e:
+        print(f"[red]Error: {e}[/red]")
+        exit(1)
+    except KeyboardInterrupt:
+        exit(130)
+    except Exception as e:
+        print(f"[red]Error: {e}[/red]")
+        exit(1)
