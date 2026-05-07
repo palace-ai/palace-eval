@@ -364,19 +364,8 @@ def _get_filename(s: str) -> str:
     return f"{filename}.{extension}"
 
 
-def download_all(
-    on_progress: Callable[[DownloadEvent], None] | None = None,
-    skip_existing: bool = False,
-    tasklists: list[str] | None = None,
-) -> None:
-    """Download all PALACE datasets (private collection + public).
-
-    Args:
-        on_progress: Optional callback invoked with DownloadEvent for real-time progress.
-        skip_existing: Skip datasets that already exist locally.
-        tasklists: If provided, only download these tasklist names.
-    """
-    # Build full list of datasets to download
+def _build_download_list(skip_existing: bool = False, tasklists: list[str] | None = None) -> list[dict]:
+    """Build the list of datasets to download (private + public)."""
     all_items: list[dict] = []
 
     # Private collection
@@ -419,6 +408,33 @@ def download_all(
         if skip_existing and (TASKLISTS_PATH / item["name"]).exists():
             continue
         all_items.append({**item, "_private": False})
+
+    return all_items
+
+
+def list_downloads(skip_existing: bool = False, tasklists: list[str] | None = None) -> list[str]:
+    """Return names of datasets that would be downloaded.
+
+    Args:
+        skip_existing: Exclude datasets that already exist locally.
+        tasklists: If provided, only include these tasklist names.
+    """
+    return [item["name"] for item in _build_download_list(skip_existing, tasklists)]
+
+
+def download_all(
+    on_progress: Callable[[DownloadEvent], None] | None = None,
+    skip_existing: bool = False,
+    tasklists: list[str] | None = None,
+) -> None:
+    """Download all PALACE datasets (private collection + public).
+
+    Args:
+        on_progress: Optional callback invoked with DownloadEvent for real-time progress.
+        skip_existing: Skip datasets that already exist locally.
+        tasklists: If provided, only download these tasklist names.
+    """
+    all_items = _build_download_list(skip_existing, tasklists)
 
     total = len(all_items)
     for idx, item in enumerate(all_items, 1):
