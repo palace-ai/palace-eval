@@ -6,7 +6,6 @@ import emoji
 import questionary
 from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
 from palace.environments import (
-    AssistantEnvironment,
     IsolatedEnvironment,
     IsolatedEnvironmentWithInterpreter,
     IsolatedEnvironmentWithLetterCount,
@@ -102,6 +101,10 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     )
     print()
 
+    if not OPENAI_LIKE_API_BASE_URL or not OPENAI_LIKE_API_KEY:
+        print("[red]Error: OPENAI_LIKE_API_BASE_URL and OPENAI_LIKE_API_KEY must be set (in .env or environment).[/red]")
+        sys.exit(1)
+
     _PARADIGMS = [
         NonAgenticParadigm(),
         ActParadigm(),
@@ -119,7 +122,6 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     ]
     _ENVIRONMENTS = [
         EmptyEnvironment(),
-        AssistantEnvironment(),
         IsolatedEnvironment(),
         IsolatedEnvironmentWithInterpreter(),
         IsolatedEnvironmentWithLetterCount(),
