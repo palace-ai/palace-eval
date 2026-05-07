@@ -31,7 +31,7 @@ class APIModel(Model):
         url: str,
         token: str | None = None,
         api_type: str = "openai",
-        strip_thinking_tags: bool = True,
+        strip_thinking: bool = True,
     ):
         """
         A class to interact with OpenAI-compatible models.
@@ -42,7 +42,7 @@ class APIModel(Model):
             token (str): The API token for authentication.
             api_type (str): The API type to use. Allowed values are `openai` and `anthropic`.
                 Defaults to `openai`.
-            strip_thinking_tags (bool): Whether to strip <think>...</think> tags
+            strip_thinking (bool): Whether to strip <think>...</think> tags
                 from model output. Defaults to True.
         """
         assert api_type in {"openai", "anthropic"}, (
@@ -50,7 +50,7 @@ class APIModel(Model):
         )
         self.api_type = api_type
         self.model_id = model_id
-        self.strip_thinking_tags = strip_thinking_tags
+        self.strip_thinking = strip_thinking
 
         if self.api_type == "openai":
             self.client = OpenAI(base_url=url, api_key=token or "no-key")
@@ -121,7 +121,7 @@ class APIModel(Model):
             else:
                 raise ValueError(f"Unsupported API type: {self.api_type}")
 
-            if self.strip_thinking_tags and result:
+            if self.strip_thinking and result:
                 cleaned = _THINKING_TAG_RE.sub('', result).strip()
                 if cleaned:
                     result = cleaned

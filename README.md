@@ -61,7 +61,7 @@ Here's a complete example to evaluate a model on the SimpleQA benchmark:
 uv run -- palace-download -t SimpleQA
 
 # 2. Run the evaluation against an OpenAI-compatible endpoint
-uv run -- palace-run -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o -t SimpleQA -l 20
+uv run -- palace-run -u https://api.openai.com/v1 -k $OPENAI_LIKE_API_KEY -m gpt-4o -t SimpleQA -l 20
 ```
 
 This will evaluate `gpt-4o` on 20 tasks from SimpleQA and save results to `~/.cache/palace/results/`.
@@ -157,7 +157,7 @@ For an explanation of the command run:
 uv run -- palace-run --help
 ```
 
-The `-k/--token` parameter can be omitted if you set the `OPENAI_API_KEY` or `API_KEY` environment variable.
+The `-k/--token` parameter can be omitted if you set the `OPENAI_LIKE_API_KEY` environment variable.
 
 As an example, consider the following command:
 ```bash

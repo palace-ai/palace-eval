@@ -41,7 +41,7 @@ Run evaluations directly from the command line.
 ### Usage
 
 ```bash
-palace-run -u <url> -m <model-name> -t <tasklist> [options]
+palace-run -u <url> -t <tasklist> [-m <model-name>] [options]
 ```
 
 ### Required Arguments
@@ -49,14 +49,14 @@ palace-run -u <url> -m <model-name> -t <tasklist> [options]
 | Argument | Description |
 |----------|-------------|
 | `-u`, `--url` | API endpoint URL (OpenAI-compatible) |
-| `-m`, `--name` | Model name to evaluate |
 | `-t`, `--tasklist` | Name of the tasklist to evaluate |
 
 ### Optional Arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `-k`, `--token` | None | API authentication token |
+| `-m`, `--name` | None | Model name to evaluate. If omitted, lists available models at the endpoint. |
+| `-k`, `--token` | `$OPENAI_LIKE_API_KEY` | API authentication token. Falls back to `OPENAI_LIKE_API_KEY` environment variable. |
 | `-l`, `--limit` | All tasks | Maximum number of tasks to run |
 | `--output-folder` | `~/.cache/palace/results/` | Output directory |
 | `--run-name` | `eval` | Name for this evaluation run |
@@ -67,6 +67,9 @@ palace-run -u <url> -m <model-name> -t <tasklist> [options]
 ### Examples
 
 ```bash
+# List available models at an endpoint
+palace-run -u https://api.example.com/v1 -t GuardBench-EN
+
 # Basic evaluation
 palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN
 
@@ -92,7 +95,7 @@ palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint
 
 ## palace-download
 
-Download tasklists from HuggingFace.
+Download tasklists from HuggingFace. Works without a HuggingFace token for public datasets; gated datasets (e.g., GAIA) are skipped with a message. Private PALACE collection datasets require `HUGGINGFACE_TOKEN` in your `.env`.
 
 ### Usage
 
@@ -161,9 +164,10 @@ PALACE uses the following environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENAI_LIKE_API_BASE_URL` | API endpoint for the judge model | Required for QA and Report Generation |
-| `OPENAI_LIKE_API_KEY` | API key for the judge endpoint | Required for QA and Report Generation |
+| `OPENAI_LIKE_API_KEY` | API key for the judge endpoint (also used as `-k` fallback for `palace-run`) | Required for QA and Report Generation |
 | `JUDGE_MODEL` | Model used for LLM-based judging (QA and Report Generation) | `minimax-m2` |
 | `ENABLE_CITATION_VERIFIER` | Enable the citation verifier analyzer (`true`/`false`) | `false` |
+| `HUGGINGFACE_TOKEN` | HuggingFace token for downloading gated/private datasets | Optional |
 
 ## Common Workflows
 
