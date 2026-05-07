@@ -267,6 +267,13 @@ def print(
     # Use builtin print to avoid recursion
     if as_str:
         return formatted_text
+    if not os.isatty(1) and not file_only:
+        # Plain text for non-TTY: strip ANSI codes, keep content readable
+        plain = re.sub(r"\033\[[0-9;]*m", "", formatted_text)
+        if file_path is not None:
+            _write_to_file(file_path, formatted_text, end=end)
+        builtin_print(plain, end=end, flush=True)
+        return
     if file_path is not None:
         _write_to_file(file_path, formatted_text, end=end)
     if not file_only:
@@ -288,6 +295,8 @@ class LoadingIcon:
             self.description = text
 
     def animate(self):
+        if not os.isatty(1):
+            return
         if IN_NOTEBOOK:
             while not self.done:
                 elapsed_time = time.time() - self.start_time
