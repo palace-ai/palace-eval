@@ -9,7 +9,7 @@ from pathlib import Path
 
 import filetype
 from datasets import load_dataset
-from huggingface_hub import get_collection, hf_hub_download, login
+from huggingface_hub import dataset_info as hf_dataset_info, get_collection, hf_hub_download, login
 from huggingface_hub.utils.tqdm import disable_progress_bars
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
@@ -402,12 +402,12 @@ def main():
         f":small_blue_diamond: [blue]Starting to download [bold]{len(tasklists_info)}[/bold] items from public Hugging Face datasets"
     )
 
-    # Try to login if token is available (needed for gated public datasets)
+    # Login if token is available (needed for gated public datasets like GAIA)
     if HUGGINGFACE_TOKEN:
         try:
             _ensure_login()
         except Exception:
-            pass  # Continue without login for public datasets
+            pass
 
     # convert items with list splits into multiple items with single splits
     tasklists_info = [
@@ -439,16 +439,19 @@ def main():
 
     print(f"   [cyan]Downloading [bold]{len(tasklists_info)}[/bold] items...")
     for tasklist_info in tasklists_info:
-        with loading() as ld:
-            ld.description = f"[cyan]Downloading [bold]{tasklist_info['name']} (from {tasklist_info['id']})[/bold]..."
+        # Check if dataset is gated and skip if no token
+        if not HUGGINGFACE_TOKEN:
             try:
-                download_tasklist(**tasklist_info)
-            except Exception as e:
-                if "token" in str(e).lower() or "authentication" in str(e).lower() or "unauthorized" in str(e).lower() or "gated" in str(e).lower():
+                info = hf_dataset_info(tasklist_info["id"])
+                if info.gated:
                     print(
-                        f"   [red]:cross_mark: {tasklist_info['name']} requires authentication. "
-                        "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
+                        f"   [yellow]:cross_mark: {tasklist_info['name']} is gated and requires a HuggingFace token. Skipping."
                     )
                     continue
-                raise
+            except Exception:
+                pass  # If we can't check, try downloading anyway
+
+        with loading() as ld:
+            ld.description = f"[cyan]Downloading [bold]{tasklist_info['name']} (from {tasklist_info['id']})[/bold]..."
+            download_tasklist(**tasklist_info)
         print(f"   :check_box_with_check:[cyan]  {tasklist_info['name']}")

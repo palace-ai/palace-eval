@@ -1,4 +1,5 @@
 import itertools
+import os
 import re
 import threading
 import time
@@ -298,17 +299,21 @@ class LoadingIcon:
                 time.sleep(self.animation_interval)
             builtin_print("\r" + " " * self.last_length + "\r", end="", flush=True)
         else:
-            print("\033[s", end="")
             while not self.done:
                 elapsed_time = time.time() - self.start_time
-                print("\033[u" + " " * self.last_length + "\033[u", end="")
                 with self.lock:
                     desc = self.description
-                    output = f"\033[u{next(self.spinner)}  ({elapsed_time:.1f}s)  {print(desc, as_str=True)}"
+                    styled_desc = print(desc, as_str=True) if desc else ""
+                    output = f"\r{next(self.spinner)}  ({elapsed_time:.1f}s)  {styled_desc}"
+                    pad = max(0, self.last_length - len(output) + 1)
                     self.last_length = len(output) - 1
-                print(output, end="")
+                builtin_print(output + " " * pad, end="", flush=True)
+                if PersistentStatus._instance:
+                    builtin_print("\033[s", end="", flush=True)  # save cursor
+                    PersistentStatus._instance.render()
+                    builtin_print("\033[u", end="", flush=True)  # restore cursor
                 time.sleep(self.animation_interval)
-            print("\033[u" + " " * self.last_length + "\033[u", end="")
+            builtin_print("\r" + " " * self.last_length + "\r", end="", flush=True)
 
 
 @contextmanager
@@ -388,3 +393,63 @@ def loading() -> Generator["LoadingIcon", None, None]:
     finally:
         loading_icon_obj.done = True
         thread.join()
+
+
+class PersistentStatus:
+    """A status line pinned to the bottom of the terminal via scroll region."""
+
+    _instance: "PersistentStatus | None" = None
+
+    def __init__(self):
+        self.text = ""
+        self._active = False
+
+    def start(self):
+        if IN_NOTEBOOK or not os.isatty(1):
+            return
+        import atexit
+        atexit.register(self._cleanup)
+        PersistentStatus._instance = self
+        rows = os.get_terminal_size().lines
+        builtin_print("\033[?25l", end="", flush=True)  # hide cursor
+        builtin_print(f"\033[1;{rows - 2}r", end="", flush=True)  # scroll region
+        self._active = True
+
+    def update(self, text: str):
+        self.text = text
+        if self._active:
+            builtin_print("\033[s", end="", flush=True)
+            self.render()
+            builtin_print("\033[u", end="", flush=True)
+
+    def render(self):
+        """Render the status line. Called from LoadingIcon's thread."""
+        if not self._active:
+            return
+        rows = os.get_terminal_size().lines
+        builtin_print(f"\033[1;{rows - 2}r", end="", flush=True)
+        builtin_print(
+            f"\033[{rows};1H\033[2K{self.text}"
+            f"\033[{rows - 1};1H\033[2K",
+            end="",
+            flush=True,
+        )
+
+    def _cleanup(self):
+        if not IN_NOTEBOOK and self._active:
+            builtin_print("\033[r", end="", flush=True)
+            builtin_print("\033[?25h", end="", flush=True)
+
+    def stop(self):
+        if not self._active:
+            return
+        self._active = False
+        PersistentStatus._instance = None
+        if not IN_NOTEBOOK:
+            builtin_print("\033[r", end="", flush=True)  # reset scroll region
+            try:
+                rows = os.get_terminal_size().lines
+                builtin_print(f"\033[{rows - 1};1H\033[2K\033[{rows};1H\033[2K", end="", flush=True)
+            except OSError:
+                pass
+            builtin_print("\033[?25h", end="", flush=True)  # show cursor

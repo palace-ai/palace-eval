@@ -3,7 +3,6 @@
 import itertools
 import json
 import os
-import re
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -18,7 +17,7 @@ from palace.utils.exceptions import ConvergenceError
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.multimodal import is_image_attachment
 from palace.utils.paths import BUNDLED_IO_ADAPTERS_FILE, RESULTS_PATH, TASKLISTS_PATH
-from palace.utils.printing import loading, print
+from palace.utils.printing import PersistentStatus, loading, print
 
 
 def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
@@ -151,13 +150,6 @@ class Evaluation:
         # Initialize analyzers based on toggles
         self.analyzers = []
 
-        # Progress tracking
-        self._progress_start_time: float | None = None
-        self._progress_total_tasks = 0
-        self._progress_completed = 0
-        self._progress_successful = 0
-        self._progress_failed = 0
-
         # Resolve citation verifier toggle: param overrides env var
         if enable_citation_verifier is None:
             enable_citation_verifier = os.getenv(
@@ -166,81 +158,6 @@ class Evaluation:
 
         if enable_citation_verifier:
             self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
-
-    def _print_progress(self) -> None:
-        """Print a progress line showing completion status and time estimates."""
-        if self._progress_start_time is None or self._progress_total_tasks == 0:
-            return
-
-        elapsed = time.time() - self._progress_start_time
-        completed = self._progress_completed
-        total = self._progress_total_tasks
-        successful = self._progress_successful
-        failed = self._progress_failed
-
-        # Calculate percentages
-        success_pct = (successful / completed * 100) if completed > 0 else 0
-        fail_pct = (failed / completed * 100) if completed > 0 else 0
-
-        # Estimate remaining time
-        if completed > 0:
-            avg_time_per_task = elapsed / completed
-            remaining_tasks = total - completed
-            eta_seconds = avg_time_per_task * remaining_tasks
-            eta_str = self._format_duration(eta_seconds)
-        else:
-            eta_str = "calculating..."
-
-        elapsed_str = self._format_duration(elapsed)
-
-        print(
-            f"[dim]Progress: {completed}/{total} tasks | "
-            f"✓ {successful} ({success_pct:.1f}%) | "
-            f"✗ {failed} ({fail_pct:.1f}%) | "
-            f"Time: {elapsed_str} | ETA: {eta_str}[/dim]"
-        )
-
-    @staticmethod
-    def _format_duration(seconds: float) -> str:
-        """Format seconds into a human-readable duration string."""
-        if seconds < 60:
-            return f"{seconds:.0f}s"
-        elif seconds < 3600:
-            mins = int(seconds // 60)
-            secs = int(seconds % 60)
-            return f"{mins}m {secs}s"
-        else:
-            hours = int(seconds // 3600)
-            mins = int((seconds % 3600) // 60)
-            return f"{hours}h {mins}m"
-
-    def _print_final_summary(self, interrupted: bool = False) -> None:
-        """Print a final summary of the evaluation progress."""
-        if self._progress_start_time is None:
-            return
-
-        elapsed = time.time() - self._progress_start_time
-        completed = self._progress_completed
-        total = self._progress_total_tasks
-        successful = self._progress_successful
-        failed = self._progress_failed
-
-        success_pct = (successful / completed * 100) if completed > 0 else 0
-        fail_pct = (failed / completed * 100) if completed > 0 else 0
-        elapsed_str = self._format_duration(elapsed)
-
-        status = "[yellow]Interrupted by user[/yellow]" if interrupted else "[green]Completed[/green]"
-
-        print()
-        print(
-            f"{status}\n\n"
-            f"Tasks: [blue]{completed}[/blue] / [blue]{total}[/blue]\n"
-            f"Successful: [green]{successful}[/green] ({success_pct:.1f}%)\n"
-            f"Failed: [red]{failed}[/red] ({fail_pct:.1f}%)\n"
-            f"Total time: [blue]{elapsed_str}[/blue]",
-            box=True,
-            box_title=":bar_chart: Final Summary",
-        )
 
     def _run_analyzers(
         self,
@@ -264,7 +181,8 @@ class Evaluation:
             if type(task) not in analyzer.supported_task_types:
                 continue
             try:
-                with loading():
+                with loading() as ld:
+                    ld.description = f"Running {analyzer.name}..."
                     metrics = analyzer.analyze(task, answer, verification_result)
                 analyzer_metrics[analyzer.name] = metrics
                 print(
@@ -298,104 +216,79 @@ class Evaluation:
         """
         results = []
 
-        # Initialize progress tracking
-        self._progress_start_time = time.time()
-        self._progress_completed = 0
-        self._progress_successful = 0
-        self._progress_failed = 0
-
-        # Calculate total tasks across all tasklists
-        total_tasks = 0
-        for tasklist in tasklists:
-            tasklist_path = TASKLISTS_PATH / tasklist
-            if tasklist_path.exists():
-                with open(tasklist_path / "tasks.json") as f:
-                    tasks_count = len(json.load(f))
-                    if self.task_amount_limit is not None:
-                        tasks_count = min(tasks_count, self.task_amount_limit)
-                    total_tasks += tasks_count * len(agents) * self.runs_per_configuration
-        self._progress_total_tasks = total_tasks
-
         grid = list(itertools.product(agents, tasklists))
-        try:
-            for agent, tasklist in grid:
-                for run in range(self.runs_per_configuration):
-                    print(f"""
+        for agent, tasklist in grid:
+            for run in range(self.runs_per_configuration):
+                print(f"""
 [bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
 :robot: agent [blue] {agent.name}[/]
 :package: on enviromnent [blue]{agent.environment.name}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
 """)
 
-                    report, verification_results, task_cls = self.evaluate(agent, tasklist)
+                report, verification_results, task_cls = self.evaluate(agent, tasklist)
 
-                    evaluated = [r for r in verification_results if not r.is_skipped]
-                    skipped = [r for r in verification_results if r.is_skipped]
-                    correct_tasks = sum(r.is_correct for r in evaluated)
-                    total_time = sum(t["elapsed_time"] for t in report.values())
+                evaluated = [r for r in verification_results if not r.is_skipped]
+                skipped = [r for r in verification_results if r.is_skipped]
+                correct_tasks = sum(r.is_correct for r in evaluated)
+                total_time = sum(t["elapsed_time"] for t in report.values())
 
-                    # Task-type aggregation (F1, avg_normalized_score, etc.)
-                    task_type_metrics = task_cls.aggregate(verification_results)
-                    accuracy = task_type_metrics.pop("accuracy", 0)
+                # Task-type aggregation (F1, avg_normalized_score, etc.)
+                task_type_metrics = task_cls.aggregate(verification_results)
+                accuracy = task_type_metrics.pop("accuracy", 0)
 
-                    # Agent-execution metrics (pass@k, averages, tool hallucination)
-                    evaluated_report = {
-                        k: v for k, v in report.items() if not v.get("is_skipped")
-                    }
-                    agent_metrics = compute_agent_metrics(evaluated_report)
+                # Agent-execution metrics (pass@k, averages, tool hallucination)
+                evaluated_report = {
+                    k: v for k, v in report.items() if not v.get("is_skipped")
+                }
+                agent_metrics = compute_agent_metrics(evaluated_report)
 
-                    print()
-                    print(
-                        f"[blue]:robot: {agent.name} ({agent.model_name} x {agent.paradigm_name})[/]:\n"
-                        + f"on :package: [blue]{agent.environment.name}[/]\n"
-                        + f"on :scroll: [blue]{tasklist}[/]\n\n"
-                        + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
-                        + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
-                        + f"\nTotal time: [blue]{total_time}[/]",
-                        box=True,
-                        box_title="Evaluation Report",
-                    )
+                print()
+                print(
+                    f"[blue]:robot: {agent.name} ({agent.model_name} x {agent.paradigm_name})[/]:\n"
+                    + f"on :package: [blue]{agent.environment.name}[/]\n"
+                    + f"on :scroll: [blue]{tasklist}[/]\n\n"
+                    + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
+                    + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
+                    + f"\nTotal time: [blue]{total_time}[/]",
+                    box=True,
+                    box_title="Evaluation Report",
+                )
 
-                    # Build metrics dict with standardized structure
-                    metrics: dict[str, int | float | dict] = {
-                        "task_count": len(report),
-                        "evaluated_count": len(evaluated),
-                        "correct_count": correct_tasks,
-                        "skipped_count": len(skipped),
-                        "total_time": total_time,
-                        "accuracy": accuracy,
-                        "task_type": task_type_metrics,
-                        "agent": agent_metrics,
-                    }
+                # Build metrics dict with standardized structure
+                metrics: dict[str, int | float | dict] = {
+                    "task_count": len(report),
+                    "evaluated_count": len(evaluated),
+                    "correct_count": correct_tasks,
+                    "skipped_count": len(skipped),
+                    "total_time": total_time,
+                    "accuracy": accuracy,
+                    "task_type": task_type_metrics,
+                    "agent": agent_metrics,
+                }
 
-                    run_results = {
-                        "agent": agent.name,
-                        "model": agent.model_name,
-                        "paradigm": agent.paradigm_name,
-                        "environment": agent.environment.name,
-                        "tasklist": tasklist,
-                        "accuracy": accuracy,
-                        "metrics": metrics,
-                    }
-                    if self.report_detail != "none":
-                        run_results["detailed_report"] = report
-                    results.append(run_results)
+                run_results = {
+                    "agent": agent.name,
+                    "model": agent.model_name,
+                    "paradigm": agent.paradigm_name,
+                    "environment": agent.environment.name,
+                    "tasklist": tasklist,
+                    "accuracy": accuracy,
+                    "metrics": metrics,
+                }
+                if self.report_detail != "none":
+                    run_results["detailed_report"] = report
+                results.append(run_results)
 
-                    # append results to jsonl file
-                    os.makedirs(self.output_path, exist_ok=True)
-                    with open(
-                        self.output_path / f"{self.name}.jsonl",
-                        "a",
-                        encoding="utf-8",
-                    ) as f:
-                        run_json = json.dumps(run_results, ensure_ascii=False)
-                        f.write(run_json + "\n")
-
-            self._print_final_summary(interrupted=False)
-        except KeyboardInterrupt:
-            print("\n[bold][yellow]Evaluation cancelled by user (Ctrl+C)[/yellow][/bold]")
-            self._print_final_summary(interrupted=True)
-            raise
+                # append results to jsonl file
+                os.makedirs(self.output_path, exist_ok=True)
+                with open(
+                    self.output_path / f"{self.name}.jsonl",
+                    "a",
+                    encoding="utf-8",
+                ) as f:
+                    run_json = json.dumps(run_results, ensure_ascii=False)
+                    f.write(run_json + "\n")
 
         return pd.DataFrame(results)
 
@@ -506,267 +399,271 @@ class Evaluation:
         else:
             adapter = None
 
-        for i, task in enumerate(tasks):
-            agent.on_task_start(task)
-            task_metrics = {}  # Initialize before conditional branches
-            verification_result = None  # Initialize for analyzer check
-            image_path = None  # For multimodal tasks
-            attachment_content = ""  # Raw text attachment content for adapter
-            is_skipped = False
-            skip_reason = None
-
-            if task.attachment is not None and task.attachment != "":
-                attachment_file = tasklist_path / "task_files" / task.attachment
-
-                # Check if attachment is an image
-                if is_image_attachment(task.attachment):
-                    image_path = str(attachment_file)
-                    attachment_str = ""
-                    attachment_str_debug = f"[Image: {task.attachment}]\n\n"
+        loop_start_time = time.time()
+        status = PersistentStatus()
+        status.start()
+        try:
+            for i, task in enumerate(tasks):
+                agent.on_task_start(task)
+                task_metrics = {}  # Initialize before conditional branches
+                verification_result = None  # Initialize for analyzer check
+                image_path = None  # For multimodal tasks
+                attachment_content = ""  # Raw text attachment content for adapter
+                is_skipped = False
+                skip_reason = None
+    
+                if task.attachment is not None and task.attachment != "":
+                    attachment_file = tasklist_path / "task_files" / task.attachment
+    
+                    # Check if attachment is an image
+                    if is_image_attachment(task.attachment):
+                        image_path = str(attachment_file)
+                        attachment_str = ""
+                        attachment_str_debug = f"[Image: {task.attachment}]\n\n"
+                    else:
+                        # Try to read as text attachment
+                        try:
+                            with open(attachment_file, encoding="utf-8") as f:
+                                attachment_content = f.read()
+                        except UnicodeDecodeError:
+                            print(
+                                f"[yellow bold]Skipping task {task.id}: unsupported attachment type '{task.attachment}' (not text or image)[/]"
+                            )
+                            vr = TaskVerificationResult(
+                                is_correct=False,
+                                is_skipped=True,
+                                skip_reason="unsupported_attachment",
+                            )
+                            verification_results.append(vr)
+                            report[task.id] = {
+                                "actual": None,
+                                "is_correct": False,
+                                "is_skipped": True,
+                                "skip_reason": "unsupported_attachment",
+                                "reasoning": None,
+                                "elapsed_time": 0.0,
+                            }
+                            if self.report_detail == "full":
+                                report[task.id]["objective"] = task.objective
+                                report[task.id]["expected"] = task.expected_display()
+                            self.on_task_complete(
+                                i + 1, len(tasks)
+                            ) if self.on_task_complete is not None else None
+                            agent.on_task_end(task)
+                            continue
+    
+                        max_attachment_len = 200000
+                        if len(attachment_content) > max_attachment_len:
+                            print(
+                                f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment_content)}), truncating it to {max_attachment_len} characters."
+                            )
+                            attachment_content = attachment_content[:max_attachment_len]
+    
+                        attachment_str = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n"
+                        attachment_str_debug = f"""Start of text attachment >>>\n{
+                            f"{attachment_content[:1000]}... (truncated)"
+                            if len(attachment_content) > 1000
+                            else attachment_content
+                        }\n<<< End of text attachment\n\n"""
                 else:
-                    # Try to read as text attachment
-                    try:
-                        with open(attachment_file, encoding="utf-8") as f:
-                            attachment_content = f.read()
-                    except UnicodeDecodeError:
-                        print(
-                            f"[yellow bold]Skipping task {task.id}: unsupported attachment type '{task.attachment}' (not text or image)[/]"
-                        )
-                        vr = TaskVerificationResult(
-                            is_correct=False,
-                            is_skipped=True,
-                            skip_reason="unsupported_attachment",
-                        )
-                        verification_results.append(vr)
-                        report[task.id] = {
-                            "actual": None,
-                            "is_correct": False,
-                            "is_skipped": True,
-                            "skip_reason": "unsupported_attachment",
-                            "reasoning": None,
-                            "elapsed_time": 0.0,
-                        }
-                        if self.report_detail == "full":
-                            report[task.id]["objective"] = task.objective
-                            report[task.id]["expected"] = task.expected_display()
-                        self.on_task_complete(
-                            i + 1, len(tasks)
-                        ) if self.on_task_complete is not None else None
-                        agent.on_task_end(task)
-                        continue
-
-                    max_attachment_len = 200000
-                    if len(attachment_content) > max_attachment_len:
-                        print(
-                            f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment_content)}), truncating it to {max_attachment_len} characters."
-                        )
-                        attachment_content = attachment_content[:max_attachment_len]
-
-                    attachment_str = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n"
-                    attachment_str_debug = f"""Start of text attachment >>>\n{
-                        f"{attachment_content[:1000]}... (truncated)"
-                        if len(attachment_content) > 1000
-                        else attachment_content
-                    }\n<<< End of text attachment\n\n"""
-            else:
-                attachment_str = ""
-                attachment_str_debug = ""
-
-            # Build prompt: adapter overrides default prompt construction
-            if adapter is not None:
-                prompt = adapter.adapt_input(task, attachment_content)
-                agent_prompt = prompt  # No separate attachment wrapping
-            else:
-                prompt = task.create_prompt()
-                agent_prompt = f"{attachment_str}{prompt}"
-
-            print()
-            print(
-                f"{attachment_str_debug}{prompt}",
-                box=True,
-                box_title=f":memo: Task {i + 1}",
-            )
-            if task.expected_display() is not None:
+                    attachment_str = ""
+                    attachment_str_debug = ""
+    
+                # Build prompt: adapter overrides default prompt construction
+                if adapter is not None:
+                    prompt = adapter.adapt_input(task, attachment_content)
+                    agent_prompt = prompt  # No separate attachment wrapping
+                else:
+                    prompt = task.create_prompt()
+                    agent_prompt = f"{attachment_str}{prompt}"
+    
+                print()
                 print(
-                    task.expected_display(),
+                    f"{attachment_str_debug}{prompt}",
                     box=True,
-                    box_title=":fleur_de_lis: Expected Answer",
+                    box_title=f":memo: Task {i + 1}/{len(tasks)}",
                 )
-
-            start_time = time.time()
-
-            # Run agent with error handling
-            try:
-                with loading():
-                    result, run_stats = agent.run(prompt=agent_prompt, image=image_path)
-            except ConvergenceError:
-                print(
-                    "[bold red]:cross_mark: Agent did not converge (max steps reached)[/]"
-                )
-                result, run_stats = None, None
-                skip_reason = "no_response"
-            except Exception as e:
-                print(f"[bold red]:cross_mark: Agent error: {e}[/]")
-                result, run_stats = None, None
-                skip_reason = "agent_error"
-
-            # Apply output adapter if configured
-            if result is not None and adapter is not None:
-                result = adapter.adapt_output(result)
-
-            # Strip common thinking/reasoning tags from output (e.g., <think>...</think>)
-            if result is not None:
-                # Remove <think>...</think>, <reasoning>...</reasoning>, etc.
-                cleaned = re.sub(r'<(think|reasoning|thought)>.*?</\1>', '', result, flags=re.DOTALL | re.IGNORECASE)
-                cleaned = cleaned.strip()
-                # Only use cleaned version if there's content left
-                if cleaned:
-                    result = cleaned
-
-            # check if run completed successfully
-            if result is None:
-                print(
-                    "[bold red]:cross_mark: The agent didn't provide a response. This means it may have reached the maximum number of iterations before providing a final answer, or it may have become stuck in a loop, or (in the case of local agents) it may have forgotten to call the Final Answer Tool.[/]"
-                )
-                is_correct = False
-                reasoning = None
-                is_skipped = True
-                skip_reason = skip_reason or "no_response"
-                verification_results.append(
-                    TaskVerificationResult(
-                        is_correct=False,
-                        is_skipped=True,
-                        skip_reason=skip_reason,
-                    )
-                )
-            elif task.custom_verificator is not None and task.custom_verificator != "":
-
-                def load_function(code: str):
-                    # Create an isolated namespace for the exec
-                    local_env = {}
-                    exec(code, {}, local_env)
-                    return local_env["verify"]
-
-                try:
-                    verificator = load_function(task.custom_verificator)
-                    is_correct = verificator(result, task.expected)
-                    reasoning = None
-                    verification_results.append(
-                        TaskVerificationResult(
-                            is_correct=is_correct, reasoning=reasoning
-                        )
-                    )
-                except Exception as e:
+                if task.expected_display() is not None:
                     print(
-                        f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task.custom_verificator}\nThe exception is:\n{e}.\nSkipping to next task.[/]"
+                        task.expected_display(),
+                        box=True,
+                        box_title=":fleur_de_lis: Expected Answer",
+                    )
+    
+                start_time = time.time()
+    
+                # Update persistent status bar
+                if i > 0:
+                    correct = sum(1 for r in verification_results if r.is_correct)
+                    failed = i - correct
+                    elapsed = time.time() - loop_start_time
+                    eta = elapsed / i * (len(tasks) - i)
+                    eta_str = f"{int(eta // 60)}m {int(eta % 60)}s" if eta >= 60 else f"{int(eta)}s"
+                    pct = i / len(tasks)
+                    filled = int(pct * 20)
+                    bar = "█" * filled + "░" * (20 - filled)
+                    status.update(f"{bar} {i}/{len(tasks)} | ✓ {correct} ✗ {failed} | ETA: {eta_str}")
+                else:
+                    status.update(f"{'░' * 20} 0/{len(tasks)}")
+    
+                # Run agent with error handling
+                try:
+                    with loading() as ld:
+                        ld.description = "Agent generating response..."
+                        result, run_stats = agent.run(prompt=agent_prompt, image=image_path)
+                except ConvergenceError:
+                    print(
+                        "[bold red]:cross_mark: Agent did not converge (max steps reached)[/]"
+                    )
+                    result, run_stats = None, None
+                    skip_reason = "no_response"
+                except Exception as e:
+                    print(f"[bold red]:cross_mark: Agent error: {e}[/]")
+                    result, run_stats = None, None
+                    skip_reason = "agent_error"
+    
+                # Apply output adapter if configured
+                if result is not None and adapter is not None:
+                    result = adapter.adapt_output(result)
+    
+                # check if run completed successfully
+                if result is None:
+                    print(
+                        "[bold red]:cross_mark: The agent didn't provide a response. This means it may have reached the maximum number of iterations before providing a final answer, or it may have become stuck in a loop, or (in the case of local agents) it may have forgotten to call the Final Answer Tool.[/]"
                     )
                     is_correct = False
                     reasoning = None
                     is_skipped = True
-                    skip_reason = "custom_verificator_error"
+                    skip_reason = skip_reason or "no_response"
                     verification_results.append(
                         TaskVerificationResult(
                             is_correct=False,
                             is_skipped=True,
-                            skip_reason="custom_verificator_error",
+                            skip_reason=skip_reason,
                         )
                     )
-            else:
-                print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
-
-                try:
-                    verification_result = task.verify(result)
-
-                    # Handle both tuple (legacy) and TaskVerificationResult
-                    if isinstance(verification_result, TaskVerificationResult):
-                        is_correct = verification_result.is_correct
-                        reasoning = verification_result.reasoning
-                        task_metrics = verification_result.metrics
-                        verification_results.append(verification_result)
-                    else:
-                        print(
-                            f"[bold yellow]Legacy verification result format detected for task type {type(task).__name__}. Consider updating the task.verify() method to return a TaskVerificationResult for richer metrics and reasoning.[/]"
-                        )
-                        is_correct, reasoning = verification_result
+                elif task.custom_verificator is not None and task.custom_verificator != "":
+    
+                    def load_function(code: str):
+                        # Create an isolated namespace for the exec
+                        local_env = {}
+                        exec(code, {}, local_env)
+                        return local_env["verify"]
+    
+                    try:
+                        verificator = load_function(task.custom_verificator)
+                        is_correct = verificator(result, task.expected)
+                        reasoning = None
                         verification_results.append(
                             TaskVerificationResult(
                                 is_correct=is_correct, reasoning=reasoning
                             )
                         )
-
-                    if is_correct:
-                        print("[bold green]:white_check_mark: Correct[/]")
-                    else:
-                        print("[bold red]:cross_mark: Incorrect[/]")
-                    if reasoning is not None:
-                        print(reasoning, box=True, box_title=":judge: Reasoning")
-                except Exception as e:
-                    print(f"[bold red]:cross_mark: Verification error: {e}[/]")
-                    is_correct = False
-                    reasoning = None
-                    is_skipped = True
-                    skip_reason = "verification_error"
-                    verification_results.append(
-                        TaskVerificationResult(
-                            is_correct=False,
-                            is_skipped=True,
-                            skip_reason="verification_error",
+                    except Exception as e:
+                        print(
+                            f"[bold red]There was an issue verifying the agent response with the custom verificator.\nThe verificator is:\n{task.custom_verificator}\nThe exception is:\n{e}.\nSkipping to next task.[/]"
                         )
+                        is_correct = False
+                        reasoning = None
+                        is_skipped = True
+                        skip_reason = "custom_verificator_error"
+                        verification_results.append(
+                            TaskVerificationResult(
+                                is_correct=False,
+                                is_skipped=True,
+                                skip_reason="custom_verificator_error",
+                            )
+                        )
+                else:
+                    print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
+    
+                    try:
+                        with loading() as ld:
+                            ld.description = "Verifying answer..."
+                            verification_result = task.verify(result)
+    
+                        # Handle both tuple (legacy) and TaskVerificationResult
+                        if isinstance(verification_result, TaskVerificationResult):
+                            is_correct = verification_result.is_correct
+                            reasoning = verification_result.reasoning
+                            task_metrics = verification_result.metrics
+                            verification_results.append(verification_result)
+                        else:
+                            print(
+                                f"[bold yellow]Legacy verification result format detected for task type {type(task).__name__}. Consider updating the task.verify() method to return a TaskVerificationResult for richer metrics and reasoning.[/]"
+                            )
+                            is_correct, reasoning = verification_result
+                            verification_results.append(
+                                TaskVerificationResult(
+                                    is_correct=is_correct, reasoning=reasoning
+                                )
+                            )
+    
+                        if is_correct:
+                            print("[bold green]:white_check_mark: Correct[/]")
+                        else:
+                            print("[bold red]:cross_mark: Incorrect[/]")
+                        if reasoning is not None:
+                            print(reasoning, box=True, box_title=":judge: Reasoning")
+                    except Exception as e:
+                        print(f"[bold red]:cross_mark: Verification error: {e}[/]")
+                        is_correct = False
+                        reasoning = None
+                        is_skipped = True
+                        skip_reason = "verification_error"
+                        verification_results.append(
+                            TaskVerificationResult(
+                                is_correct=False,
+                                is_skipped=True,
+                                skip_reason="verification_error",
+                            )
+                        )
+    
+                # prepare report
+                elapsed_time = round(time.time() - start_time, 2)
+                report[task.id] = {
+                    "actual": result,
+                    "is_correct": is_correct if result is not None else False,
+                    "is_skipped": is_skipped,
+                    "skip_reason": skip_reason,
+                    "reasoning": reasoning,
+                    "elapsed_time": elapsed_time,
+                }
+                if self.report_detail == "full":
+                    report[task.id]["objective"] = task.objective
+                    report[task.id]["expected"] = task.expected_display()
+    
+                # Add task-type-specific metrics to report
+                if task_metrics:
+                    report[task.id]["metrics"] = task_metrics
+    
+                # Run analyzers and add their metrics
+                if (
+                    result is not None
+                    and not is_skipped
+                    and isinstance(verification_result, TaskVerificationResult)
+                ):
+                    analyzer_metrics = self._run_analyzers(
+                        task, result, verification_result
                     )
-
-            # prepare report
-            elapsed_time = round(time.time() - start_time, 2)
-            report[task.id] = {
-                "actual": result,
-                "is_correct": is_correct if result is not None else False,
-                "is_skipped": is_skipped,
-                "skip_reason": skip_reason,
-                "reasoning": reasoning,
-                "elapsed_time": elapsed_time,
-            }
-            if self.report_detail == "full":
-                report[task.id]["objective"] = task.objective
-                report[task.id]["expected"] = task.expected_display()
-
-            # Add task-type-specific metrics to report
-            if task_metrics:
-                report[task.id]["metrics"] = task_metrics
-
-            # Run analyzers and add their metrics
-            if (
-                result is not None
-                and not is_skipped
-                and isinstance(verification_result, TaskVerificationResult)
-            ):
-                analyzer_metrics = self._run_analyzers(
-                    task, result, verification_result
-                )
-                if analyzer_metrics:
-                    if "metrics" not in report[task.id]:
-                        report[task.id]["metrics"] = {}
-                    report[task.id]["metrics"]["analyzers"] = analyzer_metrics
-
-            # add agent execution metrics to report
-            if run_stats is not None:
-                for k, v in run_stats.items():
-                    report[task.id][k] = v
-
-            # call the on_task_complete callback, if provided
-            self.on_task_complete(
-                i + 1, len(tasks)
-            ) if self.on_task_complete is not None else None
-
-            # Update and print progress
-            self._progress_completed += 1
-            if is_skipped:
-                self._progress_failed += 1
-            elif is_correct:
-                self._progress_successful += 1
-            else:
-                self._progress_failed += 1
-            self._print_progress()
-
-            agent.on_task_end(task)
+                    if analyzer_metrics:
+                        if "metrics" not in report[task.id]:
+                            report[task.id]["metrics"] = {}
+                        report[task.id]["metrics"]["analyzers"] = analyzer_metrics
+    
+                # add agent execution metrics to report
+                if run_stats is not None:
+                    for k, v in run_stats.items():
+                        report[task.id][k] = v
+    
+                # call the on_task_complete callback, if provided
+                self.on_task_complete(
+                    i + 1, len(tasks)
+                ) if self.on_task_complete is not None else None
+    
+                agent.on_task_end(task)
+        finally:
+            status.stop()
 
         agent.on_tasklist_end()
         return report, verification_results, task_cls
