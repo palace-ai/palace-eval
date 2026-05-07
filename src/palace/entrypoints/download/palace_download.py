@@ -412,14 +412,17 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
     return all_items
 
 
-def list_downloads(skip_existing: bool = False, tasklists: list[str] | None = None) -> list[str]:
-    """Return names of datasets that would be downloaded.
+def list_downloads(skip_existing: bool = False, tasklists: list[str] | None = None) -> list[dict]:
+    """Return info about datasets that would be downloaded.
 
     Args:
         skip_existing: Exclude datasets that already exist locally.
         tasklists: If provided, only include these tasklist names.
+
+    Returns:
+        List of dicts with 'name' and 'category' keys.
     """
-    return [item["name"] for item in _build_download_list(skip_existing, tasklists)]
+    return [{"name": item["name"], "category": item.get("category")} for item in _build_download_list(skip_existing, tasklists)]
 
 
 def download_all(
