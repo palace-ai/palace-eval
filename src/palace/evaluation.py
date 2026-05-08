@@ -495,14 +495,15 @@ class Evaluation:
                 # Update persistent status bar
                 if i > 0:
                     correct = sum(1 for r in verification_results if r.is_correct)
-                    failed = i - correct
+                    skipped_count = sum(1 for r in verification_results if r.is_skipped)
+                    failed = i - correct - skipped_count
                     elapsed = time.time() - loop_start_time
                     eta = elapsed / i * (len(tasks) - i)
                     eta_str = f"{int(eta // 60)}m {int(eta % 60)}s" if eta >= 60 else f"{int(eta)}s"
                     pct = i / len(tasks)
                     filled = int(pct * 20)
                     bar = "█" * filled + "░" * (20 - filled)
-                    status.update(f"{bar} {i}/{len(tasks)} | ✓ {correct} ✗ {failed} | ETA: {eta_str}")
+                    status.update(f"{bar} {i}/{len(tasks)} | ✓ {correct} ✗ {failed} ⏭ {skipped_count} | ETA: {eta_str}")
                 else:
                     status.update(f"{'░' * 20} 0/{len(tasks)}")
     
@@ -513,12 +514,12 @@ class Evaluation:
                         result, run_stats = agent.run(prompt=agent_prompt, image=image_path)
                 except ConvergenceError:
                     print(
-                        "[bold red]:cross_mark: Agent did not converge (max steps reached)[/]"
+                        "[bold yellow]:next_track_button: Agent did not converge (max steps reached)[/]"
                     )
                     result, run_stats = None, None
                     skip_reason = "no_response"
                 except Exception as e:
-                    print(f"[bold red]:cross_mark: Agent error: {e}[/]")
+                    print(f"[bold yellow]:next_track_button: Agent error: {e}[/]")
                     result, run_stats = None, None
                     skip_reason = "agent_error"
     
@@ -529,7 +530,7 @@ class Evaluation:
                 # check if run completed successfully
                 if result is None:
                     print(
-                        "[bold red]:cross_mark: The agent didn't provide a response. This means it may have reached the maximum number of iterations before providing a final answer, or it may have become stuck in a loop, or (in the case of local agents) it may have forgotten to call the Final Answer Tool.[/]"
+                        "[bold yellow]:next_track_button: Task skipped — the agent didn't provide a response.[/]"
                     )
                     is_correct = False
                     reasoning = None
@@ -606,7 +607,7 @@ class Evaluation:
                         if reasoning is not None:
                             print(reasoning, box=True, box_title=":judge: Reasoning")
                     except Exception as e:
-                        print(f"[bold red]:cross_mark: Verification error: {e}[/]")
+                        print(f"[bold yellow]:next_track_button: Verification error: {e}[/]")
                         is_correct = False
                         reasoning = None
                         is_skipped = True
