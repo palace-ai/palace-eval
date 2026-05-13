@@ -1,14 +1,12 @@
 """Configurable Report Generation task type."""
 
-import os
 import re
 from typing import Any
 
 from palace.judge import Judge
 from palace.task_types.base import Task, TaskVerificationResult
+from palace.utils.constants import JUDGE_MODEL
 from palace.utils.printing import print
-
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
 DEFAULT_CRITERIA = [
     {

@@ -1,11 +1,8 @@
 """Configurable QA task type with LLM judge verification."""
 
-import os
-
 from palace.judge import Judge
 from palace.task_types.base import Task, TaskVerificationResult
-
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
+from palace.utils.constants import JUDGE_MODEL
 
 DEFAULT_CORRECTNESS_CRITERION = {
     "name": "semantic equivalence",

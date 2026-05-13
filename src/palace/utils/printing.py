@@ -277,6 +277,10 @@ def print(
     if file_path is not None:
         _write_to_file(file_path, formatted_text, end=end)
     if not file_only:
+        # When status is active, clear line tails to prevent old content bleeding through
+        if PersistentStatus._instance and os.isatty(1):
+            builtin_print("\r\033[2K", end="", flush=True)
+            formatted_text = formatted_text.replace("\n", "\033[K\n") + "\033[K"
         builtin_print(formatted_text, end=end, flush=True)
 
 
@@ -306,23 +310,28 @@ class LoadingIcon:
                     self.last_length = len(output) - 1
                 builtin_print(output, end="", flush=True)
                 time.sleep(self.animation_interval)
-            builtin_print("\r" + " " * self.last_length + "\r", end="", flush=True)
+            builtin_print("\r\033[2K", end="", flush=True)
         else:
+            if os.isatty(1):
+                builtin_print("\033[?25l", end="", flush=True)  # hide cursor
             while not self.done:
                 elapsed_time = time.time() - self.start_time
                 with self.lock:
                     desc = self.description
                     styled_desc = print(desc, as_str=True) if desc else ""
-                    output = f"\r{next(self.spinner)}  ({elapsed_time:.1f}s)  {styled_desc}"
-                    pad = max(0, self.last_length - len(output) + 1)
-                    self.last_length = len(output) - 1
-                builtin_print(output + " " * pad, end="", flush=True)
-                if PersistentStatus._instance:
-                    builtin_print("\033[s", end="", flush=True)  # save cursor
-                    PersistentStatus._instance.render()
-                    builtin_print("\033[u", end="", flush=True)  # restore cursor
+                    status_line = ""
+                    if PersistentStatus._instance and PersistentStatus._instance.text:
+                        status_line = f"\n\n{PersistentStatus._instance.text}\033[K\033[2A"
+                    output = f"\r{next(self.spinner)}  ({elapsed_time:.1f}s)  {styled_desc}\033[K{status_line}"
+                builtin_print(output, end="", flush=True)
                 time.sleep(self.animation_interval)
-            builtin_print("\r" + " " * self.last_length + "\r", end="", flush=True)
+            # Clear spinner line + blank + progress line below
+            if PersistentStatus._instance and PersistentStatus._instance.text:
+                builtin_print("\r\033[2K\n\033[2K\n\033[2K\033[2A", end="", flush=True)
+            else:
+                builtin_print("\r\033[2K", end="", flush=True)
+            if os.isatty(1):
+                builtin_print("\033[?25h", end="", flush=True)  # show cursor
 
 
 @contextmanager
@@ -405,7 +414,7 @@ def loading() -> Generator["LoadingIcon", None, None]:
 
 
 class PersistentStatus:
-    """A status line pinned to the bottom of the terminal via scroll region."""
+    """Progress status rendered on the LoadingIcon spinner line."""
 
     _instance: "PersistentStatus | None" = None
 
@@ -414,51 +423,15 @@ class PersistentStatus:
         self._active = False
 
     def start(self):
-        if IN_NOTEBOOK or not os.isatty(1):
-            return
-        import atexit
-        atexit.register(self._cleanup)
         PersistentStatus._instance = self
-        rows = os.get_terminal_size().lines
-        builtin_print("\033[?25l", end="", flush=True)  # hide cursor
-        builtin_print(f"\033[1;{rows - 2}r", end="", flush=True)  # scroll region
         self._active = True
 
     def update(self, text: str):
         self.text = text
-        if self._active:
-            builtin_print("\033[s", end="", flush=True)
-            self.render()
-            builtin_print("\033[u", end="", flush=True)
 
     def render(self):
-        """Render the status line. Called from LoadingIcon's thread."""
-        if not self._active:
-            return
-        rows = os.get_terminal_size().lines
-        builtin_print(f"\033[1;{rows - 2}r", end="", flush=True)
-        builtin_print(
-            f"\033[{rows};1H\033[2K{self.text}"
-            f"\033[{rows - 1};1H\033[2K",
-            end="",
-            flush=True,
-        )
-
-    def _cleanup(self):
-        if not IN_NOTEBOOK and self._active:
-            builtin_print("\033[r", end="", flush=True)
-            builtin_print("\033[?25h", end="", flush=True)
+        pass
 
     def stop(self):
-        if not self._active:
-            return
         self._active = False
         PersistentStatus._instance = None
-        if not IN_NOTEBOOK:
-            builtin_print("\033[r", end="", flush=True)  # reset scroll region
-            try:
-                rows = os.get_terminal_size().lines
-                builtin_print(f"\033[{rows - 1};1H\033[2K\033[{rows};1H\033[2K", end="", flush=True)
-            except OSError:
-                pass
-            builtin_print("\033[?25h", end="", flush=True)  # show cursor

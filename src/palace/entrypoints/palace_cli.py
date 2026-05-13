@@ -4,6 +4,7 @@ import sys
 
 import emoji
 import questionary
+
 from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
 from palace.environments import (
     IsolatedEnvironment,
@@ -102,7 +103,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
     print()
 
     if not OPENAI_LIKE_API_BASE_URL or not OPENAI_LIKE_API_KEY:
-        print("[red]Error: OPENAI_LIKE_API_BASE_URL and OPENAI_LIKE_API_KEY must be set (in .env or environment).[/red]")
+        print(
+            "[red]Error: OPENAI_LIKE_API_BASE_URL and OPENAI_LIKE_API_KEY must be set (in .env or environment).[/red]"
+        )
         sys.exit(1)
 
     _PARADIGMS = [
@@ -135,7 +138,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 "name": t.name,
                 **(info := json.load(open(t / "info.json"))),
                 "category": info.get("category", ""),
-                "input_modalities": info.get("input_modalities", info.get("modalities", ["text"])),
+                "input_modalities": info.get(
+                    "input_modalities", info.get("modalities", ["text"])
+                ),
                 "output_modalities": info.get("output_modalities", ["text"]),
             }
             for t in (TASKLISTS_PATH).iterdir()
@@ -331,11 +336,9 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         openai_agents_url = questionary.text(
             "OpenAI-compatible Agents URL:", default=_DEFAULT_OPENAI_AGENTS_URL
         ).ask()
-        token = (
-            questionary.password("OpenAI-compatible Agents Token:").ask()
-            if openai_agents_url != _DEFAULT_OPENAI_AGENTS_URL
-            else _DEFAULT_OPENAI_AGENTS_TOKEN
-        )
+        token = questionary.password("OpenAI-compatible Agents Token:").ask()
+        if token is None or token == "":
+            token = _DEFAULT_OPENAI_AGENTS_TOKEN
         available_openai_agents = APIModel.list_models(
             url=openai_agents_url, token=token
         )

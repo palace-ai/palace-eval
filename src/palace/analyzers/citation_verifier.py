@@ -81,7 +81,6 @@ Limitations
 """
 
 import json
-import os
 import re
 import time
 from typing import Any, Callable, Optional
@@ -95,12 +94,11 @@ from palace.prompts.fact_prompts import (
 )
 from palace.task_types import Task, TaskVerificationResult
 from palace.task_types.report_generation import ReportGenerationTask
-from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
+from palace.utils.constants import JUDGE_MODEL, OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
 from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 MAX_RETRIES = 3
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
 
 
 def _get_model() -> APIModel:

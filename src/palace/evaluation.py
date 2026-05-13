@@ -13,6 +13,7 @@ from palace.agents import Agent
 from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
 from palace.task_types import Task, TaskVerificationResult
+from palace.utils.constants import JUDGE_MODEL
 from palace.utils.exceptions import ConvergenceError
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.multimodal import is_image_attachment
@@ -224,6 +225,7 @@ class Evaluation:
 :robot: agent [blue] {agent.name}[/]
 :package: on enviromnent [blue]{agent.environment.name}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
+:scales: judge [blue]{JUDGE_MODEL}[/]
 """)
 
                 report, verification_results, task_cls = self.evaluate(agent, tasklist)

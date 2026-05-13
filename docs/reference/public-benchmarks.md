@@ -14,6 +14,7 @@ The following public benchmarks can be downloaded with `palace-download`:
 | HotpotQA | `hotpotqa/hotpot_qa` | Agentic | QA | Text | validation |
 | GAIA | `gaia-benchmark/GAIA` | Agentic | QA | Text+Files | validation |
 | SimpleQA | `basicv8vc/SimpleQA` | General Knowledge | QA | Text | test |
+| SimpleQA-Verified | `google/simpleqa-verified` | General Knowledge | QA | Text | eval |
 | AssistantBench | `AssistantBench/AssistantBench` | Agentic | QA | Text | validation |
 | Humanity's Last Exam | `cais/hle` | Expert Reasoning | QA | Text+Image | test |
 | VLSBench | `Foreshhh/vlsbench` | Safety | Classification | Text+Image | train |
@@ -83,6 +84,13 @@ General AI Assistant benchmark testing real-world task completion with file atta
 Factual question answering benchmark from OpenAI testing general knowledge.
 
 - **Source**: [basicv8vc/SimpleQA](https://huggingface.co/datasets/basicv8vc/SimpleQA)
+- **Verification**: LLM judge (semantic equivalence)
+
+### SimpleQA-Verified
+
+Improved factuality benchmark from Google DeepMind (1,000 questions). Builds on SimpleQA with corrected labels, reduced topical bias, and removed redundancy.
+
+- **Source**: [google/simpleqa-verified](https://huggingface.co/datasets/google/simpleqa-verified)
 - **Verification**: LLM judge (semantic equivalence)
 
 ### AssistantBench

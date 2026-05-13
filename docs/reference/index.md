@@ -22,7 +22,7 @@ Comprehensive documentation for the official benchmark tasklists developed by th
 
 Public HuggingFace benchmarks supported by `palace-download`:
 
-- BABILong (32k/128k), CURIE-protein, HotpotQA, GAIA, SimpleQA, AssistantBench, Humanity's Last Exam, VLSBench
+- BABILong (32k/128k), CURIE-protein, HotpotQA, GAIA, SimpleQA, SimpleQA-Verified, AssistantBench, Humanity's Last Exam, VLSBench
 
 ## Specifications
 
