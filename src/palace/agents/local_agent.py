@@ -116,6 +116,8 @@ class LocalAgent(Agent):
                     if tool_call["name"] == "Final Answer Tool":
                         final_answer = tool_call["response"]
                         break
+                if final_answer is not None:
+                    break
 
         if final_answer is None:
             raise ConvergenceError()
