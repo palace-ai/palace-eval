@@ -25,15 +25,15 @@ In PALACE, the output of an evaluation run is a JSONL file containing all the co
 
 Here are the steps:
 
-1. **Clone the project:**
+1. **Install uv** (if not already installed):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Clone the project:**
    ```bash
    git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib.git palace
    cd palace
-   ```
-
-2. **Install uv** (if not already installed):
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
 3. **Install dependencies** (uv will automatically create a virtual environment):
@@ -51,6 +51,20 @@ Here are the steps:
    ```
 
 That's it! You are ready to use PALACE.
+
+### Agentic evaluation (optional)
+
+To run agentic benchmarks (tasks requiring sandboxed tool execution), you also need:
+
+- Docker 24+ (running)
+- One-time registry login: `docker login gitlabreg.jrc.ec.europa.eu`
+
+Then install with the agentic extra:
+```bash
+uv sync --extra agentic
+```
+
+Vivarium (the agent runtime) will start automatically when you select an agentic tasklist — no manual setup required.
 
 ## Quick Start
 

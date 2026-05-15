@@ -367,6 +367,7 @@ class Evaluation:
                     url=getattr(agent, "url", ""),
                     token=getattr(agent, "token", None),
                 )
+                print(f"[blue]   ↳ {agent._vivarium_url}[/]")
 
         agent.on_tasklist_start(tasklist_path, tasklist_info)
 
