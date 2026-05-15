@@ -54,17 +54,20 @@ class VivariumAgent(Agent):
         self._verify_context_decl: dict = {}
         self._environment = UnknownEnvironment()
 
-        if not self._vivarium_url:
-            try:
-                from vivarium import start
+        try:
+            import vivarium  # noqa: F401
+        except ImportError:
+            raise RuntimeError(
+                "Agentic evaluation requires vivarium. "
+                "Install with: pip install palace[agentic]  "
+                "(or: uv run --extra agentic)"
+            )
 
-                self._vivarium_url = start()
-                self._auto_started = True
-            except ImportError:
-                raise RuntimeError(
-                    "Agentic evaluation requires vivarium. "
-                    "Install with: pip install palace[agentic]"
-                )
+        if not self._vivarium_url:
+            from vivarium import start
+
+            self._vivarium_url = start()
+            self._auto_started = True
 
     @property
     def name(self) -> str:

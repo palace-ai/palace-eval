@@ -352,7 +352,8 @@ class Evaluation:
             except ImportError:
                 raise RuntimeError(
                     "Agentic evaluation requires vivarium. "
-                    "Install with: pip install palace[agentic]"
+                    "Install with: pip install palace[agentic]  "
+                    "(or: uv run --extra agentic)"
                 )
             if not isinstance(agent, VivariumAgent):
                 if not shutil.which("docker"):
