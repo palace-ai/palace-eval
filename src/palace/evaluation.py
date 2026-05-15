@@ -351,7 +351,7 @@ class Evaluation:
                 from palace.agents.vivarium_agent import VivariumAgent
             except ImportError:
                 raise RuntimeError(
-                    "Agentic evaluation requires palace-vivarium. "
+                    "Agentic evaluation requires vivarium. "
                     "Install with: pip install palace[agentic]"
                 )
             if not isinstance(agent, VivariumAgent):

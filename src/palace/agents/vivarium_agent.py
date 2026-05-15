@@ -1,5 +1,6 @@
-"""Vivarium agent — delegates execution to palace-vivarium service."""
+"""Vivarium agent — delegates execution to vivarium service."""
 
+import importlib.util
 import io
 import json
 import os
@@ -18,13 +19,13 @@ from palace.utils.printing import print
 
 
 class VivariumAgent(Agent):
-    """Agent that delegates execution to palace-vivarium's sandboxed Docker environments.
+    """Agent that delegates execution to vivarium's sandboxed Docker environments.
 
     Args:
         name: Model name (passed to vivarium as model_name for LLM calls).
         url: LLM API base URL.
         token: LLM API key.
-        vivarium_url: Vivarium service URL. If None, auto-starts via palace_vivarium SDK.
+        vivarium_url: Vivarium service URL. If None, auto-starts via vivarium SDK.
         timeout_seconds: Max time per agent run.
         max_steps: Max agent loop iterations per task.
     """
@@ -48,17 +49,20 @@ class VivariumAgent(Agent):
         self._spec_id: str | None = None
         self._env_id: str | None = None
         self._tasklist_path: Path | None = None
+        self._seed_fn = None
+        self._verify_fn = None
+        self._verify_context_decl: dict = {}
         self._environment = UnknownEnvironment()
 
         if not self._vivarium_url:
             try:
-                from palace_vivarium import start
+                from vivarium import start
 
                 self._vivarium_url = start()
                 self._auto_started = True
             except ImportError:
                 raise RuntimeError(
-                    "Agentic evaluation requires palace-vivarium. "
+                    "Agentic evaluation requires vivarium. "
                     "Install with: pip install palace[agentic]"
                 )
 
@@ -79,9 +83,20 @@ class VivariumAgent(Agent):
         return self._environment
 
     def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
-        """Register environment spec with vivarium (upload archive once)."""
+        """Register environment spec with vivarium and load seed/verify scripts."""
         self._tasklist_path = tasklist_path
         env_dir = tasklist_path / "environment"
+
+        # Load seed/verify scripts locally (palace-lib owns evaluation orchestration)
+        seed_path = env_dir / "seed.py"
+        if seed_path.exists():
+            self._seed_fn = _load_fn(seed_path, "seed")
+        verify_path = env_dir / "verify.py"
+        if verify_path.exists():
+            mod = _load_module(verify_path)
+            self._verify_fn = mod.verify
+            self._verify_context_decl = getattr(mod, "CONTEXT", {})
+
         r = requests.post(
             f"{self._vivarium_url}/specs",
             data={"spec": json.dumps(info.get("environment", {}))},
@@ -97,8 +112,8 @@ class VivariumAgent(Agent):
         self._spec_id = r.json()["id"]
 
     def on_task_start(self, task: Task) -> None:
-        """Create a sandboxed environment for this task."""
-        body = {"task_id": task.id, "seed_args": task.custom_fields.get("seed_args")}
+        """Create a sandboxed environment and run seed if present."""
+        body = {"task_id": task.id}
         files = self._package_task_files(task)
 
         r = requests.post(
@@ -110,6 +125,16 @@ class VivariumAgent(Agent):
         self._env_id = r.json()["id"]
         task._env_id = self._env_id  # type: ignore[attr-defined]
         task._vivarium_url = self._vivarium_url  # type: ignore[attr-defined]
+        task._verify_fn = self._verify_fn  # type: ignore[attr-defined]
+        task._verify_context_decl = self._verify_context_decl  # type: ignore[attr-defined]
+        task._tasklist_path = self._tasklist_path  # type: ignore[attr-defined]
+
+        # Run seed locally via /exec
+        if self._seed_fn:
+            from vivarium import Container
+            container = Container(self._vivarium_url, self._env_id)
+            seed_args = task.custom_fields.get("seed_args")
+            self._seed_fn(seed_args, container)
 
     def run(
         self, prompt: str, image: str | None = None
@@ -171,7 +196,7 @@ class VivariumAgent(Agent):
             requests.delete(f"{self._vivarium_url}/specs/{self._spec_id}")
             self._spec_id = None
         if self._auto_started:
-            from palace_vivarium import stop
+            from vivarium import stop
 
             stop()
             self._auto_started = False
@@ -206,3 +231,19 @@ def _format_trace_line(entry: dict) -> str:
     args = entry.get("args", "")
     result = entry.get("result", "")
     return f"[bold]{tool}[/] [dim]{args}[/]\n    [dim]→ {result}[/]"
+
+
+def _load_fn(path: Path, fn_name: str):
+    """Load a function from a Python file."""
+    mod = _load_module(path)
+    return getattr(mod, fn_name)
+
+
+def _load_module(path: Path):
+    """Load a Python module from a file path."""
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Cannot load module from {path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod

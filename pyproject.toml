@@ -47,6 +47,9 @@ dependencies = [
     "wcwidth==0.2.14",
 ]
 
+[project.optional-dependencies]
+agentic = ["vivarium>=0.2.0"]
+
 [project.urls]
 Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
 Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
