@@ -48,7 +48,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-agentic = ["vivarium>=0.2.0"]
+agentic = ["vivarium @ git+https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git"]
+
+[tool.uv.sources]
+vivarium = { path = "../palace-vivarium", editable = true }
+# After pushing vivarium changes, switch to:
+# vivarium = { git = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git" }
 
 [project.urls]
 Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"

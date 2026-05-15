@@ -65,9 +65,11 @@ class VivariumAgent(Agent):
 
         if not self._vivarium_url:
             from vivarium import start
-
-            self._vivarium_url = start()
-            self._auto_started = True
+            try:
+                self._vivarium_url = start()
+                self._auto_started = True
+            except RuntimeError as e:
+                raise RuntimeError(str(e))
 
     @property
     def name(self) -> str:

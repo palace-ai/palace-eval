@@ -361,9 +361,7 @@ class Evaluation:
                         "Agentic evaluation requires Docker. "
                         "Install Docker and ensure it is running."
                     )
-                print(
-                    f"[blue]:whale: Agentic tasklist — routing through vivarium (model: {agent.name})[/]"
-                )
+                print("[blue]:whale: Agentic tasklist — routing through Vivarium[/]")
                 agent = VivariumAgent(
                     name=agent.name,
                     url=getattr(agent, "url", ""),
@@ -414,10 +412,10 @@ class Evaluation:
                 attachment_content = ""  # Raw text attachment content for adapter
                 is_skipped = False
                 skip_reason = None
-    
+
                 if task.attachment is not None and task.attachment != "":
                     attachment_file = tasklist_path / "task_files" / task.attachment
-    
+
                     # Check if attachment is an image
                     if is_image_attachment(task.attachment):
                         image_path = str(attachment_file)
@@ -454,14 +452,14 @@ class Evaluation:
                             ) if self.on_task_complete is not None else None
                             agent.on_task_end(task)
                             continue
-    
+
                         max_attachment_len = 200000
                         if len(attachment_content) > max_attachment_len:
                             print(
                                 f"[yellow bold]*** DEBUG *** Attachment is too long ({len(attachment_content)}), truncating it to {max_attachment_len} characters."
                             )
                             attachment_content = attachment_content[:max_attachment_len]
-    
+
                         attachment_str = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n"
                         attachment_str_debug = f"""Start of text attachment >>>\n{
                             f"{attachment_content[:1000]}... (truncated)"
@@ -471,7 +469,7 @@ class Evaluation:
                 else:
                     attachment_str = ""
                     attachment_str_debug = ""
-    
+
                 # Build prompt: adapter overrides default prompt construction
                 if adapter is not None:
                     prompt = adapter.adapt_input(task, attachment_content)
@@ -479,7 +477,7 @@ class Evaluation:
                 else:
                     prompt = task.create_prompt()
                     agent_prompt = f"{attachment_str}{prompt}"
-    
+
                 print()
                 print(
                     f"{attachment_str_debug}{prompt}",
@@ -492,9 +490,9 @@ class Evaluation:
                         box=True,
                         box_title=":fleur_de_lis: Expected Answer",
                     )
-    
+
                 start_time = time.time()
-    
+
                 # Update persistent status bar
                 if i > 0:
                     correct = sum(1 for r in verification_results if r.is_correct)
@@ -502,19 +500,27 @@ class Evaluation:
                     failed = i - correct - skipped_count
                     elapsed = time.time() - loop_start_time
                     eta = elapsed / i * (len(tasks) - i)
-                    eta_str = f"{int(eta // 60)}m {int(eta % 60)}s" if eta >= 60 else f"{int(eta)}s"
+                    eta_str = (
+                        f"{int(eta // 60)}m {int(eta % 60)}s"
+                        if eta >= 60
+                        else f"{int(eta)}s"
+                    )
                     pct = i / len(tasks)
                     filled = int(pct * 20)
                     bar = "█" * filled + "░" * (20 - filled)
-                    status.update(f"{bar} {i}/{len(tasks)} | ✓ {correct} ✗ {failed} ⏭ {skipped_count} | ETA: {eta_str}")
+                    status.update(
+                        f"{bar} {i}/{len(tasks)} | ✓ {correct} ✗ {failed} ⏭ {skipped_count} | ETA: {eta_str}"
+                    )
                 else:
                     status.update(f"{'░' * 20} 0/{len(tasks)}")
-    
+
                 # Run agent with error handling
                 try:
                     with loading() as ld:
                         ld.description = "Agent generating response..."
-                        result, run_stats = agent.run(prompt=agent_prompt, image=image_path)
+                        result, run_stats = agent.run(
+                            prompt=agent_prompt, image=image_path
+                        )
                 except ConvergenceError:
                     print(
                         "[bold yellow]:next_track_button: Agent did not converge (max steps reached)[/]"
@@ -525,11 +531,11 @@ class Evaluation:
                     print(f"[bold yellow]:next_track_button: Agent error: {e}[/]")
                     result, run_stats = None, None
                     skip_reason = "agent_error"
-    
+
                 # Apply output adapter if configured
                 if result is not None and adapter is not None:
                     result = adapter.adapt_output(result)
-    
+
                 # check if run completed successfully
                 if result is None:
                     print(
@@ -546,14 +552,17 @@ class Evaluation:
                             skip_reason=skip_reason,
                         )
                     )
-                elif task.custom_verificator is not None and task.custom_verificator != "":
-    
+                elif (
+                    task.custom_verificator is not None
+                    and task.custom_verificator != ""
+                ):
+
                     def load_function(code: str):
                         # Create an isolated namespace for the exec
                         local_env = {}
                         exec(code, {}, local_env)
                         return local_env["verify"]
-    
+
                     try:
                         verificator = load_function(task.custom_verificator)
                         is_correct = verificator(result, task.expected)
@@ -579,13 +588,15 @@ class Evaluation:
                             )
                         )
                 else:
-                    print(result, box=True, box_title=":left_speech_bubble: Agent Answer")
-    
+                    print(
+                        result, box=True, box_title=":left_speech_bubble: Agent Answer"
+                    )
+
                     try:
                         with loading() as ld:
                             ld.description = "Verifying answer..."
                             verification_result = task.verify(result)
-    
+
                         # Handle both tuple (legacy) and TaskVerificationResult
                         if isinstance(verification_result, TaskVerificationResult):
                             is_correct = verification_result.is_correct
@@ -602,7 +613,7 @@ class Evaluation:
                                     is_correct=is_correct, reasoning=reasoning
                                 )
                             )
-    
+
                         if is_correct:
                             print("[bold green]:white_check_mark: Correct[/]")
                         else:
@@ -610,7 +621,9 @@ class Evaluation:
                         if reasoning is not None:
                             print(reasoning, box=True, box_title=":judge: Reasoning")
                     except Exception as e:
-                        print(f"[bold yellow]:next_track_button: Verification error: {e}[/]")
+                        print(
+                            f"[bold yellow]:next_track_button: Verification error: {e}[/]"
+                        )
                         is_correct = False
                         reasoning = None
                         is_skipped = True
@@ -622,7 +635,7 @@ class Evaluation:
                                 skip_reason="verification_error",
                             )
                         )
-    
+
                 # prepare report
                 elapsed_time = round(time.time() - start_time, 2)
                 report[task.id] = {
@@ -636,11 +649,11 @@ class Evaluation:
                 if self.report_detail == "full":
                     report[task.id]["objective"] = task.objective
                     report[task.id]["expected"] = task.expected_display()
-    
+
                 # Add task-type-specific metrics to report
                 if task_metrics:
                     report[task.id]["metrics"] = task_metrics
-    
+
                 # Run analyzers and add their metrics
                 if (
                     result is not None
@@ -654,17 +667,17 @@ class Evaluation:
                         if "metrics" not in report[task.id]:
                             report[task.id]["metrics"] = {}
                         report[task.id]["metrics"]["analyzers"] = analyzer_metrics
-    
+
                 # add agent execution metrics to report
                 if run_stats is not None:
                     for k, v in run_stats.items():
                         report[task.id][k] = v
-    
+
                 # call the on_task_complete callback, if provided
                 self.on_task_complete(
                     i + 1, len(tasks)
                 ) if self.on_task_complete is not None else None
-    
+
                 agent.on_task_end(task)
         finally:
             status.stop()
