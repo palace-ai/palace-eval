@@ -14,6 +14,7 @@ from palace.agents.base_agent import Agent
 from palace.environments.base_environment import Environment
 from palace.environments.unknown_environment import UnknownEnvironment
 from palace.task_types.base import Task
+from palace.utils.printing import print
 
 
 class VivariumAgent(Agent):
@@ -52,6 +53,7 @@ class VivariumAgent(Agent):
         if not self._vivarium_url:
             try:
                 from palace_vivarium import start
+
                 self._vivarium_url = start()
                 self._auto_started = True
             except ImportError:
@@ -83,7 +85,13 @@ class VivariumAgent(Agent):
         r = requests.post(
             f"{self._vivarium_url}/specs",
             data={"spec": json.dumps(info.get("environment", {}))},
-            files={"environment": ("environment.tar.gz", _tar_gz(env_dir), "application/gzip")},
+            files={
+                "environment": (
+                    "environment.tar.gz",
+                    _tar_gz(env_dir),
+                    "application/gzip",
+                )
+            },
         )
         r.raise_for_status()
         self._spec_id = r.json()["id"]
@@ -103,7 +111,9 @@ class VivariumAgent(Agent):
         task._env_id = self._env_id  # type: ignore[attr-defined]
         task._vivarium_url = self._vivarium_url  # type: ignore[attr-defined]
 
-    def run(self, prompt: str, image: str | None = None) -> tuple[str | None, dict[str, Any] | None]:
+    def run(
+        self, prompt: str, image: str | None = None
+    ) -> tuple[str | None, dict[str, Any] | None]:
         """Submit agent run and poll until completion."""
         r = requests.post(
             f"{self._vivarium_url}/environments/{self._env_id}/run",
@@ -120,18 +130,33 @@ class VivariumAgent(Agent):
         run_id = r.json()["run_id"]
 
         deadline = time.time() + self._timeout + 30
+        prev_tc = 0
+        trace_lines = []
         while time.time() < deadline:
             resp = requests.get(f"{self._vivarium_url}/runs/{run_id}")
             resp.raise_for_status()
             data = resp.json()
             if data["status"] != "running":
                 break
-            time.sleep(2)
+            trace = data.get("tool_trace") or []
+            for entry in trace[prev_tc:]:
+                line = _format_trace_line(entry)
+                trace_lines.append(line)
+                print(f"  {line}")
+            prev_tc = len(trace)
+            time.sleep(1)
         else:
             return None, None
 
         if data["status"] == "completed":
-            return data["answer"], data.get("agent_metrics")
+            metrics = data.get("agent_metrics") or {}
+            trace = data.get("tool_trace") or []
+            for entry in trace[prev_tc:]:
+                line = _format_trace_line(entry)
+                print(f"  {line}")
+            return data["answer"], metrics
+        # Failed run
+        print(f"  [red]⚠ Run failed: {data.get('error', 'unknown')}[/]")
         return None, None
 
     def on_task_end(self, task: Task) -> None:
@@ -147,6 +172,7 @@ class VivariumAgent(Agent):
             self._spec_id = None
         if self._auto_started:
             from palace_vivarium import stop
+
             stop()
             self._auto_started = False
 
@@ -159,7 +185,9 @@ class VivariumAgent(Agent):
         target = task_files_dir / task.attachment if task.attachment else task_files_dir
         if not target.is_dir() or not any(target.iterdir()):
             return None
-        return {"task_files": ("task_files.tar.gz", _tar_gz(target), "application/gzip")}
+        return {
+            "task_files": ("task_files.tar.gz", _tar_gz(target), "application/gzip")
+        }
 
 
 def _tar_gz(directory: Path) -> bytes:
@@ -170,3 +198,11 @@ def _tar_gz(directory: Path) -> bytes:
             if f.is_file():
                 tar.add(f, arcname=str(f.relative_to(directory)))
     return buf.getvalue()
+
+
+def _format_trace_line(entry: dict) -> str:
+    """Format a tool trace entry as a clean one-liner."""
+    tool = entry["tool"]
+    args = entry.get("args", "")
+    result = entry.get("result", "")
+    return f"[bold]{tool}[/] [dim]{args}[/]\n    [dim]→ {result}[/]"
