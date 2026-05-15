@@ -9,6 +9,7 @@
 build/
 site/
 **/___*
+uv.lock
 
 # all prohibited by gitlab pattern
 *.3gp
