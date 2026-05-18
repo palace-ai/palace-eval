@@ -378,7 +378,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
                 name = item.item_id.replace("jrc-ai/", "")
                 if tasklists and name not in tasklists:
                     continue
-                if skip_existing and (TASKLISTS_PATH / name).exists():
+                if skip_existing and (TASKLISTS_PATH / name / "tasks.json").exists():
                     continue
                 all_items.append({"name": name, "id": item.item_id, "_private": True})
     except EnvironmentError:
@@ -406,7 +406,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
     for item in expanded:
         if tasklists and item["name"] not in tasklists:
             continue
-        if skip_existing and (TASKLISTS_PATH / item["name"]).exists():
+        if skip_existing and (TASKLISTS_PATH / item["name"] / "tasks.json").exists():
             continue
         all_items.append({**item, "_private": False})
 
