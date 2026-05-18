@@ -16,10 +16,7 @@ Each line represents a complete evaluation run containing all task results.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `agent` | string | Model name used for evaluation |
-| `model` | string | Model type description |
-| `paradigm` | string | Evaluation paradigm |
-| `environment` | string | Environment description |
+| `model` | string | Model name |
 | `tasklist` | string | Name of the tasklist evaluated |
 | `accuracy` | float | Overall accuracy (0.0 to 1.0) |
 | `metrics` | object | Aggregated metrics (see below) |
@@ -106,7 +103,7 @@ Present when evaluating Report Generation tasklists (e.g., DeepConsult, DeepRese
 
 ### Agent Execution Metrics (`agent`)
 
-Present when the agent produces execution statistics (agentic paradigms with tools). These metrics are nested under the `agent` key.
+Present when the agent produces execution statistics (agentic evaluation via Vivarium). These metrics are nested under the `agent` key.
 
 For `OpenAIAPIAgent` and `MCPAgent`, the `agent` object is empty (no execution stats available).
 

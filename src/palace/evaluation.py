@@ -223,7 +223,6 @@ class Evaluation:
                 print(f"""
 [bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
 :robot: agent [blue] {agent.name}[/]
-:package: on enviromnent [blue]{agent.environment.name}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
 :scales: judge [blue]{JUDGE_MODEL}[/]
 """)
@@ -247,8 +246,7 @@ class Evaluation:
 
                 print()
                 print(
-                    f"[blue]:robot: {agent.name} ({agent.model_name} x {agent.paradigm_name})[/]:\n"
-                    + f"on :package: [blue]{agent.environment.name}[/]\n"
+                    f"[blue]:robot: {agent.name}[/]:\n"
                     + f"on :scroll: [blue]{tasklist}[/]\n\n"
                     + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
                     + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
@@ -270,10 +268,7 @@ class Evaluation:
                 }
 
                 run_results = {
-                    "agent": agent.name,
-                    "model": agent.model_name,
-                    "paradigm": agent.paradigm_name,
-                    "environment": agent.environment.name,
+                    "model": agent.name,
                     "tasklist": tasklist,
                     "accuracy": accuracy,
                     "metrics": metrics,
@@ -361,13 +356,11 @@ class Evaluation:
                         "Agentic evaluation requires Docker. "
                         "Install Docker and ensure it is running."
                     )
-                print("[blue]:whale: Agentic tasklist — routing through Vivarium[/]")
                 agent = VivariumAgent(
                     name=agent.name,
                     url=getattr(agent, "url", ""),
                     token=getattr(agent, "token", None),
                 )
-                print(f"[blue]   ↳ {agent._vivarium_url}[/]")
 
         agent.on_tasklist_start(tasklist_path, tasklist_info)
 

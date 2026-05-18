@@ -5,8 +5,6 @@ from mcp.types import CallToolResult, TextContent
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from palace.agents import Agent
-from palace.environments.base_environment import Environment
-from palace.environments.unknown_environment import UnknownEnvironment
 from palace.mcp_utils.mcp_client import call_tool, list_tools
 
 
@@ -37,7 +35,6 @@ class MCPAgent(Agent):
         self.token = token
         self.params = params
         self.output_processor = output_processor
-        self._environment = UnknownEnvironment()
 
         available_agents = list_tools(url, token).tools
 
@@ -75,18 +72,6 @@ class MCPAgent(Agent):
     @property
     def name(self) -> str:
         return self._name
-
-    @property
-    def model_name(self) -> str:
-        return "Unknown remote model"
-
-    @property
-    def paradigm_name(self) -> str:
-        return "Unknown remote paradigm"
-
-    @property
-    def environment(self) -> Environment:
-        return self._environment
 
     @retry(
         stop=stop_after_attempt(5),

@@ -12,8 +12,6 @@ from typing import Any
 import requests
 
 from palace.agents.base_agent import Agent
-from palace.environments.base_environment import Environment
-from palace.environments.unknown_environment import UnknownEnvironment
 from palace.task_types.base import Task
 from palace.utils.printing import print
 
@@ -52,7 +50,6 @@ class VivariumAgent(Agent):
         self._seed_fn = None
         self._verify_fn = None
         self._verify_context_decl: dict = {}
-        self._environment = UnknownEnvironment()
 
         try:
             import vivarium  # noqa: F401
@@ -75,40 +72,44 @@ class VivariumAgent(Agent):
     def name(self) -> str:
         return self._name
 
-    @property
-    def model_name(self) -> str:
-        return self._name
-
-    @property
-    def paradigm_name(self) -> str:
-        return "vivarium"
-
-    @property
-    def environment(self) -> Environment:
-        return self._environment
+    DEFAULT_SPEC = {
+        "tools": ["web_search", "bash", "read", "write", "web_fetch"],
+    }
 
     def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
         """Register environment spec with vivarium and load seed/verify scripts."""
+        from palace.utils.printing import print as pprint
+        started = " (auto-started)" if self._auto_started else ""
+        pprint(f"[blue]:whale: Agentic mode — Vivarium @ {self._vivarium_url}{started}[/]")
+
         self._tasklist_path = tasklist_path
         env_dir = tasklist_path / "environment"
 
-        # Load seed/verify scripts locally (palace-lib owns evaluation orchestration)
-        seed_path = env_dir / "seed.py"
-        if seed_path.exists():
-            self._seed_fn = _load_fn(seed_path, "seed")
-        verify_path = env_dir / "verify.py"
-        if verify_path.exists():
-            mod = _load_module(verify_path)
-            self._verify_fn = mod.verify
-            self._verify_context_decl = getattr(mod, "CONTEXT", {})
+        if env_dir.is_dir():
+            # Load seed/verify scripts locally (palace-lib owns evaluation orchestration)
+            seed_path = env_dir / "seed.py"
+            if seed_path.exists():
+                self._seed_fn = _load_fn(seed_path, "seed")
+            verify_path = env_dir / "verify.py"
+            if verify_path.exists():
+                mod = _load_module(verify_path)
+                self._verify_fn = mod.verify
+                self._verify_context_decl = getattr(mod, "CONTEXT", {})
+
+            spec_json = info.get("environment", {})
+            archive_bytes = _tar_gz(env_dir)
+        else:
+            # No environment directory — use default spec with standard tools
+            spec_json = self.DEFAULT_SPEC
+            archive_bytes = _empty_tar_gz()
 
         r = requests.post(
             f"{self._vivarium_url}/specs",
-            data={"spec": json.dumps(info.get("environment", {}))},
+            data={"spec": json.dumps(spec_json)},
             files={
                 "environment": (
                     "environment.tar.gz",
-                    _tar_gz(env_dir),
+                    archive_bytes,
                     "application/gzip",
                 )
             },
@@ -227,6 +228,14 @@ def _tar_gz(directory: Path) -> bytes:
         for f in directory.rglob("*"):
             if f.is_file():
                 tar.add(f, arcname=str(f.relative_to(directory)))
+    return buf.getvalue()
+
+
+def _empty_tar_gz() -> bytes:
+    """Create an empty tar.gz archive."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz"):
+        pass
     return buf.getvalue()
 
 

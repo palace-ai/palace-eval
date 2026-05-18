@@ -1,28 +1,13 @@
-import itertools
 import json
 import sys
 
 import emoji
 import questionary
 
-from palace.agents import LocalAgent, MCPAgent, OpenAIAPIAgent
-from palace.environments import (
-    IsolatedEnvironment,
-    IsolatedEnvironmentWithInterpreter,
-    IsolatedEnvironmentWithLetterCount,
-    MCPEnvironment,
-)
-from palace.environments.empty_environment import EmptyEnvironment
+from palace.agents import MCPAgent, OpenAIAPIAgent, VivariumAgent
 from palace.evaluation import Evaluation
 from palace.mcp_utils.mcp_client import list_tools
 from palace.models import APIModel
-from palace.paradigms import (
-    ActParadigm,
-    NonAgenticParadigm,
-    PlanAndExecuteParadigm,
-    ReActParadigm,
-    ReflectionParadigm,
-)
 from palace.utils.constants import (
     ABW_SERVE_STAGING_URL,
     ALOHA_STAGING_URL,
@@ -38,66 +23,45 @@ from palace.utils.secrets import (
 )
 
 _DEFAULT_MCP_SERVERS = [
-    {
-        "name": "Default local Palace",
-        "url": "http://localhost:8080/mcp/",
-    },
-    {
-        "name": "Default local agentpoc",
-        "url": "http://localhost:8000/mcp/",
-    },
-    {
-        "name": "Default local abw-serve",
-        "url": "http://localhost:8090/mcp/sse",
-    },
-    {
-        "name": "ABW-serve Staging",
-        "url": ABW_SERVE_STAGING_URL,
-    },
-    {
-        "name": "ALOHA Staging",
-        "url": ALOHA_STAGING_URL,
-        "token": ALOHA_STAGING_TOKEN,
-    },
+    {"name": "Default local Palace", "url": "http://localhost:8080/mcp/"},
+    {"name": "Default local agentpoc", "url": "http://localhost:8000/mcp/"},
+    {"name": "Default local abw-serve", "url": "http://localhost:8090/mcp/sse"},
+    {"name": "ABW-serve Staging", "url": ABW_SERVE_STAGING_URL},
+    {"name": "ALOHA Staging", "url": ALOHA_STAGING_URL, "token": ALOHA_STAGING_TOKEN},
     {
         "name": "ThematicSpaces Staging",
         "url": TS_STAGING_URL,
         "token": TS_STAGING_TOKEN,
         "params": {
             "main": "query",
-            "custom": {
-                "thematic_space": "cb305107-63f4-479d-962c-27496e35aa99",
-            },
+            "custom": {"thematic_space": "cb305107-63f4-479d-962c-27496e35aa99"},
         },
     },
 ]
-_DEFAULT_OPENAI_AGENTS_URL = OPENAI_LIKE_API_BASE_URL or ""
-_DEFAULT_OPENAI_AGENTS_TOKEN = OPENAI_LIKE_API_KEY
+_DEFAULT_URL = OPENAI_LIKE_API_BASE_URL or ""
+_DEFAULT_TOKEN = OPENAI_LIKE_API_KEY
 
 
 def main():
-    print("""
-[bright_yellow]
-                                        ╔══════════ ≪  ◆  ≫ ══════════╗[bright_magenta]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┏━━━┓┃┃┃┃┓┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┏━┓┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┗━┛┃━━┓┃┃┃━━┓┃━━┓━━┓┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┏━━┛┃┓┃┃┃┃┃┓┃┃┏━┛┏┓┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┗┛┗┓┗┓┗┛┗┓┗━┓┃━┫┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┗┛┃┃┃━━━┛━┛━━━┛━━┛━━┛┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
-━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
-                                        ╚══════════ ≪  ◆  ≫ ══════════╝
-          
+    print("""[bright_yellow]
+                                ╔══════════ ≪  ◆  ≫ ══════════╗[bright_magenta]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┏━━━┓┃┃┃┃┓┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┏━┓┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┗━┛┃━━┓┃┃┃━━┓┃━━┓━━┓┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┏━━┛┃┓┃┃┃┃┃┓┃┃┏━┛┏┓┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┗┛┗┓┗┓┗┛┗┓┗━┓┃━┫┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┗┛┃┃┃━━━┛━┛━━━┛━━┛━━┛┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_magenta]
+━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━     ┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃┃     ━━━━━ ◆ ━━━━━ ◆ ━━━━━ ◆ ━━━━━[bright_yellow]
+                                ╚══════════ ≪  ◆  ≫ ══════════╝
 """)
     print(
-        """This is the main user interface for the [bold]Palace[/] agents evaluation framework.
-Please make sure you have the required dependencies installed.
-You can find the documentation at [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib[/].
-If you have any questions, please contact us at [blue]massimiliano.altieri@ec.europa.eu[/].""",
+        """This is the main user interface for the [bold]Palace[/] evaluation framework.
+Documentation: [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib[/]
+Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         box=True,
-        box_title=":waving_hand: Welcome to the Palace CLI!",
+        box_title=":waving_hand: Welcome to Palace",
         wrap_width=108,
     )
     print()
@@ -108,30 +72,71 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
         )
         sys.exit(1)
 
-    _PARADIGMS = [
-        NonAgenticParadigm(),
-        ActParadigm(),
-        ReActParadigm(),
-        PlanAndExecuteParadigm(),
-        ReflectionParadigm(),
-    ]
-    _MODELS = [
-        "meta-llama/Llama-3.3-70B-Instruct",
-        "minimax-m2",
-        "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
-        "Qwen/Qwen3-32B",
-        "gpt-4o",
-        "Qwen/Qwen2.5-Coder-32B-Instruct",
-    ]
-    _ENVIRONMENTS = [
-        EmptyEnvironment(),
-        IsolatedEnvironment(),
-        IsolatedEnvironmentWithInterpreter(),
-        IsolatedEnvironmentWithLetterCount(),
-        MCPEnvironment(mcp_server="local"),
-        MCPEnvironment(mcp_server="aloha"),
-    ]
+    # --- Endpoint ---
+    endpoint_type = questionary.select(
+        "Endpoint type:",
+        choices=[
+            questionary.Choice("OpenAI-compatible API", value="openai"),
+            questionary.Choice("MCP server", value="mcp"),
+        ],
+    ).ask()
 
+    # --- Agentic mode ---
+    agentic = questionary.confirm(
+        "Run agentically via Vivarium? (sandboxed environment with tools)",
+        default=False,
+    ).ask()
+
+    # --- Configure endpoint and select models/agents ---
+    agents = []
+
+    if endpoint_type == "mcp":
+        url, token, mcp_server = _select_mcp_server()
+        available_mcp_agents = [tool.name for tool in list_tools(url, token).tools]
+        if not available_mcp_agents:
+            raise ValueError("No agents found at the provided MCP server URL.")
+        selected = questionary.checkbox(
+            "Select agents:",
+            choices=available_mcp_agents,
+            validate=lambda c: True if c else "Select at least one",
+        ).ask()
+        agents = [
+            MCPAgent(
+                url=url,
+                token=token,
+                name=a,
+                params=mcp_server.get("params"),
+                output_processor=mcp_server.get("output_processor"),
+            )
+            for a in selected
+        ]
+    else:
+        url = questionary.text("API URL:", default=_DEFAULT_URL).ask()
+        token = questionary.password("API Token (Enter to use env var):").ask()
+        if not token:
+            token = _DEFAULT_TOKEN
+        available_models = APIModel.list_models(url=url, token=token)
+        if not available_models:
+            raise ValueError("No models found at the provided URL.")
+        selected = questionary.checkbox(
+            "Select models:",
+            choices=sorted(available_models),
+            validate=lambda c: True if c else "Select at least one",
+        ).ask()
+        if agentic:
+            agents = [VivariumAgent(name=m, url=url, token=token) for m in selected]
+        else:
+            agents = [
+                OpenAIAPIAgent(
+                    url=url,
+                    token=token,
+                    name=m,
+                    api_type="openai" if "claude" not in m.lower() else "anthropic",
+                )
+                for m in selected
+            ]
+
+    # --- Tasklists ---
     available_tasklists = sorted(
         [
             {
@@ -143,295 +148,108 @@ If you have any questions, please contact us at [blue]massimiliano.altieri@ec.eu
                 ),
                 "output_modalities": info.get("output_modalities", ["text"]),
             }
-            for t in (TASKLISTS_PATH).iterdir()
-            if t.is_dir()
+            for t in TASKLISTS_PATH.iterdir()
+            if t.is_dir() and (t / "tasks.json").exists()
         ],
         key=lambda x: (x["category"], x["name"]),
     )
 
-    local_or_remote = questionary.checkbox(
-        "What agent types would you like to test?",
-        choices=[
-            questionary.Choice("Remote (via MCP)"),
-            questionary.Choice("Remote (via OpenAI-compatible API)"),
-            questionary.Choice("Local"),
-        ],
-        validate=lambda choices: (
-            True if len(choices) > 0 else "You must select at least one!"
-        ),
-    ).ask()
-    if len(local_or_remote) == 0:
-        print("You have selected nothing to test. Have a nice day :)")
-        return
-
-    agents = []
-
-    custom_style = questionary.Style(
-        [
-            ("blue", "fg:blue"),
-            ("bold", "bold"),
-        ]
-    )
-
-    if "Local" in local_or_remote:
-        # set paradigms
-        paradigm = questionary.checkbox(
-            "Select Reasoning Paradigms to test for local agents:",
-            choices=[questionary.Choice(p.name) for p in _PARADIGMS],
-            validate=lambda choices: (
-                True if len(choices) > 0 else "You must select at least one!"
-            ),
-        ).ask()
-        paradigms = [p for p in _PARADIGMS if p.name in paradigm]
-        if len(paradigms) == 0:
-            raise ValueError("No paradigms selected")
-
-        # set models
-        models = questionary.checkbox(
-            "Select Models to test for local agents:",
-            choices=_MODELS,
-            validate=lambda choices: (
-                True if len(choices) > 0 else "You must select at least one!"
-            ),
-        ).ask()
-        if len(models) == 0:
-            raise ValueError("No models selected")
-
-        # set local or remote llm
-        local_llm = questionary.select(
-            "Where do you want to run the LLMs for local agents?",
-            choices=[
-                questionary.Choice(
-                    "Locally (make sure you have enough GPU memory)",
-                    disabled="NO LONGER SUPPORTED",
-                ),
-                questionary.Choice("GPT@JRC", checked=True),
-            ],
-            default="GPT@JRC",
-        ).ask()
-        local_llm: bool = local_llm != "GPT@JRC"
-
-        # set environments
-        environments = questionary.checkbox(
-            "Select Environments to test for local agents:",
-            choices=[e.name for e in _ENVIRONMENTS],
-            validate=lambda choices: (
-                True if len(choices) > 0 else "You must select at least one!"
-            ),
-        ).ask()
-        environments = [e for e in _ENVIRONMENTS if e.name in environments]
-        if len(environments) == 0:
-            raise ValueError("No environments selected")
-
-        # add local agents
-        api_url = OPENAI_LIKE_API_BASE_URL
-        api_key = OPENAI_LIKE_API_KEY
-        if api_url is None and not local_llm:
-            raise ValueError(
-                "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
-            )
-        agents += [
-            LocalAgent(
-                # model=HuggingfaceModel(model)
-                # if local_llm
-                # else
-                APIModel(
-                    model,
-                    api_url,  # type: ignore
-                    api_key,
-                    api_type="openai" if "claude-" not in model else "anthropic",
-                ),
-                paradigm=paradigm,
-                environment=environment,
-            )
-            for model, paradigm, environment in itertools.product(
-                models, paradigms, environments
-            )
-        ]
-
-    if "Remote (via MCP)" in local_or_remote:
-        # check actually available mcp servers
-        with loading() as ld:
-            for server in _DEFAULT_MCP_SERVERS:
-                ld.status(
-                    f"Checking availability of MCP servers... [dim]({server['url']})"
-                )
-                try:
-                    list_tools(server["url"], server.get("token"))
-                except Exception:
-                    server["available"] = False
-                else:
-                    server["available"] = True
-
-        # set url
-        url = questionary.select(
-            "MCP Agents URL:",
-            choices=[
-                questionary.Choice(
-                    title=[
-                        (
-                            "",
-                            f"{emoji.emojize(':green_circle:')} "
-                            if server.get("available")
-                            else f"{emoji.emojize(':red_circle:')} ",
-                        ),
-                        (
-                            "class:blue",
-                            f"[{server.get('name')}] " if "name" in server else "",
-                        ),
-                        ("class:bold", f"{server['url']}"),
-                    ],
-                    value=server["url"],
-                )
-                for server in _DEFAULT_MCP_SERVERS
-            ]
-            + [
-                questionary.Choice(
-                    title=[
-                        ("", f"{emoji.emojize(':white_circle:')} "),
-                        ("class:blue", "[Custom URL] "),
-                        ("class:bold", "http://..."),
-                    ],
-                    value="Custom URL",
-                )
-            ],
-        ).ask()
-        if url == "Custom URL":
-            url = questionary.text("Custom URL:").ask()
-            if not url.startswith("http"):
-                raise ValueError("Invalid URL provided.")
-            token = questionary.text("Token (leave empty if none):").ask() or None
-            mcp_server = {"url": url}
-        else:
-            mcp_server = next(
-                server for server in _DEFAULT_MCP_SERVERS if server["url"] == url
-            )
-            token = mcp_server.get("token")
-
-        # retrieve remote agents from url
-        available_mcp_agents = [tool.name for tool in list_tools(url, token).tools]
-        if len(available_mcp_agents) == 0:
-            raise ValueError("No agents found in the provided MCP server URL.")
-        mcp_agents = questionary.checkbox(
-            "Select MCP Agents:",
-            choices=available_mcp_agents,
-            validate=lambda choices: (
-                True if len(choices) > 0 else "You must select at least one!"
-            ),
-        ).ask()
-
-        # add MCP agents
-        agents += [
-            MCPAgent(
-                url=url,
-                token=token,
-                name=agent,
-                params=mcp_server.get("params"),
-                output_processor=mcp_server.get("output_processor"),
-            )
-            for agent in mcp_agents
-        ]
-
-    if "Remote (via OpenAI-compatible API)" in local_or_remote:
-        openai_agents_url = questionary.text(
-            "OpenAI-compatible Agents URL:", default=_DEFAULT_OPENAI_AGENTS_URL
-        ).ask()
-        token = questionary.password("OpenAI-compatible Agents Token:").ask()
-        if token is None or token == "":
-            token = _DEFAULT_OPENAI_AGENTS_TOKEN
-        available_openai_agents = APIModel.list_models(
-            url=openai_agents_url, token=token
-        )
-        if len(available_openai_agents) == 0:
-            raise ValueError(
-                "No agents found in the provided OpenAI-compatible server URL."
-            )
-
-        openai_agents = questionary.checkbox(
-            "Select OpenAI-compatible Agents:",
-            choices=available_openai_agents,
-            validate=lambda choices: (
-                True if len(choices) > 0 else "You must select at least one!"
-            ),
-        ).ask()
-
-        # add OpenAI-compatible agents
-        agents += [
-            OpenAIAPIAgent(
-                url=openai_agents_url,
-                token=token,
-                name=agent,
-                api_type="openai" if "claude" not in agent.lower() else "anthropic",
-            )
-            for agent in openai_agents
-        ]
-
-    # set tasklists
+    custom_style = questionary.Style([("blue", "fg:blue"), ("bold", "bold")])
     tasklists = questionary.checkbox(
-        "Select Tasklists to use as benchmarks:",
+        "Select tasklists:",
+        choices=[
+            questionary.Choice(
+                title=[
+                    ("class:blue", f"[{tl['category']}] "),
+                    (
+                        "",
+                        f"[{', '.join(tl['input_modalities'])}→{', '.join(tl['output_modalities'])}] ",
+                    ),
+                    ("class:bold", tl["name"]),
+                ],
+                value=tl["name"],
+            )
+            for tl in available_tasklists
+        ],
+        style=custom_style,
+        validate=lambda c: True if c else "Select at least one",
+    ).ask()
+    if not tasklists:
+        raise ValueError("No tasklists selected")
+
+    # --- Options ---
+    task_limit = questionary.select(
+        "Task limit per tasklist:",
+        choices=["1", "5", "20", "50", "100", "Unlimited"],
+        default="1",
+    ).ask()
+    task_limit = int(task_limit) if task_limit != "Unlimited" else sys.maxsize
+
+    runs = int(
+        questionary.select(
+            "Runs per configuration:", choices=["1", "3", "5", "10"], default="1"
+        ).ask()
+    )
+    name = questionary.text("Run name:", default="eval").ask()
+
+    # --- Execute ---
+    evaluation = Evaluation(
+        name=name, task_amount_limit=task_limit, runs_per_configuration=runs
+    )
+    try:
+        evaluation.evaluate_all(agents, tasklists=tasklists)
+    except KeyboardInterrupt:
+        pass
+
+
+def _select_mcp_server():
+    """Interactive MCP server selection. Returns (url, token, server_dict)."""
+    with loading() as ld:
+        for server in _DEFAULT_MCP_SERVERS:
+            ld.status(f"Checking MCP servers... [dim]({server['url']})")
+            try:
+                list_tools(server["url"], server.get("token"))
+                server["available"] = True
+            except Exception:
+                server["available"] = False
+
+    url = questionary.select(
+        "MCP server:",
         choices=[
             questionary.Choice(
                 title=[
                     (
-                        "class:blue",
-                        f"[{tasklist['category']}] ",
-                    ),
-                    (
                         "",
-                        f"[{', '.join(tasklist['input_modalities'])}→{', '.join(tasklist['output_modalities'])}] ",
+                        f"{emoji.emojize(':green_circle:')} "
+                        if s.get("available")
+                        else f"{emoji.emojize(':red_circle:')} ",
                     ),
-                    ("class:bold", tasklist["name"]),
+                    ("class:blue", f"[{s['name']}] "),
+                    ("class:bold", s["url"]),
                 ],
-                value=tasklist["name"],
+                value=s["url"],
             )
-            for tasklist in available_tasklists
+            for s in _DEFAULT_MCP_SERVERS
+        ]
+        + [
+            questionary.Choice(
+                title=[
+                    ("", "○ "),
+                    ("class:blue", "[Custom] "),
+                    ("class:bold", "http://..."),
+                ],
+                value="custom",
+            )
         ],
-        style=custom_style,
-        validate=lambda choices: (
-            True if len(choices) > 0 else "You must select at least one!"
-        ),
-    ).ask()
-    if len(tasklists) == 0:
-        raise ValueError("No tasklists selected")
-
-    # set task amount limit
-    task_amount_limit = questionary.select(
-        "Limit the number of tasks:",
-        choices=["1", "5", "20", "50", "100", "Unlimited"],
-        default="1",
-    ).ask()
-    task_amount_limit = (
-        int(task_amount_limit) if task_amount_limit != "Unlimited" else sys.maxsize
-    )
-
-    # set runs per configuration
-    runs_per_configuration = questionary.select(
-        "Runs Per Configuration:",
-        choices=["1", "3", "5", "10"],
-        default="1",
-    ).ask()
-    runs_per_configuration = int(runs_per_configuration)
-
-    # set run name
-    name = questionary.text(
-        "Name of the evaluation run:",
-        default="eval",
     ).ask()
 
-    evaluation = Evaluation(
-        name=name,
-        task_amount_limit=task_amount_limit,
-        runs_per_configuration=runs_per_configuration,
-    )
+    if url == "custom":
+        url = questionary.text("URL:").ask()
+        token = questionary.text("Token (leave empty if none):").ask() or None
+        return url, token, {"url": url}
 
-    try:
-        evaluation.evaluate_all(
-            # [agent for agent in local_agents + mcp_agents + openai_agents],
-            agents,
-            tasklists=tasklists,
-        )
-    except KeyboardInterrupt:
-        pass
+    server = next(s for s in _DEFAULT_MCP_SERVERS if s["url"] == url)
+    return url, server.get("token"), server
 
 
 if __name__ == "__main__":

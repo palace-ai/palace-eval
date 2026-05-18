@@ -2,35 +2,16 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from palace.environments.base_environment import Environment
-
 if TYPE_CHECKING:
     from palace.task_types.base import Task
 
 
 class Agent(ABC):
-    """Base class that defines the agent interface.
-    This class is used to define general agent classes (local agent, mcp agent, api agent), not specific agentic paradigms.
-    """
+    """Base class that defines the agent interface."""
 
     @property
     @abstractmethod
     def name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def model_name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def paradigm_name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def environment(self) -> Environment:
         pass
 
     @abstractmethod

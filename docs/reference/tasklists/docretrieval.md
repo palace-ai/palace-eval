@@ -100,17 +100,12 @@ DocRetrieval uses LLM-based semantic evaluation:
 3. **Answer generation**: The agent synthesizes an answer from retrieved content
 4. **LLM judge evaluation**: A judge model compares the answer against the expected answer using semantic equivalence
 
-### Required Environment
+### Requirements
 
-DocRetrieval tasks require an agentic environment with:
+DocRetrieval tasks require agentic evaluation (`--agentic`) with:
 - **Document fetch tool**: Ability to retrieve and read PDF documents
 - **Web search tool** (optional): May help locate documents
 - **Sufficient context**: Documents can be lengthy
-
-### Recommended Paradigms
-
-- **ReAct**: Reasoning and acting interleaved
-- **PlanAndExecute**: Plan retrieval strategy, then execute
 
 ## Dataset Construction
 

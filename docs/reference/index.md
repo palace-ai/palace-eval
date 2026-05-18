@@ -85,7 +85,6 @@ Command-line interface documentation for `palace-cli`, `palace-run`, and `palace
 | `palace-cli` | Interactive interface |
 | `palace-run -u URL -m NAME -t TASKLIST` | Run evaluation |
 | `palace-download` | Download tasklists |
-| `palace-mcpstart` | Start MCP server |
 
 ---
 

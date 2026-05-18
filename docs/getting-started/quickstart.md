@@ -112,10 +112,7 @@ Each evaluation run produces a JSON object with:
 
 ```json
 {
-    "agent": "gpt-4o",
-    "model": "Unknown remote model",
-    "paradigm": "Unknown remote paradigm",
-    "environment": "Unknown Remote Environment",
+    "model": "gpt-4o",
     "tasklist": "GuardBench-EN",
     "accuracy": 0.8,
     "metrics": {

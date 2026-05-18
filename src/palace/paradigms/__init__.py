@@ -1,7 +1,4 @@
-# ruff: noqa: I001
-from palace.paradigms.base_paradigm import Paradigm
-from palace.paradigms.act_paradigm import ActParadigm
-from palace.paradigms.plan_and_execute_paradigm import PlanAndExecuteParadigm
-from palace.paradigms.react_paradigm import ReActParadigm
-from palace.paradigms.reflection_paradigm import ReflectionParadigm
-from palace.paradigms.non_agentic_paradigm import NonAgenticParadigm
+raise RuntimeError(
+    "palace.paradigms has been deprecated. "
+    "Use VivariumAgent for agentic evaluation: palace-run --agentic"
+)

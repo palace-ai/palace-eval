@@ -24,6 +24,7 @@ def evaluate(
     endpoint_type: str = "openai",
     io_adapter: dict | None = None,
     report_detail: str = "default",
+    agentic: bool = False,
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -41,8 +42,18 @@ def evaluate(
         io_adapter: Optional model I/O adapter config dict for specialized models.
         report_detail: Level of detail in per-task report: "none" (omit report),
             "default" (slimmed), "full" (includes task text).
+        agentic: If True, wrap agent in VivariumAgent with default spec for tool access.
     """
-    if endpoint_type == "mcp":
+    if agentic:
+        import shutil
+        from palace.agents.vivarium_agent import VivariumAgent
+        if not shutil.which("docker"):
+            raise RuntimeError(
+                "Agentic evaluation requires Docker. "
+                "Install Docker and ensure it is running."
+            )
+        agent = VivariumAgent(name=name, url=url, token=token)
+    elif endpoint_type == "mcp":
         agent = MCPAgent(url=url, token=token, name=name)
     elif endpoint_type == "openai":
         agent = OpenAIAPIAgent(
@@ -129,6 +140,12 @@ def run():
         choices=["none", "default", "full"],
         help="Level of detail in per-task report: none (omit report), default (slimmed), full (includes task text).",
     )
+    argparser.add_argument(
+        "--agentic",
+        action="store_true",
+        default=False,
+        help="Run evaluation agentically via Vivarium (sandboxed environment with tools).",
+    )
     args = argparser.parse_args()
 
     # If no model specified, list available models and exit
@@ -158,6 +175,7 @@ def run():
             runs_per_configuration=args.runs_per_configuration,
             endpoint_type=args.endpoint_type,
             report_detail=args.report_detail,
+            agentic=args.agentic,
         )
     except FileNotFoundError as e:
         print(f"[red]Error: {e}[/red]")

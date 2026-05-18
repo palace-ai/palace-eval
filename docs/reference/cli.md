@@ -9,7 +9,6 @@ Complete reference for PALACE command-line tools.
 | `palace-cli` | Interactive menu-driven interface |
 | `palace-run` | Run evaluations from command line |
 | `palace-download` | Download tasklists from HuggingFace |
-| `palace-mcpstart` | Start the MCP SSE server |
 
 ## palace-cli
 
@@ -62,6 +61,7 @@ palace-run -u <url> -t <tasklist> [-m <model-name>] [options]
 | `--run-name` | `eval` | Name for this evaluation run |
 | `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
 | `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
+| `--agentic` | False | Run agentically via Vivarium (sandboxed environment with tools) |
 | `--report-detail` | `default` | Per-task report detail: `none`, `default`, or `full` |
 
 ### Examples
@@ -84,6 +84,9 @@ palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN --output-fol
 
 # MCP endpoint
 palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint-type mcp
+
+# Agentic evaluation via Vivarium (requires Docker)
+palace-run -u https://api.example.com/v1 -m gpt-4o -t SimpleQA-Verified --agentic
 ```
 
 ### Exit Codes
@@ -139,23 +142,6 @@ Tasklists are downloaded to:
 ### Available Tasklists
 
 Run `palace-download` without arguments to see available tasklists.
-
-## palace-mcpstart
-
-Start a PALACE MCP (Model Context Protocol) SSE server, allowing external tools to run evaluations via MCP.
-
-### Usage
-
-```bash
-palace-mcpstart [--host HOST] [--port PORT]
-```
-
-### Optional Arguments
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--host` | `0.0.0.0` | Host to bind the server to |
-| `--port` | `8080` | Port to listen on |
 
 ## Environment Variables
 

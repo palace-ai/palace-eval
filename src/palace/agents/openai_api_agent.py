@@ -1,8 +1,6 @@
 from typing import Any
 
 from palace.agents import Agent
-from palace.environments.base_environment import Environment
-from palace.environments.unknown_environment import UnknownEnvironment
 from palace.models.api_model import APIModel
 from palace.utils.multimodal import build_multimodal_content
 
@@ -36,23 +34,10 @@ class OpenAIAPIAgent(Agent):
         self.url = url
         self.token = token
         self.api_type = api_type
-        self._environment = UnknownEnvironment()
 
     @property
     def name(self) -> str:
         return self._name
-
-    @property
-    def model_name(self) -> str:
-        return "Unknown remote model"
-
-    @property
-    def paradigm_name(self) -> str:
-        return "Unknown remote paradigm"
-
-    @property
-    def environment(self) -> Environment:
-        return self._environment
 
     def run(self, prompt: str, image: str | None = None) -> tuple[str | None, dict[str, Any] | None]:
         agent = APIModel(
