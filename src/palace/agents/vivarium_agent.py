@@ -51,6 +51,13 @@ class VivariumAgent(Agent):
         self._verify_fn = None
         self._verify_context_decl: dict = {}
 
+        import shutil
+        if not shutil.which("docker"):
+            raise RuntimeError(
+                "Agentic evaluation requires Docker. "
+                "Install Docker and ensure it is running."
+            )
+
         try:
             import vivarium  # noqa: F401
         except ImportError:

@@ -80,12 +80,16 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
             questionary.Choice("MCP server", value="mcp"),
         ],
     ).ask()
+    if endpoint_type is None:
+        return
 
     # --- Agentic mode ---
     agentic = questionary.confirm(
         "Run agentically via Vivarium? (sandboxed environment with tools)",
         default=False,
     ).ask()
+    if agentic is None:
+        return
 
     # --- Configure endpoint and select models/agents ---
     agents = []
@@ -100,6 +104,8 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
             choices=available_mcp_agents,
             validate=lambda c: True if c else "Select at least one",
         ).ask()
+        if not selected:
+            return
         agents = [
             MCPAgent(
                 url=url,
@@ -112,6 +118,8 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         ]
     else:
         url = questionary.text("API URL:", default=_DEFAULT_URL).ask()
+        if not url:
+            return
         token = questionary.password("API Token (Enter to use env var):").ask()
         if not token:
             token = _DEFAULT_TOKEN
@@ -123,6 +131,8 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
             choices=sorted(available_models),
             validate=lambda c: True if c else "Select at least one",
         ).ask()
+        if not selected:
+            return
         if agentic:
             agents = [VivariumAgent(name=m, url=url, token=token) for m in selected]
         else:
@@ -175,7 +185,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         validate=lambda c: True if c else "Select at least one",
     ).ask()
     if not tasklists:
-        raise ValueError("No tasklists selected")
+        return
 
     # --- Options ---
     task_limit = questionary.select(
@@ -183,14 +193,19 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         choices=["1", "5", "20", "50", "100", "Unlimited"],
         default="1",
     ).ask()
+    if not task_limit:
+        return
     task_limit = int(task_limit) if task_limit != "Unlimited" else sys.maxsize
 
-    runs = int(
-        questionary.select(
-            "Runs per configuration:", choices=["1", "3", "5", "10"], default="1"
-        ).ask()
-    )
+    runs = questionary.select(
+        "Runs per configuration:", choices=["1", "3", "5", "10"], default="1"
+    ).ask()
+    if not runs:
+        return
+    runs = int(runs)
     name = questionary.text("Run name:", default="eval").ask()
+    if not name:
+        return
 
     # --- Execute ---
     evaluation = Evaluation(

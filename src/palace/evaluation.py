@@ -340,8 +340,6 @@ class Evaluation:
 
         # Route through vivarium for agentic tasklists
         if tasklist_info["task_type"] == "Agentic":
-            import shutil
-
             try:
                 from palace.agents.vivarium_agent import VivariumAgent
             except ImportError:
@@ -351,11 +349,6 @@ class Evaluation:
                     "(or: uv run --extra agentic)"
                 )
             if not isinstance(agent, VivariumAgent):
-                if not shutil.which("docker"):
-                    raise RuntimeError(
-                        "Agentic evaluation requires Docker. "
-                        "Install Docker and ensure it is running."
-                    )
                 agent = VivariumAgent(
                     name=agent.name,
                     url=getattr(agent, "url", ""),

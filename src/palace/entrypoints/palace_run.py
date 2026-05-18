@@ -45,13 +45,7 @@ def evaluate(
         agentic: If True, wrap agent in VivariumAgent with default spec for tool access.
     """
     if agentic:
-        import shutil
         from palace.agents.vivarium_agent import VivariumAgent
-        if not shutil.which("docker"):
-            raise RuntimeError(
-                "Agentic evaluation requires Docker. "
-                "Install Docker and ensure it is running."
-            )
         agent = VivariumAgent(name=name, url=url, token=token)
     elif endpoint_type == "mcp":
         agent = MCPAgent(url=url, token=token, name=name)
