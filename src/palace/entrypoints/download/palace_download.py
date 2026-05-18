@@ -247,6 +247,15 @@ def download_tasklist(
         for file_idx, attachment in enumerate(attachments_to_download):
             # attachment is present as a file name to download
             if not inline_attachment:
+                dest = attachments_dir / attachment
+                dest.parent.mkdir(parents=True, exist_ok=True)
+
+                # Skip files already downloaded (e.g., from interrupted previous run)
+                if dest.exists():
+                    if on_progress:
+                        on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
+                    continue
+
                 temp_dir = tasklist_path / ".dl_tmp"
                 try:
                     temp_path = hf_hub_download(
@@ -254,12 +263,9 @@ def download_tasklist(
                         filename=os.path.join(attachment_path, attachment),  # type: ignore
                         repo_type="dataset",
                         local_dir=temp_dir,
-                        force_download=True,
                     )
 
                     # Move to final location
-                    dest = attachments_dir / attachment
-                    dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(temp_path, dest)
 
                 except Exception as e:
