@@ -128,6 +128,7 @@ def download_tasklist(
         on_progress(DownloadEvent(status="processing", name=name, current=ctx_current, total=ctx_total, rows_done=len(dataset_rows), total_rows=total_rows, total_bytes=total_bytes))
 
     tasks = []
+    seen_ids = set()
     for i, row in enumerate(dataset_rows):
         # Get attachment name
         attachment = (
@@ -168,7 +169,8 @@ def download_tasklist(
             task["labels"] = default_labels
 
         # Add task to list if it doesn't already exist
-        if task["id"] not in [t["id"] for t in tasks]:
+        if task["id"] not in seen_ids:
+            seen_ids.add(task["id"])
             tasks.append(task)
 
     # Map labels if label_mapping is provided
@@ -176,11 +178,9 @@ def download_tasklist(
         for task in tasks:
             task["expected"] = label_mapping[task["expected"]]
 
-    # Save tasklist tasks and metadata
+    # Prepare tasklist directory and write metadata (info.json)
     tasklist_path = TASKLISTS_PATH / name
     os.makedirs(tasklist_path, exist_ok=True)
-    with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
-        json.dump(tasks, f, ensure_ascii=False, indent=4)
 
     # Download tasklist metadata if available, otherwise create it
     try:
@@ -244,6 +244,7 @@ def download_tasklist(
         if on_progress and total_files:
             on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=total_files))
 
+        temp_dir = tasklist_path / ".dl_tmp"
         for file_idx, attachment in enumerate(attachments_to_download):
             # attachment is present as a file name to download
             if not inline_attachment:
@@ -256,7 +257,6 @@ def download_tasklist(
                         on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
                     continue
 
-                temp_dir = tasklist_path / ".dl_tmp"
                 try:
                     temp_path = hf_hub_download(
                         repo_id=id,
@@ -270,11 +270,6 @@ def download_tasklist(
 
                 except Exception as e:
                     print(f"Error downloading {attachment}: {e}")
-
-                try:
-                    shutil.rmtree(temp_dir)
-                except OSError as e:
-                    print(f"Error removing subdirectories: {e}")
 
             # attachment is present within the dataframe, either as plain text or as a raw byte string to decode
             else:
@@ -293,6 +288,16 @@ def download_tasklist(
 
             if on_progress:
                 on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
+
+        # Clean up temp directory once after all files
+        try:
+            shutil.rmtree(temp_dir)
+        except OSError:
+            pass
+
+    # Write tasks.json last — acts as completion marker for skip_existing
+    with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
+        json.dump(tasks, f, ensure_ascii=False, indent=4)
 
 
 def _string_type(s):
