@@ -38,7 +38,7 @@ class AgenticTask(Task):
             )
 
         from vivarium import Container
-        container = Container(self._vivarium_url, self._env_id, context={})
+        container = Container(self._vivarium_url, self._env_id)
 
         # Copy verify_files if present in tasklist
         self._inject_verify_files(container)

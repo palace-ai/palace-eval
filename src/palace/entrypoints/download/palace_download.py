@@ -106,8 +106,9 @@ def download_tasklist(
             f"If custom_verificator is specified, it must follow the signature 'def verify(pred, truth) -> bool', found {custom_verificator}."
         )
 
-    # Use streaming to get row-level progress
-    dataset = load_dataset(path=id, name=config, split=split, streaming=True)
+    # Use streaming to get row-level progress (timeout detects stalled connections)
+    dataset = load_dataset(path=id, name=config, split=split, streaming=True,
+                           storage_options={"client_kwargs": {"timeout": 120}})
     split_info = dataset.info.splits.get(split) if dataset.info.splits else None
     total_rows = split_info.num_examples if split_info else 0
     total_bytes = split_info.num_bytes if split_info else 0
@@ -459,18 +460,24 @@ def download_all(
         with loading() as ld:
             ld.description = f"[cyan]Downloading [bold]{name}[/bold]..."
 
-            if item.get("_private"):
-                metadata = hf_hub_download(repo_id=item["id"], filename="info.json", repo_type="dataset")
-                with open(metadata) as f:
-                    metadata = json.load(f)
-                download_tasklist(
-                    name=name, id=item["id"], split="test",
-                    keep_custom_columns=True, task_type=metadata.get("task_type", ""),
-                    on_progress=on_progress, _progress_ctx=(idx, total),
-                )
-            else:
-                dl_args = {k: v for k, v in item.items() if k != "_private"}
-                download_tasklist(**dl_args, on_progress=on_progress, _progress_ctx=(idx, total))
+            try:
+                if item.get("_private"):
+                    metadata = hf_hub_download(repo_id=item["id"], filename="info.json", repo_type="dataset")
+                    with open(metadata) as f:
+                        metadata = json.load(f)
+                    download_tasklist(
+                        name=name, id=item["id"], split="test",
+                        keep_custom_columns=True, task_type=metadata.get("task_type", ""),
+                        on_progress=on_progress, _progress_ctx=(idx, total),
+                    )
+                else:
+                    dl_args = {k: v for k, v in item.items() if k != "_private"}
+                    download_tasklist(**dl_args, on_progress=on_progress, _progress_ctx=(idx, total))
+            except Exception as e:
+                print(f"   [red]:cross_mark: {name} failed: {e}. Skipping.[/red]")
+                if on_progress:
+                    on_progress(DownloadEvent(status="error", name=name, current=idx, total=total))
+                continue
 
         if on_progress:
             on_progress(DownloadEvent(status="done", name=name, current=idx, total=total))
