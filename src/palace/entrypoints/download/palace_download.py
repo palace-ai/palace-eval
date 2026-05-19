@@ -123,26 +123,57 @@ def download_tasklist(
     if inline_attachment and column_names.get("attachment"):
         (tasklist_path / "task_files").mkdir(parents=True, exist_ok=True)
 
+    # Columns we need to keep in memory
+    _needed_cols = set(column_names.values())
+    if keep_custom_columns:
+        _needed_cols = None  # keep all
+
     # Iterate and collect rows (inline attachments written immediately to avoid memory accumulation)
     dataset_rows = []
     for i, row in enumerate(dataset):
         # Write inline attachment immediately and replace blob with filename
-        if inline_attachment and column_names.get("attachment") and row.get(column_names["attachment"], ""):
-            raw = row[column_names["attachment"]]
-            filename = _get_filename(raw)
-            if filename:
-                attachment_type = _string_type(raw)
-                if attachment_type == "base64":
-                    data = base64.b64decode(_extract_base64_payload(raw))
+        if inline_attachment and column_names.get("attachment"):
+            att_col = column_names["attachment"]
+            raw = row.get(att_col)
+            if raw:
+                # Handle PIL Image objects (HuggingFace Image feature)
+                from PIL import Image as PILImage
+                if isinstance(raw, PILImage.Image):
+                    import io
+                    buf = io.BytesIO()
+                    fmt = raw.format or "PNG"
+                    raw.save(buf, format=fmt)
+                    img_bytes = buf.getvalue()
+                    ext = fmt.lower()
+                    filename = hashlib.sha256(img_bytes).hexdigest()[:24] + f".{ext}"
+                    with open(tasklist_path / "task_files" / filename, "wb") as f:
+                        f.write(img_bytes)
+                elif isinstance(raw, (bytes, bytearray)):
+                    filename = _get_filename(raw)
+                    if filename:
+                        with open(tasklist_path / "task_files" / filename, "wb") as f:
+                            f.write(raw)
+                elif isinstance(raw, str) and raw.strip():
+                    filename = _get_filename(raw)
+                    if filename:
+                        attachment_type = _string_type(raw)
+                        if attachment_type == "base64":
+                            data = base64.b64decode(_extract_base64_payload(raw))
+                        else:
+                            data = raw
+                        with open(
+                            tasklist_path / "task_files" / filename,
+                            "w" if attachment_type == "text" else "wb",
+                            encoding="utf-8" if attachment_type == "text" else None,
+                        ) as f:
+                            f.write(data)
                 else:
-                    data = raw
-                with open(
-                    tasklist_path / "task_files" / filename,
-                    "w" if attachment_type == "text" else "wb",
-                    encoding="utf-8" if attachment_type == "text" else None,
-                ) as f:
-                    f.write(data)
-                row = {**row, column_names["attachment"]: filename}
+                    filename = ""
+                row = {**row, att_col: filename}
+
+        # Strip large unused columns to save memory
+        if _needed_cols is not None:
+            row = {k: v for k, v in row.items() if k in _needed_cols}
         dataset_rows.append(row)
         if on_progress and i % 100 == 0:
             on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=i + 1, total_rows=total_rows, total_bytes=total_bytes))
