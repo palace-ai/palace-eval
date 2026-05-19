@@ -117,9 +117,32 @@ def download_tasklist(
     if on_progress:
         on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, total_rows=total_rows, total_bytes=total_bytes))
 
-    # Iterate and collect rows
+    # Prepare attachments dir early for inline writes during streaming
+    tasklist_path = TASKLISTS_PATH / name
+    os.makedirs(tasklist_path, exist_ok=True)
+    if inline_attachment and column_names.get("attachment"):
+        (tasklist_path / "task_files").mkdir(parents=True, exist_ok=True)
+
+    # Iterate and collect rows (inline attachments written immediately to avoid memory accumulation)
     dataset_rows = []
     for i, row in enumerate(dataset):
+        # Write inline attachment immediately and replace blob with filename
+        if inline_attachment and column_names.get("attachment") and row.get(column_names["attachment"], ""):
+            raw = row[column_names["attachment"]]
+            filename = _get_filename(raw)
+            if filename:
+                attachment_type = _string_type(raw)
+                if attachment_type == "base64":
+                    data = base64.b64decode(_extract_base64_payload(raw))
+                else:
+                    data = raw
+                with open(
+                    tasklist_path / "task_files" / filename,
+                    "w" if attachment_type == "text" else "wb",
+                    encoding="utf-8" if attachment_type == "text" else None,
+                ) as f:
+                    f.write(data)
+                row = {**row, column_names["attachment"]: filename}
         dataset_rows.append(row)
         if on_progress and i % 100 == 0:
             on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=i + 1, total_rows=total_rows, total_bytes=total_bytes))
@@ -130,14 +153,12 @@ def download_tasklist(
     tasks = []
     seen_ids = set()
     for i, row in enumerate(dataset_rows):
-        # Get attachment name
+        # Get attachment name (already a filename for inline_attachment — processed during streaming)
         attachment = (
             row[column_names["attachment"]]
             if "attachment" in column_names and column_names["attachment"] in row
             else ""
         )
-        if inline_attachment:
-            attachment = _get_filename(attachment)
 
         # Convert dataset-specific task format to my own task format
         task = {
@@ -178,10 +199,7 @@ def download_tasklist(
         for task in tasks:
             task["expected"] = label_mapping[task["expected"]]
 
-    # Prepare tasklist directory and write metadata (info.json)
-    tasklist_path = TASKLISTS_PATH / name
-    os.makedirs(tasklist_path, exist_ok=True)
-
+    # Write metadata (info.json) — tasklist_path already created above
     # Download tasklist metadata if available, otherwise create it
     try:
         metadata = hf_hub_download(
@@ -225,9 +243,10 @@ def download_tasklist(
         with open(info_path, "w", encoding="utf-8") as f:
             json.dump(info_data, f, ensure_ascii=False, indent=4)
 
-    # Download and save task files (attachments)
+    # Download and save task files (attachments) — skip inline (already written during streaming)
     if (
-        column_names.get("attachment") is not None
+        not inline_attachment
+        and column_names.get("attachment") is not None
         and dataset_rows
         and column_names["attachment"] in dataset_rows[0]
     ):
@@ -246,45 +265,25 @@ def download_tasklist(
 
         temp_dir = tasklist_path / ".dl_tmp"
         for file_idx, attachment in enumerate(attachments_to_download):
-            # attachment is present as a file name to download
-            if not inline_attachment:
-                dest = attachments_dir / attachment
-                dest.parent.mkdir(parents=True, exist_ok=True)
+            dest = attachments_dir / attachment
+            dest.parent.mkdir(parents=True, exist_ok=True)
 
-                # Skip files already downloaded (e.g., from interrupted previous run)
-                if dest.exists():
-                    if on_progress:
-                        on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
-                    continue
+            # Skip files already downloaded (e.g., from interrupted previous run)
+            if dest.exists():
+                if on_progress:
+                    on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
+                continue
 
-                try:
-                    temp_path = hf_hub_download(
-                        repo_id=id,
-                        filename=os.path.join(attachment_path, attachment),  # type: ignore
-                        repo_type="dataset",
-                        local_dir=temp_dir,
-                    )
-
-                    # Move to final location
-                    shutil.move(temp_path, dest)
-
-                except Exception as e:
-                    print(f"Error downloading {attachment}: {e}")
-
-            # attachment is present within the dataframe, either as plain text or as a raw byte string to decode
-            else:
-                attachment_type = _string_type(attachment)
-                if attachment_type == "base64":
-                    attachment = _extract_base64_payload(attachment)
-                    attachment = base64.b64decode(attachment)
-
-                output_file = _get_filename(attachment)  # type: ignore
-                with open(
-                    attachments_dir / output_file,
-                    "w" if attachment_type == "text" else "wb",
-                    encoding="utf-8" if attachment_type == "text" else None,
-                ) as f:
-                    f.write(attachment)
+            try:
+                temp_path = hf_hub_download(
+                    repo_id=id,
+                    filename=os.path.join(attachment_path, attachment),  # type: ignore
+                    repo_type="dataset",
+                    local_dir=temp_dir,
+                )
+                shutil.move(temp_path, dest)
+            except Exception as e:
+                print(f"Error downloading {attachment}: {e}")
 
             if on_progress:
                 on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
