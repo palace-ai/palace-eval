@@ -63,8 +63,7 @@ class VivariumAgent(Agent):
         except ImportError:
             raise RuntimeError(
                 "Agentic evaluation requires vivarium. "
-                "Install with: pip install palace[agentic]  "
-                "(or: uv run --extra agentic)"
+                "Install with: uv pip install vivctl --git https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git"
             )
 
         if not self._vivarium_url:

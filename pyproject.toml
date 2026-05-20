@@ -47,12 +47,6 @@ dependencies = [
     "wcwidth==0.2.14",
 ]
 
-[project.optional-dependencies]
-agentic = ["vivctl @ git+https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git"]
-
-[tool.uv.sources]
-vivctl = { git = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git" }
-
 [project.urls]
 Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
 Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"

@@ -58,10 +58,10 @@ To run agentic benchmarks (tasks requiring sandboxed tool execution), you also n
 
 - Docker 24+ (running)
 - One-time registry login: `docker login gitlabreg.jrc.ec.europa.eu`
+- The vivarium SDK:
 
-Then install with the agentic extra:
 ```bash
-uv sync --extra agentic
+uv pip install vivctl --git https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git
 ```
 
 Vivarium (the agent runtime) will start automatically when you select an agentic tasklist — no manual setup required.
