@@ -345,7 +345,9 @@ class Evaluation:
             except ImportError:
                 raise RuntimeError(
                     "Agentic evaluation requires vivarium. "
-                    "Install with: uv pip install vivctl --git https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git"
+                    "Install with:\n"
+                    "  git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git\n"
+                    "  uv pip install -e vivarium/"
                 )
             if not isinstance(agent, VivariumAgent):
                 agent = VivariumAgent(

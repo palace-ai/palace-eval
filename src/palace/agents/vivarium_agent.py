@@ -2,14 +2,11 @@
 
 import importlib.util
 import io
-import json
 import os
 import tarfile
 import time
 from pathlib import Path
 from typing import Any
-
-import requests
 
 from palace.agents.base_agent import Agent
 from palace.task_types.base import Task
@@ -43,36 +40,28 @@ class VivariumAgent(Agent):
         self._timeout = timeout_seconds
         self._max_steps = max_steps
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL")
-        self._auto_started = False
         self._spec_id: str | None = None
-        self._env_id: str | None = None
+        self._env = None  # vivarium.Environment
+        self._client = None  # vivarium.Client
+        self._auto_started = False
         self._tasklist_path: Path | None = None
         self._seed_fn = None
         self._verify_fn = None
         self._verify_context_decl: dict = {}
 
-        import shutil
-        if not shutil.which("docker"):
-            raise RuntimeError(
-                "Agentic evaluation requires Docker. "
-                "Install Docker and ensure it is running."
-            )
-
         try:
-            import vivarium  # noqa: F401
+            from vivarium import Client
         except ImportError:
             raise RuntimeError(
                 "Agentic evaluation requires vivarium. "
-                "Install with: uv pip install vivctl --git https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git"
+                "Install with:\n"
+                "  git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git\n"
+                "  uv pip install -e vivarium/"
             )
 
-        if not self._vivarium_url:
-            from vivarium import start
-            try:
-                self._vivarium_url = start()
-                self._auto_started = True
-            except RuntimeError as e:
-                raise RuntimeError(str(e))
+        auto_start = self._vivarium_url is None
+        self._client = Client(url=self._vivarium_url, auto_start=auto_start)
+        self._auto_started = auto_start
 
     @property
     def name(self) -> str:
@@ -86,13 +75,12 @@ class VivariumAgent(Agent):
         """Register environment spec with vivarium and load seed/verify scripts."""
         from palace.utils.printing import print as pprint
         started = " (auto-started)" if self._auto_started else ""
-        pprint(f"[blue]:whale: Agentic mode — Vivarium @ {self._vivarium_url}{started}[/]")
+        pprint(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url}{started}[/]")
 
         self._tasklist_path = tasklist_path
         env_dir = tasklist_path / "environment"
 
         if env_dir.is_dir():
-            # Load seed/verify scripts locally (palace-lib owns evaluation orchestration)
             seed_path = env_dir / "seed.py"
             if seed_path.exists():
                 self._seed_fn = _load_fn(seed_path, "seed")
@@ -105,46 +93,27 @@ class VivariumAgent(Agent):
             spec_json = info.get("environment", {})
             archive_bytes = _tar_gz(env_dir)
         else:
-            # No environment directory — use default spec with standard tools
             spec_json = self.DEFAULT_SPEC
-            archive_bytes = _empty_tar_gz()
+            archive_bytes = None
 
-        r = requests.post(
-            f"{self._vivarium_url}/specs",
-            data={"spec": json.dumps(spec_json)},
-            files={
-                "environment": (
-                    "environment.tar.gz",
-                    archive_bytes,
-                    "application/gzip",
-                )
-            },
-        )
-        r.raise_for_status()
-        self._spec_id = r.json()["id"]
+        self._spec_id = self._client.register_spec(spec_json, archive_bytes)
 
     def on_task_start(self, task: Task) -> None:
         """Create a sandboxed environment and run seed if present."""
-        body = {"task_id": task.id}
-        files = self._package_task_files(task)
+        task_files = self._package_task_files(task)
 
-        r = requests.post(
-            f"{self._vivarium_url}/specs/{self._spec_id}/environments",
-            data={"body": json.dumps(body)},
-            files=files,
+        self._env = self._client.create_environment(
+            spec_id=self._spec_id,
+            task_id=task.id,
+            task_files=task_files,
         )
-        r.raise_for_status()
-        self._env_id = r.json()["id"]
-        task._env_id = self._env_id  # type: ignore[attr-defined]
-        task._vivarium_url = self._vivarium_url  # type: ignore[attr-defined]
+        container = self._client.container(self._env.id)
+        task._container = container  # type: ignore[attr-defined]
         task._verify_fn = self._verify_fn  # type: ignore[attr-defined]
         task._verify_context_decl = self._verify_context_decl  # type: ignore[attr-defined]
         task._tasklist_path = self._tasklist_path  # type: ignore[attr-defined]
 
-        # Run seed locally via /exec
         if self._seed_fn:
-            from vivarium import Container
-            container = Container(self._vivarium_url, self._env_id)
             seed_args = task.custom_fields.get("seed_args")
             self._seed_fn(seed_args, container)
 
@@ -152,68 +121,69 @@ class VivariumAgent(Agent):
         self, prompt: str, image: str | None = None
     ) -> tuple[str | None, dict[str, Any] | None]:
         """Submit agent run and poll until completion."""
-        r = requests.post(
-            f"{self._vivarium_url}/environments/{self._env_id}/run",
-            json={
-                "objective": prompt,
-                "model_url": self._url,
-                "model_key": self._token or "",
-                "model_name": self._name,
-                "timeout_seconds": self._timeout,
-                "max_steps": self._max_steps,
-            },
+        run = self._client.run(
+            self._env,
+            objective=prompt,
+            model_url=self._url,
+            model_key=self._token or "",
+            model_name=self._name,
+            timeout_seconds=self._timeout,
+            max_steps=self._max_steps,
         )
-        r.raise_for_status()
-        run_id = r.json()["run_id"]
 
+        # Custom poll loop for live trace printing
         deadline = time.time() + self._timeout + 30
         prev_tc = 0
-        trace_lines = []
         while time.time() < deadline:
-            resp = requests.get(f"{self._vivarium_url}/runs/{run_id}")
-            resp.raise_for_status()
-            data = resp.json()
+            data = self._client.get_run(run.id)
             if data["status"] != "running":
                 break
             trace = data.get("tool_trace") or []
             for entry in trace[prev_tc:]:
                 line = _format_trace_line(entry)
-                trace_lines.append(line)
                 print(f"  {line}")
             prev_tc = len(trace)
             time.sleep(1)
         else:
             return None, None
 
-        if data["status"] == "completed":
-            metrics = data.get("agent_metrics") or {}
-            trace = data.get("tool_trace") or []
-            for entry in trace[prev_tc:]:
-                line = _format_trace_line(entry)
-                print(f"  {line}")
-            return data["answer"], metrics
-        # Failed run
-        print(f"  [red]⚠ Run failed: {data.get('error', 'unknown')}[/]")
+        # Print any remaining trace entries
+        trace = data.get("tool_trace") or []
+        for entry in trace[prev_tc:]:
+            print(f"  {_format_trace_line(entry)}")
+
+        result = run.result
+        if result and result.status == "completed":
+            metrics = {
+                "steps": result.metrics.steps,
+                "tool_calls": result.metrics.tool_calls,
+                "tokens_in": result.metrics.tokens_in,
+                "tokens_out": result.metrics.tokens_out,
+                "duration_seconds": result.metrics.duration_seconds,
+            }
+            return result.answer, metrics
+
+        error = result.error if result else "unknown"
+        print(f"  [red]⚠ Run failed: {error}[/]")
         return None, None
 
     def on_task_end(self, task: Task) -> None:
         """Destroy the environment container."""
-        if self._env_id:
-            requests.delete(f"{self._vivarium_url}/environments/{self._env_id}")
-            self._env_id = None
+        if self._env:
+            self._env.destroy()
+            self._env = None
 
     def on_tasklist_end(self) -> None:
         """Cleanup spec and stop vivarium if auto-started."""
         if self._spec_id:
-            requests.delete(f"{self._vivarium_url}/specs/{self._spec_id}")
+            self._client.delete_spec(self._spec_id)
             self._spec_id = None
         if self._auto_started:
             from vivarium import stop
-
             stop()
             self._auto_started = False
 
-    def _package_task_files(self, task: Task) -> dict | None:
+    def _package_task_files(self, task: Task) -> bytes | None:
         """Package task_files for upload, if any exist for this task."""
         assert self._tasklist_path is not None
         task_files_dir = self._tasklist_path / "task_files"
@@ -222,9 +192,7 @@ class VivariumAgent(Agent):
         target = task_files_dir / task.attachment if task.attachment else task_files_dir
         if not target.is_dir() or not any(target.iterdir()):
             return None
-        return {
-            "task_files": ("task_files.tar.gz", _tar_gz(target), "application/gzip")
-        }
+        return _tar_gz(target)
 
 
 def _tar_gz(directory: Path) -> bytes:
@@ -234,14 +202,6 @@ def _tar_gz(directory: Path) -> bytes:
         for f in directory.rglob("*"):
             if f.is_file():
                 tar.add(f, arcname=str(f.relative_to(directory)))
-    return buf.getvalue()
-
-
-def _empty_tar_gz() -> bytes:
-    """Create an empty tar.gz archive."""
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz"):
-        pass
     return buf.getvalue()
 
 

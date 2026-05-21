@@ -8,8 +8,7 @@ from palace.task_types.base import Task, TaskVerificationResult
 class AgenticTask(Task):
     """Task type for agentic benchmarks evaluated via vivarium."""
 
-    _vivarium_url: str | None = None
-    _env_id: str | None = None
+    _container = None  # vivarium.Container
     _verify_fn = None
     _verify_context_decl: dict = {}
 
@@ -28,7 +27,7 @@ class AgenticTask(Task):
         return None
 
     def verify(self, answer: str) -> TaskVerificationResult:
-        if not self._vivarium_url or not self._env_id:
+        if not self._container:
             return TaskVerificationResult(
                 is_correct=False, is_skipped=True, skip_reason="vivarium_not_configured"
             )
@@ -37,14 +36,11 @@ class AgenticTask(Task):
                 is_correct=False, is_skipped=True, skip_reason="no_verify_function"
             )
 
-        from vivarium import Container
-        container = Container(self._vivarium_url, self._env_id)
-
         # Copy verify_files if present in tasklist
-        self._inject_verify_files(container)
+        self._inject_verify_files(self._container)
 
         try:
-            result = self._verify_fn(self.expected_outcome, answer, container)
+            result = self._verify_fn(self.expected_outcome, answer, self._container)
         except Exception as e:
             return TaskVerificationResult(
                 is_correct=False, reasoning=f"Verify failed: {e}"

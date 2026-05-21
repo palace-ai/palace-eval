@@ -57,11 +57,11 @@ That's it! You are ready to use PALACE.
 To run agentic benchmarks (tasks requiring sandboxed tool execution), you also need:
 
 - Docker 24+ (running)
-- One-time registry login: `docker login gitlabreg.jrc.ec.europa.eu`
 - The vivarium SDK:
 
 ```bash
-uv pip install vivctl --git https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git
+git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git
+uv pip install -e vivarium/
 ```
 
 Vivarium (the agent runtime) will start automatically when you select an agentic tasklist — no manual setup required.
