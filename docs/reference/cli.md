@@ -61,7 +61,7 @@ palace-run -u <url> -t <tasklist> [-m <model-name>] [options]
 | `--run-name` | `eval` | Name for this evaluation run |
 | `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
 | `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
-| `--agentic` | False | Run agentically via Vivarium (sandboxed environment with tools) |
+| `--agentic` | False | Run agentically via Vivarium (sandboxed environment with tools). Requires Docker + Vivarium SDK ([setup](../getting-started/installation.md#agentic-evaluation-optional)). |
 | `--report-detail` | `default` | Per-task report detail: `none`, `default`, or `full` |
 
 ### Examples
@@ -86,7 +86,7 @@ palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN --output-fol
 palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint-type mcp
 
 # Agentic evaluation via Vivarium (requires Docker)
-palace-run -u https://api.example.com/v1 -m gpt-4o -t SimpleQA-Verified --agentic
+palace-run -u https://api.example.com/v1 -m gpt-4o -t Tau2-bench-Airline --agentic
 ```
 
 ### Exit Codes
@@ -174,7 +174,7 @@ palace-run -u https://api.example.com/v1 -k $API_KEY -m gpt-4o -t GuardBench-EN 
 ### Batch Evaluation
 
 ```bash
-for tasklist in GuardBench-EN Sycophancy-Binary DocRetrieval-ai; do
+for tasklist in GuardBench-EN Sycophancy-Binary Tau2-bench-Airline; do
     palace-run -u https://api.example.com/v1 -m gpt-4o -t $tasklist --output-folder ./batch-results
 done
 ```

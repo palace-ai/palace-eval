@@ -64,6 +64,7 @@ palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint
 | `--run-name` | Name for this evaluation run | `eval` |
 | `--runs-per-configuration` | Number of runs to perform | 1 |
 | `--endpoint-type` | `openai` or `mcp` | `openai` |
+| `--agentic` | Run in sandboxed environment via Vivarium | `False` |
 
 **Best for**: Scripted evaluations, CI/CD pipelines, batch processing.
 
@@ -155,13 +156,38 @@ The `evaluate` function returns `None`. Results are written to the output folder
 
 **Best for**: Custom pipelines, integration with other tools, programmatic analysis.
 
+## Agentic Evaluations
+
+Agentic benchmarks run the model in a sandboxed Docker environment with access to tools (bash, file I/O, web search). Use the `--agentic` flag:
+
+```bash
+palace-run -u https://api.example.com/v1 -m gpt-4o -t Tau2-bench-Airline --agentic
+```
+
+**Requirements**: Docker running + Vivarium installed (see [Installation](../getting-started/installation.md#agentic-evaluation-optional)).
+
+Vivarium starts automatically. Each task gets an isolated container with the benchmark's files pre-loaded. The model interacts with tools via a ReAct loop until it produces an answer or hits the timeout.
+
+```python
+from palace import evaluate
+
+evaluate(
+    run_name="agentic-test",
+    output_folder="./results",
+    url="https://api.example.com/v1",
+    name="gpt-4o",
+    tasklist="Tau2-bench-Airline",
+    agentic=True
+)
+```
+
 ## Batch Evaluations
 
 ### Running Multiple Tasklists
 
 **CLI approach**:
 ```bash
-for tasklist in GuardBench-EN Sycophancy-Binary DocRetrieval-ai; do
+for tasklist in GuardBench-EN Sycophancy-Binary Tau2-bench-Airline; do
     palace-run -u https://api.example.com/v1 -m gpt-4o -t $tasklist --output-folder ./batch-results
 done
 ```
@@ -171,7 +197,7 @@ done
 from palace import evaluate
 import json
 
-tasklists = ["GuardBench-EN", "Sycophancy-Binary", "DocRetrieval-ai"]
+tasklists = ["GuardBench-EN", "Sycophancy-Binary", "Tau2-bench-Airline"]
 
 for tasklist in tasklists:
     evaluate(

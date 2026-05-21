@@ -192,6 +192,32 @@ If `palace-download` fails:
 2. Verify HuggingFace is accessible
 3. Try downloading a specific tasklist: `palace-download -t GuardBench-EN`
 
+## Agentic Evaluation (Optional)
+
+Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium), a managed agent runtime.
+
+### Additional Requirements
+
+- **Docker 24+** — installed and running
+- **Vivarium SDK** — installed as an editable package
+
+### Install Vivarium
+
+```bash
+git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git
+uv pip install -e vivarium/
+```
+
+### Verify
+
+```bash
+vivarium start
+vivarium status
+vivarium stop
+```
+
+Vivarium starts automatically when you run an agentic tasklist — no manual startup required.
+
 ---
 
 ## Next Steps
