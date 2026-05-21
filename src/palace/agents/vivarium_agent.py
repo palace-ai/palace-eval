@@ -136,20 +136,18 @@ class VivariumAgent(Agent):
         prev_tc = 0
         while time.time() < deadline:
             data = self._client.get_run(run.id)
-            if data["status"] != "running":
+            if data.status != "running":
                 break
-            trace = data.get("tool_trace") or []
-            for entry in trace[prev_tc:]:
+            for entry in data.tool_trace[prev_tc:]:
                 line = _format_trace_line(entry)
                 print(f"  {line}")
-            prev_tc = len(trace)
+            prev_tc = len(data.tool_trace)
             time.sleep(1)
         else:
             return None, None
 
         # Print any remaining trace entries
-        trace = data.get("tool_trace") or []
-        for entry in trace[prev_tc:]:
+        for entry in data.tool_trace[prev_tc:]:
             print(f"  {_format_trace_line(entry)}")
 
         result = run.result
@@ -157,9 +155,9 @@ class VivariumAgent(Agent):
             metrics = {
                 "steps": result.metrics.steps,
                 "tool_calls": result.metrics.tool_calls,
-                "tokens_in": result.metrics.tokens_in,
-                "tokens_out": result.metrics.tokens_out,
-                "duration_seconds": result.metrics.duration_seconds,
+                "tokens_in": result.metrics.input_tokens,
+                "tokens_out": result.metrics.output_tokens,
+                "duration_seconds": result.metrics.wall_time_seconds,
             }
             return result.answer, metrics
 
