@@ -73,7 +73,7 @@ class AgenticTask(Task):
             return {"accuracy": 0}
         correct = sum(1 for r in evaluated if r.is_correct)
         accuracy = correct / len(evaluated)
-        metric_keys = ["steps", "tool_calls", "wall_time_seconds"]
+        metric_keys = ["steps", "tool_calls", "duration_seconds"]
         avg_agent: dict[str, float] = {}
         for key in metric_keys:
             values = [r.metrics[key] for r in evaluated if key in r.metrics and r.metrics[key] is not None]

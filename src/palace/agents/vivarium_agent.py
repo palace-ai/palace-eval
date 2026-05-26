@@ -153,11 +153,11 @@ class VivariumAgent(Agent):
         result = run.result
         if result and result.status == "completed":
             metrics = {
-                "steps": result.metrics.steps,
-                "tool_calls": result.metrics.tool_calls,
+                "steps": result.metrics.steps_completed,
+                "tool_calls": result.metrics.tool_calls_completed,
                 "tokens_in": result.metrics.input_tokens,
                 "tokens_out": result.metrics.output_tokens,
-                "duration_seconds": result.metrics.wall_time_seconds,
+                "duration_seconds": result.metrics.elapsed_seconds,
             }
             return result.answer, metrics
 
