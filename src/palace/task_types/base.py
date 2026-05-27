@@ -1,7 +1,15 @@
 """Base classes for tasks and task verification."""
 
 from dataclasses import dataclass, field
-from typing import Any, Self
+from typing import Any, Protocol, Self
+
+
+class ExecutionEnvironment(Protocol):
+    """Interface for agentic task verification — exec/read/write on a container."""
+
+    async def exec(self, cmd: str, timeout: int = 120) -> tuple[int, str]: ...
+    async def read(self, path: str) -> str: ...
+    async def write(self, path: str, content: bytes) -> None: ...
 
 
 @dataclass
@@ -36,8 +44,13 @@ class Task:
         """Build the task prompt. Subclasses must override."""
         raise NotImplementedError("Subclasses must implement adapt_prompt().")
 
-    def verify(self, answer: str) -> tuple[bool, str | None] | TaskVerificationResult:
-        """Verify the answer. Subclasses must override."""
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> tuple[bool, str | None] | TaskVerificationResult:
+        """Verify the answer. Subclasses must override.
+
+        Args:
+            answer: The agent's response to evaluate.
+            env: Optional execution environment for agentic verification.
+        """
         raise NotImplementedError("Subclasses must implement verify().")
 
     def expected_display(self) -> str | None:

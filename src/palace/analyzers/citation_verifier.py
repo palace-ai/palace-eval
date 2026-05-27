@@ -195,7 +195,7 @@ class CitationVerifier(Analyzer):
             lines.append(f"[dim]({len(urls_failed)} URLs could not be fetched)[/]")
         return "\n".join(lines)
 
-    def analyze(
+    async def analyze(
         self,
         task: Task,
         answer: str,
@@ -207,7 +207,7 @@ class CitationVerifier(Analyzer):
             model = _get_model()
 
             # Step 1: Extract citations
-            citations, extraction_failed = self._extract_citations(answer, model)
+            citations, extraction_failed = await self._extract_citations(answer, model)
             if not citations:
                 return {
                     "claims_extracted": 0,
@@ -227,13 +227,13 @@ class CitationVerifier(Analyzer):
                 citations = citations[: self.max_citations]
 
             # Step 2: Deduplicate
-            deduped = self._deduplicate_citations(citations, model)
+            deduped = await self._deduplicate_citations(citations, model)
 
             # Step 3: Scrape
             deduped = self._scrape_all(deduped)
 
             # Step 4: Validate
-            deduped = self._validate_citations(deduped, model)
+            deduped = await self._validate_citations(deduped, model)
 
             # Step 5: Compute stats
             return self._compute_stats(deduped, len(citations))
@@ -242,7 +242,7 @@ class CitationVerifier(Analyzer):
             print(f"[bold red]Citation verification failed: {e}[/]")
             raise
 
-    def _extract_citations(
+    async def _extract_citations(
         self, article: str, model: APIModel
     ) -> tuple[list[dict], bool]:
         """Extract (fact, ref_idx, url) triplets from the article using LLM.
@@ -253,7 +253,7 @@ class CitationVerifier(Analyzer):
         prompt = EXTRACT_PROMPT.format(report_text=article)
 
         try:
-            response = model.generate([{"role": "user", "content": prompt}])
+            response = await model.generate([{"role": "user", "content": prompt}])
         except Exception as e:
             print(f"[bold yellow]Extract LLM call failed: {e}[/]")
             return [], True
@@ -274,7 +274,7 @@ class CitationVerifier(Analyzer):
 
         return [], True
 
-    def _deduplicate_citations(
+    async def _deduplicate_citations(
         self, citations: list[dict], model: APIModel
     ) -> dict[str, dict]:
         """Group citations by URL and deduplicate facts within each group."""
@@ -299,7 +299,7 @@ class CitationVerifier(Analyzer):
             kept_indices: list[int] = []
             for attempt in range(MAX_RETRIES):
                 try:
-                    response = model.generate([{"role": "user", "content": prompt}])
+                    response = await model.generate([{"role": "user", "content": prompt}])
                     parsed = _parse_json_list(response)
                     if parsed and all(isinstance(x, int) for x in parsed):
                         kept_indices = parsed
@@ -336,7 +336,7 @@ class CitationVerifier(Analyzer):
                     deduped[url]["scrape_failed"] = True
         return deduped
 
-    def _validate_citations(
+    async def _validate_citations(
         self, deduped: dict[str, dict], model: APIModel
     ) -> dict[str, dict]:
         """For each URL group, ask LLM whether each fact is supported."""
@@ -360,7 +360,7 @@ class CitationVerifier(Analyzer):
             error = None
             for attempt in range(MAX_RETRIES):
                 try:
-                    response = model.generate([{"role": "user", "content": prompt}])
+                    response = await model.generate([{"role": "user", "content": prompt}])
                     validate_res = _parse_json_list(response)
                     if validate_res is not None:
                         # Adjust 1-based idx to 0-based

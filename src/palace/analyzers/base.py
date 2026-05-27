@@ -25,7 +25,7 @@ class Analyzer(ABC):
         return []
 
     @abstractmethod
-    def analyze(
+    async def analyze(
         self,
         task: Task,
         answer: str,

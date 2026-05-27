@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 from palace.judge import Judge
-from palace.task_types.base import Task, TaskVerificationResult
+from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
 from palace.utils.constants import JUDGE_MODEL
 from palace.utils.printing import print
 
@@ -207,7 +207,7 @@ Structure your output exactly as follows:
 Be fair and objective in your evaluation. Do not be biased towards either report A or B.
 The length of a report is not necessarily an indicator of quality - focus on the substance and how well it meets the user's needs."""
 
-    def _judge_batch(
+    async def _judge_batch(
         self, batch: list[dict], prompt_AB: str, prompt_BA: str
     ) -> tuple[dict, dict]:
         """Run judge on a batch of criteria, return keyword values for AB and BA."""
@@ -219,9 +219,9 @@ The length of a report is not necessarily an indicator of quality - focus on the
             judge_prompt=judge_prompt,
             output_keywords=output_keywords,
         )
-        return verifier.judge(prompt_AB), verifier.judge(prompt_BA)
+        return await verifier.judge(prompt_AB), await verifier.judge(prompt_BA)
 
-    def verify(self, answer: str) -> TaskVerificationResult:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
         """Verify using configurable criteria with pairwise comparison."""
         if not answer or not answer.strip():
             return TaskVerificationResult(
@@ -267,7 +267,7 @@ The length of a report is not necessarily an indicator of quality - focus on the
                     print(
                         f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)..."
                     )
-                ab, ba = self._judge_batch(batch, prompt_AB, prompt_BA)
+                ab, ba = await self._judge_batch(batch, prompt_AB, prompt_BA)
                 keyword_values_AB.update(ab)
                 keyword_values_BA.update(ba)
 

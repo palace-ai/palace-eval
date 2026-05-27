@@ -25,6 +25,7 @@ def evaluate(
     io_adapter: dict | None = None,
     report_detail: str = "default",
     agentic: bool = False,
+    concurrency: int | None = None,
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -43,7 +44,11 @@ def evaluate(
         report_detail: Level of detail in per-task report: "none" (omit report),
             "default" (slimmed), "full" (includes task text).
         agentic: If True, wrap agent in VivariumAgent with default spec for tool access.
+        concurrency: Number of tasks to run concurrently. None falls back to
+            PALACE_CONCURRENCY env var, then defaults to 1.
     """
+    if concurrency is None:
+        concurrency = int(os.environ.get("PALACE_CONCURRENCY", "1"))
     if agentic:
         from palace.agents.vivarium_agent import VivariumAgent
         agent = VivariumAgent(name=name, url=url, token=token)
@@ -68,6 +73,7 @@ def evaluate(
         on_task_complete=on_task_complete,
         io_adapter=io_adapter,
         report_detail=report_detail,
+        concurrency=concurrency,
     )
     tasklists = [tasklist] if isinstance(tasklist, str) else tasklist
     evaluation.evaluate_all([agent], tasklists=tasklists)
@@ -140,6 +146,13 @@ def run():
         default=False,
         help="Run evaluation agentically via Vivarium (sandboxed environment with tools).",
     )
+    argparser.add_argument(
+        "-c",
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Number of tasks to run concurrently (default: PALACE_CONCURRENCY env var, or 1).",
+    )
     args = argparser.parse_args()
 
     # If no model specified, list available models and exit
@@ -170,6 +183,7 @@ def run():
             endpoint_type=args.endpoint_type,
             report_detail=args.report_detail,
             agentic=args.agentic,
+            concurrency=args.concurrency,
         )
     except FileNotFoundError as e:
         print(f"[red]Error: {e}[/red]")

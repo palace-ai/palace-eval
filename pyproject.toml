@@ -28,7 +28,6 @@ dependencies = [
     "huggingface_hub",
     "ipython==9.7.0",
     "mcp==1.21.0",
-    "nest_asyncio==1.6.0",
     "openai",
     "pandas==2.3.3",
     "Pillow>=10.0.0",

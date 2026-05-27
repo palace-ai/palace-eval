@@ -1,7 +1,7 @@
 """Configurable QA task type with LLM judge verification."""
 
 from palace.judge import Judge
-from palace.task_types.base import Task, TaskVerificationResult
+from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
 from palace.utils.constants import JUDGE_MODEL
 
 DEFAULT_CORRECTNESS_CRITERION = {
@@ -113,7 +113,7 @@ Either Correct or Incorrect. No other text can be here.
             return self._get_reference_value(correct_fields[0])
         return self.expected
 
-    def verify(self, answer: str) -> TaskVerificationResult:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
         criterion, references = self._get_config()
 
         correct_fields = references.get("correct", ["expected"])
@@ -128,7 +128,7 @@ Either Correct or Incorrect. No other text can be here.
         judge_input = self._build_judge_input(answer, references)
 
         verifier = Judge(judge_model=JUDGE_MODEL, judge_prompt=judge_prompt)
-        keyword_values = verifier.judge(judge_input)
+        keyword_values = await verifier.judge(judge_input)
 
         judgement = keyword_values.get("judgement", "").strip()
         if judgement == "Correct":

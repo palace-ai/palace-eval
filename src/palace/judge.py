@@ -139,7 +139,7 @@ class Judge:
             result[keyword] = self._parse_tag(content, keyword)
         return result
 
-    def judge(self, prompt: str) -> dict:
+    async def judge(self, prompt: str) -> dict:
         """Send prompt to judge LLM and extract structured response.
 
         Args:
@@ -159,7 +159,7 @@ class Judge:
 
         max_attempts = 5
         for attempt in range(1, max_attempts + 1):
-            judge_output = self.judge_model.generate(conversation)
+            judge_output = await self.judge_model.generate(conversation)
             try:
                 if isinstance(self.output_keywords, list):
                     return self._parse_flat(judge_output, self.output_keywords)

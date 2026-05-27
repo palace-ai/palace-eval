@@ -1,14 +1,19 @@
+import logging
 from typing import Any
 
 from palace.agents import Agent
+from palace.evaluation.types import AgentResult
 from palace.models.api_model import APIModel
 from palace.utils.multimodal import build_multimodal_content
+from palace.utils.printing import print
+
+_logger = logging.getLogger("palace.openai_api_agent")
 
 
 class OpenAIAPIAgent(Agent):
-    """A class to connect to a remote agent deployed via OpenAI-compatible AI and call it as a black box.
-    This class can also be used to test a normal LLM with no agentic behaviour, using the same agent evaluation pipeline.
-    Metrics are not supported for this agent type yet.
+    """Agent that calls an OpenAI-compatible or Anthropic API endpoint.
+
+    Can be used for both agentic and non-agentic (black-box LLM) evaluation.
     """
 
     def __init__(
@@ -27,27 +32,27 @@ class OpenAIAPIAgent(Agent):
             token: The API token for authentication. Defaults to None.
             api_type: The API type to use ("openai" or "anthropic"). Defaults to "openai".
         """
-
         if api_type not in ["openai", "anthropic"]:
             raise ValueError("api_type must be either 'openai' or 'anthropic'")
         self._name = name
         self.url = url
         self.token = token
         self.api_type = api_type
+        self._model = APIModel(model_id=name, url=url, token=token, api_type=api_type)
 
     @property
     def name(self) -> str:
         return self._name
 
-    def run(self, prompt: str, image: str | None = None) -> tuple[str | None, dict[str, Any] | None]:
-        agent = APIModel(
-            model_id=self.name, url=self.url, token=self.token, api_type=self.api_type
-        )
+    async def run(self, prompt: str, image: str | None = None, *, task_id: str | None = None) -> AgentResult:
+        self._model.quiet = not self.verbose
         content = build_multimodal_content(prompt, image)
         try:
-            output = agent.generate([{"role": "user", "content": content}])
+            output = await self._model.generate([{"role": "user", "content": content}])
         except Exception as e:
-            print(f"[bold red]OpenAIAPI agent error: {e}[/]")
-            return None, None
+            _logger.warning(f"Agent error: {e}")
+            if self.verbose:
+                print(f"[bold red]OpenAIAPI agent error: {e}[/]")
+            return AgentResult(is_skipped=True, skip_reason="agent_error")
 
-        return output, {}
+        return AgentResult(answer=output, metrics={})

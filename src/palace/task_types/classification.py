@@ -3,7 +3,7 @@
 import re
 from typing import Any
 
-from palace.task_types.base import Task, TaskVerificationResult
+from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
 
 
 class ClassificationTask(Task):
@@ -123,7 +123,7 @@ Your goal is to associate a class to the label(s), matching this format exactly:
             return ", ".join(f"{k}: {v}" for k, v in labels.items())
         return None
 
-    def verify(self, answer: str) -> TaskVerificationResult:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
         labels = self.custom_fields.get("task_type_fields", {}).get("labels", [])
         per_label = {}
         for label in labels:

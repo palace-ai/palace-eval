@@ -18,3 +18,5 @@ TASKLISTS_PATH = USER_DIR / "tasklists"
 TASKLISTS_PATH.mkdir(parents=True, exist_ok=True)
 RESULTS_PATH = USER_DIR / "results"
 RESULTS_PATH.mkdir(parents=True, exist_ok=True)
+LOGS_PATH = USER_DIR / "logs"
+LOGS_PATH.mkdir(parents=True, exist_ok=True)

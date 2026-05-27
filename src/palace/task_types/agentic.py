@@ -1,16 +1,23 @@
-"""Agentic task type — verifies via vivarium's /exec endpoint."""
+"""Agentic task type — verifies via execution environment."""
 
-from typing import Any
+import inspect
+import shlex
+from pathlib import Path
+from typing import Any, Callable
 
-from palace.task_types.base import Task, TaskVerificationResult
+from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
 
 
 class AgenticTask(Task):
-    """Task type for agentic benchmarks evaluated via vivarium."""
+    """Task type for agentic benchmarks evaluated via vivarium.
 
-    _container = None  # vivarium.Container
-    _verify_fn = None
-    _verify_context_decl: dict = {}
+    Attributes set by orchestrator during task loading:
+        _verify_fn: The verify function loaded from environment/verify.py
+        _tasklist_path: Path to the tasklist directory
+    """
+
+    _verify_fn: Callable | None = None
+    _tasklist_path: Path | None = None
 
     @property
     def seed_args(self) -> dict | None:
@@ -26,10 +33,10 @@ class AgenticTask(Task):
     def expected_display(self) -> str | None:
         return None
 
-    def verify(self, answer: str) -> TaskVerificationResult:
-        if not self._container:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
+        if env is None:
             return TaskVerificationResult(
-                is_correct=False, is_skipped=True, skip_reason="vivarium_not_configured"
+                is_correct=False, is_skipped=True, skip_reason="no_execution_environment"
             )
         if not self._verify_fn:
             return TaskVerificationResult(
@@ -37,10 +44,12 @@ class AgenticTask(Task):
             )
 
         # Copy verify_files if present in tasklist
-        self._inject_verify_files(self._container)
+        await self._inject_verify_files(env)
 
         try:
-            result = self._verify_fn(self.expected_outcome, answer, self._container)
+            result = self._verify_fn(self.expected_outcome, answer, env)
+            if inspect.isawaitable(result):
+                result = await result
         except Exception as e:
             return TaskVerificationResult(
                 is_correct=False, reasoning=f"Verify failed: {e}"
@@ -48,23 +57,21 @@ class AgenticTask(Task):
 
         return _normalize_verify_result(result)
 
-    def _inject_verify_files(self, container) -> None:
+    async def _inject_verify_files(self, env: ExecutionEnvironment) -> None:
         """Copy tamper-proof verify_files into the container if they exist."""
-        if not hasattr(self, '_tasklist_path') or not self._tasklist_path:
+        if not self._tasklist_path:
             return
         verify_files_dir = self._tasklist_path / "environment" / "verify_files"
         if not verify_files_dir.is_dir():
             return
-        # Find task-specific verify files
         task_dir = verify_files_dir / self.id
         if not task_dir.is_dir():
             return
-        import shlex
         for f in task_dir.rglob("*"):
             if f.is_file():
                 dest = f"/verify_files/{f.relative_to(task_dir)}"
-                container.exec(f"mkdir -p $(dirname {shlex.quote(dest)})")
-                container.write(dest, f.read_bytes())
+                await env.exec(f"mkdir -p $(dirname {shlex.quote(dest)})")
+                await env.write(dest, f.read_bytes())
 
     @classmethod
     def aggregate(cls, results: list[TaskVerificationResult]) -> dict[str, Any]:
