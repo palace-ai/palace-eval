@@ -60,7 +60,7 @@ async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> Agent
         return AgentResult(is_skipped=True, skip_reason="no_response", elapsed=time.time() - start)
     except Exception as e:
         _logger.warning(f"Agent error on task {task_id}: {e}")
-        return AgentResult(is_skipped=True, skip_reason="agent_error", elapsed=time.time() - start)
+        return AgentResult(is_skipped=True, skip_reason=f"agent_error: {e}", elapsed=time.time() - start)
 
 
 async def verify_answer(

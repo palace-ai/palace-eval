@@ -152,7 +152,11 @@ class VerboseRenderer(_LogMixin):
         elif result.verification.is_correct:
             self._correct += 1
         elapsed = result.report_entry.get("elapsed_time", 0)
-        self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
+        if result.verification.is_skipped:
+            reason = result.verification.skip_reason or "unknown"
+            self._log_line(f"[{i+1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+        else:
+            self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
 
     def on_all_finished(self) -> None:
         self._status.stop()
@@ -220,7 +224,11 @@ class CompactRenderer(_LogMixin):
         else:
             self.states[i] = "✗"
             self.failed += 1
-        self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
+        if vr.is_skipped:
+            reason = vr.skip_reason or "unknown"
+            self._log_line(f"[{i+1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+        else:
+            self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
         self._render()
 
     def on_all_finished(self) -> None:
@@ -306,7 +314,11 @@ class PlainRenderer(_LogMixin):
             status = "✗"
         elapsed = result.report_entry.get("elapsed_time", 0)
         print(f"[{i + 1}/{self.total}] {result.task_id}: {status} ({elapsed:.1f}s)", builtin=True)
-        self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={vr.is_correct} skipped={vr.is_skipped}")
+        if vr.is_skipped:
+            reason = vr.skip_reason or "unknown"
+            self._log_line(f"[{i+1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+        else:
+            self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={vr.is_correct}")
 
     def on_all_finished(self) -> None:
         self._close_log()
