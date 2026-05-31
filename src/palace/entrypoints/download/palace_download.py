@@ -96,6 +96,44 @@ def download_tasklist(
             )
         return
 
+    # Multi-config: iterate configs and combine into single tasklist
+    if isinstance(config, list):
+        combined_rows = []
+        for cfg in config:
+            dataset = load_dataset(path=id, name=cfg, split=split, streaming=True,
+                                   storage_options={"client_kwargs": {"timeout": 120}})
+            for row in dataset:
+                combined_rows.append(row)
+        # Build tasks from combined rows (reuse logic below via recursive call with sentinel)
+        # Write directly here to avoid complexity
+        tasklist_path = TASKLISTS_PATH / name
+        os.makedirs(tasklist_path, exist_ok=True)
+        tasks = []
+        seen_ids = set()
+        for i, row in enumerate(combined_rows):
+            task = {
+                "id": f"{name}_{row[column_names['id']] if 'id' in column_names else i}",
+                "objective": row[column_names["objective"]],
+                "expected": row[column_names["expected"]] if "expected" in column_names and column_names["expected"] in row else "",
+                "difficulty": "",
+                "attachment": "",
+                "custom_verificator": custom_verificator if custom_verificator else "",
+            }
+            if task["id"] not in seen_ids:
+                seen_ids.add(task["id"])
+                tasks.append(task)
+        info = {"name": name, "id": id, "original": False, "config": config, "split": split, "category": category, "task_type": task_type}
+        if task_type_fields:
+            info["task_type_fields"] = task_type_fields
+        with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
+            json.dump(info, f, ensure_ascii=False, indent=4)
+        with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
+            json.dump(tasks, f, ensure_ascii=False, indent=4)
+        if on_progress:
+            ctx_current, ctx_total = _progress_ctx or (0, 0)
+            on_progress(DownloadEvent(status="done", name=name, current=ctx_current, total=ctx_total))
+        return
+
     if custom_verificator is not None and not bool(
         re.match(
             r"^\s*def\s+verify\s*\(\s*pred\s*,\s*truth\s*\)\s*:\s*",
@@ -123,8 +161,21 @@ def download_tasklist(
     if inline_attachment and column_names.get("attachment"):
         (tasklist_path / "task_files").mkdir(parents=True, exist_ok=True)
 
+    # Detect dynamic classes (from_column references in task_type_fields)
+    _dynamic_labels = []  # list of (label_index, from_column, class_naming)
+    if task_type_fields:
+        for i, label in enumerate(task_type_fields.get("labels", [])):
+            classes = label.get("classes")
+            if isinstance(classes, dict) and "from_column" in classes:
+                _dynamic_labels.append((i, classes["from_column"], classes.get("class_naming", "letters")))
+
     # Columns we need to keep in memory
     _needed_cols = set(column_names.values())
+    for _, col, _ in _dynamic_labels:
+        if isinstance(col, list):
+            _needed_cols.update(col)
+        else:
+            _needed_cols.add(col)
     if keep_custom_columns:
         _needed_cols = None  # keep all
 
@@ -220,6 +271,31 @@ def download_tasklist(
         if default_labels is not None:
             task["labels"] = default_labels
 
+        # Resolve dynamic classes per-task
+        if _dynamic_labels:
+            resolved_labels = []
+            for label_idx, col, naming in _dynamic_labels:
+                if isinstance(col, list):
+                    options = [row.get(c, "") for c in col]
+                else:
+                    options = row.get(col, [])
+                if naming == "letters":
+                    names = [chr(ord("A") + j) for j in range(len(options))]
+                elif naming == "numbers":
+                    names = [str(j + 1) for j in range(len(options))]
+                else:
+                    names = [chr(ord("A") + j) for j in range(len(options))]
+                classes = [{"name": n, "condition": str(o)} for n, o in zip(names, options)]
+                label_def = {**task_type_fields["labels"][label_idx], "classes": classes}
+                resolved_labels.append(label_def)
+            task["task_type_fields"] = {"labels": resolved_labels}
+
+            # Set per-task expected label from the expected column
+            if task.get("expected") and resolved_labels:
+                label_name = resolved_labels[0]["name"]
+                task["labels"] = {label_name: task["expected"]}
+                task["expected"] = ""
+
         # Add task to list if it doesn't already exist
         if task["id"] not in seen_ids:
             seen_ids.add(task["id"])
@@ -228,7 +304,10 @@ def download_tasklist(
     # Map labels if label_mapping is provided
     if label_mapping is not None:
         for task in tasks:
-            task["expected"] = label_mapping[task["expected"]]
+            if task.get("expected"):
+                task["expected"] = label_mapping.get(str(task["expected"]), task["expected"])
+            if task.get("labels"):
+                task["labels"] = {k: label_mapping.get(str(v), v) for k, v in task["labels"].items()}
 
     # Write metadata (info.json) — tasklist_path already created above
     # Download tasklist metadata if available, otherwise create it
@@ -251,7 +330,15 @@ def download_tasklist(
             "task_type": task_type,
         }
         if task_type_fields is not None:
-            info["task_type_fields"] = task_type_fields
+            # Strip dynamic classes references (resolved per-task, not per-tasklist)
+            if _dynamic_labels:
+                clean_labels = []
+                for label in task_type_fields.get("labels", []):
+                    clean = {k: v for k, v in label.items() if k != "classes"}
+                    clean_labels.append(clean)
+                info["task_type_fields"] = {"labels": clean_labels}
+            else:
+                info["task_type_fields"] = task_type_fields
         with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
             json.dump(
                 info,

@@ -18,8 +18,12 @@
         },
 
         # Dataset location (optional)
-        "config": "HuggingFace config/subset name (default: 'default')",
+        "config": "HuggingFace config/subset name, or list of configs to combine (default: 'default')",
+        # When config is a list, all configs are downloaded and merged into a single tasklist.
+        # Example: ["boolean_expressions", "causal_judgement", ...] for BBH
+
         "split": "Dataset split: 'train', 'validation', 'test', or list of splits (default: 'test')",
+        # When split is a list, each split becomes a separate tasklist named '{name}-{split}'.
 
         # Attachment handling (optional)
         "attachment_path": "Path prefix for attachment files in the HF repo (e.g., '2023/validation')",
@@ -45,9 +49,23 @@
                 {
                     "name": "LabelName",
                     "description": "What this label measures",
+
+                    # Static classes (defined per-tasklist):
                     "classes": [
                         {"name": "ClassName", "condition": "when to use this class"}
-                    ]
+                    ],
+
+                    # OR dynamic classes (resolved per-task from dataset column):
+                    "classes": {
+                        "from_column": "column_name or list of column names",
+                        "class_naming": "letters | numbers (default: letters)"
+                    }
+                    # When from_column is a string: reads a list column (e.g., "options": ["opt1", "opt2", ...])
+                    # When from_column is a list: reads each named column as one option (e.g., ["A", "B", "C", "D"])
+                    # class_naming controls the generated class names: "letters" → A, B, C, ... ; "numbers" → 1, 2, 3, ...
+                    # The condition for each class is set to the option text from the column.
+                    # Dynamic classes are resolved per-task during download and stored in tasks.json.
+                    # The expected answer (from column_names.expected) is moved to task["labels"] automatically.
                 }
             ],
 
@@ -67,11 +85,14 @@
         "label_mapping": {
             "ORIGINAL_VALUE": "mapped_value"
         },
-        # Maps values in expected column to standardized values
+        # Maps values in expected column (or task labels) to standardized values.
+        # Values are converted to string before lookup, so integer indices work:
+        # {"0": "A", "1": "B", "2": "C", "3": "D"} maps index 0 → "A", etc.
 
         # Custom verification (optional)
         "custom_verificator": "def verify(pred, truth):\n    return pred == truth",
-        # Python function for programmatic verification instead of LLM judge
+        # Python function for programmatic verification instead of LLM judge.
+        # Must follow signature: def verify(pred, truth) -> bool
 
         # Additional columns (optional)
         "keep_custom_columns": true

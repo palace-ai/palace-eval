@@ -2,6 +2,12 @@ import logging
 import re
 
 from anthropic import AsyncAnthropic, omit
+from anthropic import (
+    RateLimitError as AnthropicRateLimitError,
+    InternalServerError as AnthropicInternalServerError,
+    APITimeoutError as AnthropicTimeoutError,
+    APIConnectionError as AnthropicConnectionError,
+)
 from openai import APITimeoutError, AsyncOpenAI, OpenAIError, RateLimitError, InternalServerError, APIConnectionError
 from tenacity import (
     retry,
@@ -114,7 +120,7 @@ class APIModel(Model):
     @retry(
         stop=stop_after_delay(86400),
         wait=lambda retry_state: APIModel._WAIT_SEQUENCE[min(retry_state.attempt_number - 1, len(APIModel._WAIT_SEQUENCE) - 1)],
-        retry=retry_if_exception_type((RateLimitError, InternalServerError, APITimeoutError, APIConnectionError, TimeoutException)),
+        retry=retry_if_exception_type((RateLimitError, InternalServerError, APITimeoutError, APIConnectionError, TimeoutException, AnthropicRateLimitError, AnthropicInternalServerError, AnthropicTimeoutError, AnthropicConnectionError)),
         before_sleep=lambda retry_state: _log_retry(retry_state),
     )
     async def generate_with_retry(self, messages: list[Message], **_) -> str:
@@ -153,5 +159,5 @@ class APIModel(Model):
                     result = cleaned
 
             return result
-        except (TimeoutException, OpenAIError):
+        except (TimeoutException, OpenAIError, AnthropicRateLimitError, AnthropicInternalServerError, AnthropicTimeoutError, AnthropicConnectionError):
             raise

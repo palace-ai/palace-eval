@@ -151,5 +151,193 @@
     "default_labels": {
       "Unsafe": "Yes"
     }
+  },
+  {
+    "name": "MMLU-Pro",
+    "id": "TIGER-Lab/MMLU-Pro",
+    "split": "test",
+    "column_names": {
+      "id": "question_id",
+      "objective": "question",
+      "expected": "answer"
+    },
+    "category": "General Knowledge",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The correct answer to the multiple-choice question.",
+        "classes": {"from_column": "options", "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "MMLU",
+    "id": "cais/mmlu",
+    "config": "all",
+    "split": "test",
+    "column_names": {
+      "objective": "question",
+      "expected": "answer"
+    },
+    "label_mapping": {"0": "A", "1": "B", "2": "C", "3": "D"},
+    "category": "General Knowledge",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The correct answer to the multiple-choice question.",
+        "classes": {"from_column": "choices", "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "SuperGPQA",
+    "id": "m-a-p/SuperGPQA",
+    "split": "train",
+    "column_names": {
+      "id": "uuid",
+      "objective": "question",
+      "expected": "answer_letter",
+      "difficulty": "difficulty"
+    },
+    "category": "Expert Reasoning",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The correct answer to the multiple-choice question.",
+        "classes": {"from_column": "options", "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "MMMLU",
+    "id": "openai/MMMLU",
+    "split": "test",
+    "column_names": {
+      "objective": "Question",
+      "expected": "Answer"
+    },
+    "category": "General Knowledge",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The correct answer to the multiple-choice question.",
+        "classes": {"from_column": ["A", "B", "C", "D"], "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "Belebele",
+    "id": "facebook/belebele",
+    "config": "eng_Latn",
+    "split": "test",
+    "column_names": {
+      "objective": "question",
+      "expected": "correct_answer_num",
+      "attachment": "flores_passage"
+    },
+    "inline_attachment": true,
+    "label_mapping": {"1": "A", "2": "B", "3": "C", "4": "D"},
+    "category": "Multilingual",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The correct answer to the multiple-choice question.",
+        "classes": {"from_column": ["mc_answer1", "mc_answer2", "mc_answer3", "mc_answer4"], "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "HellaSwag",
+    "id": "Rowan/hellaswag",
+    "split": "validation",
+    "column_names": {
+      "objective": "ctx",
+      "expected": "label"
+    },
+    "label_mapping": {"0": "A", "1": "B", "2": "C", "3": "D"},
+    "category": "Reasoning",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The most plausible continuation of the given context.",
+        "classes": {"from_column": "endings", "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "MUSR",
+    "id": "edinburgh-dawg/labelchaos",
+    "config": "clean",
+    "split": "test",
+    "column_names": {
+      "objective": "question",
+      "expected": "answer"
+    },
+    "label_mapping": {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E"},
+    "category": "Reasoning",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [{
+        "name": "Answer",
+        "description": "The correct answer to the multiple-choice question.",
+        "classes": {"from_column": "choices", "class_naming": "letters"}
+      }]
+    }
+  },
+  {
+    "name": "MATH-500",
+    "id": "HuggingFaceH4/MATH-500",
+    "split": "test",
+    "column_names": {
+      "objective": "problem",
+      "expected": "answer"
+    },
+    "category": "Mathematical Reasoning",
+    "task_type": "QA",
+    "custom_verificator": "def verify(pred, truth):\n    import re\n    numbers = re.findall(r'-?\\d+\\.?\\d*', pred.replace(',', ''))\n    if not numbers:\n        return pred.strip() == truth.strip()\n    try:\n        return abs(float(numbers[-1]) - float(truth)) < 1e-6\n    except ValueError:\n        return pred.strip() == truth.strip()"
+  },
+  {
+    "name": "AIME 2025",
+    "id": "AI-MO/aimo-validation-aime",
+    "split": "train",
+    "column_names": {
+      "id": "id",
+      "objective": "problem",
+      "expected": "answer"
+    },
+    "category": "Mathematical Reasoning",
+    "task_type": "QA",
+    "custom_verificator": "def verify(pred, truth):\n    import re\n    numbers = re.findall(r'-?\\d+\\.?\\d*', pred.replace(',', ''))\n    if not numbers:\n        return pred.strip() == truth.strip()\n    try:\n        return abs(float(numbers[-1]) - float(truth)) < 1e-6\n    except ValueError:\n        return pred.strip() == truth.strip()"
+  },
+  {
+    "name": "MGSM",
+    "id": "juletxara/mgsm",
+    "config": "en",
+    "split": "test",
+    "column_names": {
+      "objective": "question",
+      "expected": "answer_number"
+    },
+    "category": "Mathematical Reasoning",
+    "task_type": "QA",
+    "custom_verificator": "def verify(pred, truth):\n    import re\n    numbers = re.findall(r'-?\\d+\\.?\\d*', pred.replace(',', ''))\n    if not numbers:\n        return pred.strip() == str(truth).strip()\n    try:\n        return abs(float(numbers[-1]) - float(truth)) < 1e-6\n    except ValueError:\n        return pred.strip() == str(truth).strip()"
+  },
+  {
+    "name": "BBH",
+    "id": "lukaemon/bbh",
+    "config": ["boolean_expressions", "causal_judgement", "date_understanding", "disambiguation_qa", "dyck_languages", "formal_fallacies", "geometric_shapes", "hyperbaton", "logical_deduction_five_objects", "logical_deduction_seven_objects", "logical_deduction_three_objects", "movie_recommendation", "multistep_arithmetic_two", "navigate", "object_counting", "penguins_in_a_table", "reasoning_about_colored_objects", "ruin_names", "salient_translation_error_detection", "snarks", "sports_understanding", "temporal_sequences", "tracking_shuffled_objects_five_objects", "tracking_shuffled_objects_seven_objects", "tracking_shuffled_objects_three_objects", "web_of_lies", "word_sorting"],
+    "split": "test",
+    "column_names": {
+      "objective": "input",
+      "expected": "target"
+    },
+    "category": "Reasoning",
+    "task_type": "QA"
   }
 ]
