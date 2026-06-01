@@ -428,9 +428,67 @@ Example for a technical report:
 
 ---
 
+## Absolute Mode Criteria (Criteria Evaluation)
+
+For rubric-based evaluation without a reference document, use absolute mode. Each criterion is judged independently as met/not met.
+
+### Basic Setup
+
+**info.json:**
+```json
+{
+    "name": "MyRubricBench",
+    "id": "my-org/rubric-bench",
+    "task_type": "Criteria Evaluation",
+    "task_type_fields": {
+        "mode": "absolute"
+    }
+}
+```
+
+**tasks.json** — criteria are per-task:
+```json
+{
+    "id": "task_001",
+    "objective": "Explain how vaccines work to a 10-year-old.",
+    "expected": "",
+    "task_type_fields": {
+        "mode": "absolute",
+        "criteria": [
+            {"name": "age_appropriate", "description": "Uses language suitable for a 10-year-old", "points": 3},
+            {"name": "accurate", "description": "Scientifically accurate explanation", "points": 5},
+            {"name": "no_jargon", "description": "Avoids medical jargon without explanation", "points": 2},
+            {"name": "fearmongering", "description": "Uses fear tactics or scary language", "points": -5}
+        ]
+    }
+}
+```
+
+### Penalty Criteria
+
+Negative points penalize bad behaviors. The penalty is applied when the criterion IS met (bad behavior detected):
+
+```json
+{"name": "hallucination", "description": "Contains fabricated medical claims", "points": -10}
+```
+
+### Dimension Grouping
+
+Add `dimension` to group criteria in metrics:
+
+```json
+{"name": "accurate", "description": "...", "points": 5, "dimension": "accuracy"},
+{"name": "complete", "description": "...", "points": 3, "dimension": "completeness"}
+```
+
+This produces `dimension_scores` in the output metrics.
+
+---
+
 ## Related Pages
 
 - [QA Task Type](../task-types/qa.md) — Full QA documentation
 - [Classification Task Type](../task-types/classification.md) — Full Classification documentation
 - [Report Generation Task Type](../task-types/report-generation.md) — Full Report Generation documentation
+- [Instruction Following Task Type](../task-types/instruction-following.md) — Full Instruction Following documentation
 - [Task Type Fields Reference](../reference/task-type-fields.md) — Complete field specification

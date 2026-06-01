@@ -133,6 +133,8 @@ Determines how tasks are evaluated. Must be one of:
 | `"QA"` | Semantic verification with LLM judge |
 | `"Classification"` | Exact-match categorical outputs |
 | `"Report Generation"` | Pairwise comparison with weighted criteria |
+| `"Criteria Evaluation"` | Absolute rubric scoring (per-criterion YES/NO) |
+| `"Instruction Following"` | Deterministic constraint verification |
 
 ### task_type_fields
 

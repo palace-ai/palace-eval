@@ -284,6 +284,76 @@ Task criteria merge with tasklist criteria:
 
 ---
 
+## Criteria Evaluation
+
+Used with `"task_type": "Criteria Evaluation"`.
+
+### Absolute Mode
+
+Evaluates each criterion independently as met/not met. Criteria are typically per-task.
+
+```json
+{
+    "task_type_fields": {
+        "mode": "absolute",
+        "max_criteria_per_batch": 10
+    }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | string | `"pairwise"` | `"absolute"` for rubric scoring, `"pairwise"` for comparison |
+| `max_criteria_per_batch` | integer | 10 | Max criteria per judge call |
+
+Per-task criteria in `tasks.json`:
+
+```json
+{
+    "task_type_fields": {
+        "mode": "absolute",
+        "criteria": [
+            {"name": "criterion_id", "description": "What to evaluate", "points": 5, "dimension": "group_name"}
+        ]
+    }
+}
+```
+
+| Criterion Field | Type | Required | Description |
+|----------------|------|----------|-------------|
+| `name` | string | Yes | Unique identifier |
+| `description` | string | Yes | Evaluation instruction for the judge |
+| `points` | number | No (default: 1) | Positive = reward when met, negative = penalty when met |
+| `dimension` | string | No | Grouping for aggregate metrics |
+
+---
+
+## Instruction Following
+
+Used with `"task_type": "Instruction Following"`.
+
+No `task_type_fields` at the info.json level. Constraints are per-task:
+
+```json
+{
+    "task_type_fields": {
+        "constraints": [
+            {"type": "constraint_type", "params": {"key": "value"}}
+        ]
+    }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `constraints` | array | List of constraint objects |
+| `constraints[].type` | string | Constraint type identifier (e.g., `"length_constraints:number_words"`) |
+| `constraints[].params` | object | Parameters for the constraint checker |
+
+See [Instruction Following Task Type](../task-types/instruction-following.md) for the full list of supported constraint types and their parameters.
+
+---
+
 ## Related Pages
 
 - [info.json Reference](info-json.md) — Metadata file specification
@@ -291,3 +361,4 @@ Task criteria merge with tasklist criteria:
 - [QA Task Type](../task-types/qa.md) — QA documentation
 - [Classification Task Type](../task-types/classification.md) — Classification documentation
 - [Report Generation Task Type](../task-types/report-generation.md) — Report Generation documentation
+- [Instruction Following Task Type](../task-types/instruction-following.md) — Instruction Following documentation

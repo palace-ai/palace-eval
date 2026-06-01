@@ -28,7 +28,7 @@ The `tasks.json` file contains an array of tasks to evaluate. Each task has an o
 | `objective` | string | Yes | The prompt sent to the model |
 | `expected` | string | Depends | Reference answer (required for QA, Report Generation) |
 | `difficulty` | string | No | Difficulty level for analysis |
-| `attachment` | string | No | Additional context or data |
+| `attachments` | array | No | List of file paths relative to `task_files/` (images or text) |
 | `document` | string | No | Document text associated with the task |
 | `references` | string | No | Reference material for the task |
 | `custom_verificator` | string | No | Inline Python function for custom verification (overrides task-type verification) |
@@ -186,12 +186,16 @@ Optional difficulty indicator for analysis:
 
 ### attachment
 
-Path to an additional file for the task, relative to `task_files/` directory. PALACE supports three attachment types:
+!!! note "Legacy field"
+    The singular `attachment` field is still supported for backward compatibility. New tasklists should use `attachments` (list).
+
+### attachments
+
+List of file paths relative to `task_files/` directory. Supports multiple images per task. PALACE handles three attachment types:
 
 **Text attachments** (`.txt`, `.md`, `.json`, etc.):
 ```json
-{"attachment": "document.txt"}
-{"attachment": "context/data.json"}
+{"attachments": ["document.txt"]}
 ```
 Text is prepended to the prompt with markers:
 ```
@@ -204,10 +208,9 @@ Start of text attachment >>>
 
 **Image attachments** (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`):
 ```json
-{"attachment": "imgs/0.png"}
-{"attachment": "screenshot.jpg"}
+{"attachments": ["img1.png", "img2.png", "diagram.jpg"]}
 ```
-Images are sent to the model using the OpenAI Vision API format (base64-encoded). Large images are automatically resized to max 1024px dimension.
+Images are sent to the model using the OpenAI Vision API format (base64-encoded). Multiple images are supported. Large images are automatically resized to max 1024px dimension.
 
 **Unsupported attachments** (video, audio, etc.):
 Tasks with unsupported attachment types are skipped with a warning during evaluation.

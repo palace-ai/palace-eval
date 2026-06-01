@@ -12,7 +12,7 @@ Every PALACE benchmark uses exactly one task type, specified in `info.json`. The
 
 Understanding the differences helps you choose the right approach for your evaluation goals.
 
-## The Three Task Types
+## The Five Task Types
 
 ### QA (Question-Answering)
 
@@ -62,6 +62,37 @@ Report Generation evaluates long-form content through pairwise comparison. An LL
 
 [Learn more about Report Generation →](report-generation.md)
 
+### Instruction Following
+
+Instruction Following evaluates whether a model's response satisfies syntactic and structural constraints. Verification is fully deterministic — no LLM judge needed. Each task has a list of constraints (word count, format, keywords, etc.) checked programmatically.
+
+**Best for**: Evaluating instruction adherence, format compliance, and controllability.
+
+**Verification**: Deterministic constraint checkers (no API calls).
+
+**Example use cases**:
+- Word/sentence/paragraph count requirements
+- Forbidden words or required keywords
+- Format constraints (JSON, bullet lists, titles)
+- Language and case requirements
+
+[Learn more about Instruction Following →](instruction-following.md)
+
+### Criteria Evaluation (Absolute Mode)
+
+Criteria Evaluation in absolute mode evaluates responses against a rubric of criteria, each scored independently as met/not met by an LLM judge. Criteria can have positive points (reward) or negative points (penalty). This is distinct from the pairwise Report Generation mode which compares against a reference.
+
+**Best for**: Rubric-based evaluation without a reference document, medical/domain QA with detailed scoring criteria.
+
+**Verification**: LLM judge evaluates each criterion independently (YES/NO).
+
+**Example use cases**:
+- Medical response quality (HealthBench)
+- Multi-dimensional rubric scoring
+- Penalty-based evaluation (deduct points for bad behaviors)
+
+[Learn more about Criteria Evaluation →](report-generation.md#absolute-mode)
+
 ## Choosing a Task Type
 
 ```mermaid
@@ -69,9 +100,13 @@ flowchart TD
     A[What are you evaluating?] --> B{Output length?}
     B -->|Short answer| C{Need semantic matching?}
     B -->|Category/label| D[Classification]
-    B -->|Long document| E[Report Generation]
+    B -->|Long document| E{Have reference?}
     C -->|Yes, meaning matters| F[QA]
     C -->|No, exact match OK| D
+    E -->|Yes, compare against it| G[Report Generation]
+    E -->|No, use rubric| H[Criteria Evaluation]
+    A --> I{Checking format/structure?}
+    I -->|Yes| J[Instruction Following]
 ```
 
 ### Decision Guide
@@ -100,15 +135,29 @@ flowchart TD
 - You want weighted scoring across criteria
 - Content quality is multifaceted
 
+**Choose Instruction Following when:**
+
+- You need to verify structural/format constraints
+- Verification must be deterministic (no LLM judge)
+- Constraints are syntactic (word count, keywords, format)
+- Speed matters (no API calls for verification)
+
+**Choose Criteria Evaluation (absolute) when:**
+
+- Evaluating against a rubric without a reference document
+- Each criterion is independently scored (met/not met)
+- Criteria have different point values (positive or negative)
+- You need per-dimension breakdowns
+
 ## Quick Comparison
 
-| Aspect | QA | Classification | Report Generation |
-|--------|----|-----------------|--------------------|
-| **Output type** | Short/medium text | Categorical labels | Long-form documents |
-| **Verification** | LLM judge | Exact match | LLM judge (pairwise) |
-| **Speed** | Slower (API calls) | Fast (no API) | Slower (API calls) |
-| **Flexibility** | High (semantic) | Low (exact) | High (multi-criteria) |
-| **Configuration** | Criterion, references | Labels, classes | Criteria, weights |
+| Aspect | QA | Classification | Report Generation | Instruction Following | Criteria Evaluation |
+|--------|----|-----------------|--------------------|----------------------|---------------------|
+| **Output type** | Short/medium text | Categorical labels | Long-form documents | Any text | Any text |
+| **Verification** | LLM judge | Exact match | LLM judge (pairwise) | Deterministic checkers | LLM judge (absolute) |
+| **Speed** | Slower (API calls) | Fast (no API) | Slower (API calls) | Fast (no API) | Slower (API calls) |
+| **Flexibility** | High (semantic) | Low (exact) | High (multi-criteria) | Medium (structural) | High (rubric-based) |
+| **Configuration** | Criterion, references | Labels, classes | Criteria, weights | Constraints per task | Criteria with points |
 
 ## Common Mistakes
 
@@ -237,4 +286,5 @@ See each task type's documentation for complete configuration options.
 - [QA Task Type](qa.md) - Semantic verification with LLM judges
 - [Classification Task Type](classification.md) - Exact-match categorical outputs
 - [Report Generation Task Type](report-generation.md) - Pairwise document comparison
+- [Instruction Following Task Type](instruction-following.md) - Deterministic constraint verification
 - [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specifications

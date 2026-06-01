@@ -101,6 +101,24 @@ Present when evaluating Report Generation tasklists (e.g., DeepConsult, DeepRese
 | `task_type.per_dimension_avg.<name>` | float | Average gap score per dimension, computed as mean of criteria averages (if hierarchical criteria used) |
 | `task_type.per_criteria_avg.<name>` | float | Average gap score per criterion. Nested by dimension for hierarchical tasklists (e.g., `per_criteria_avg.<dim>.<crit>`) |
 
+#### Criteria Evaluation (Absolute Mode)
+
+Present when evaluating Criteria Evaluation tasklists in absolute mode (e.g., HealthBench).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `task_type.avg_normalized_score` | float | Average rubric score across all tasks (0.0 to 1.0) |
+| `task_type.per_dimension_avg.<name>` | float | Average criterion satisfaction rate per dimension |
+| `task_type.per_criteria_avg.<name>` | float | Average satisfaction rate per criterion |
+
+#### Instruction Following
+
+Present when evaluating Instruction Following tasklists (e.g., IFEval).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `task_type.avg_score` | float | Average constraint satisfaction score across all tasks |
+
 ### Agent Execution Metrics (`agent`)
 
 Present when the agent produces execution statistics (agentic evaluation via Vivarium). These metrics are nested under the `agent` key.
@@ -157,6 +175,10 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 **Classification**: `metrics.per_label.<name>` with `predicted`, `expected`, `correct`, `positive_class`.
 
 **Report Generation**: `metrics.normalized_score`, `metrics.criteria_scores`, `metrics.dimension_scores`.
+
+**Criteria Evaluation (absolute)**: `metrics.normalized_score`, `metrics.earned_points`, `metrics.max_points`, `metrics.dimension_scores`.
+
+**Instruction Following**: `metrics.score`, `metrics.satisfied`, `metrics.total`.
 
 **QA**: `metrics.criterion` (name of the correctness criterion used).
 

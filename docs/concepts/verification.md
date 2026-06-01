@@ -11,6 +11,8 @@ PALACE supports three verification methods, each suited to different evaluation 
 | LLM Judge | QA | Slower | High |
 | Exact Match | Classification | Fast | Low |
 | Pairwise Comparison | Report Generation | Slower | High |
+| Constraint Checkers | Instruction Following | Fast | Medium |
+| Absolute Rubric | Criteria Evaluation | Slower | High |
 
 ## LLM Judge Verification (QA)
 
@@ -193,11 +195,72 @@ Classification (Exact Match)  ████                  Rigid
 
 | Priority | Choose |
 |----------|--------|
-| Speed | Classification |
-| Flexibility | QA or Report Generation |
-| Determinism | Classification |
-| Nuanced scoring | Report Generation |
+| Speed | Classification or Instruction Following |
+| Flexibility | QA or Criteria Evaluation |
+| Determinism | Classification or Instruction Following |
+| Nuanced scoring | Report Generation or Criteria Evaluation |
 | Simple setup | QA (default criterion) |
+| No reference needed | Instruction Following or Criteria Evaluation |
+
+---
+
+## Constraint Verification (Instruction Following)
+
+Deterministic checkers verify structural properties of the response without any LLM calls.
+
+### How It Works
+
+1. Each task defines a list of constraints (type + params)
+2. Each constraint is checked independently against the response
+3. Score = fraction of constraints satisfied
+4. Task passes if score ≥ 0.5
+
+### Strengths
+
+- **Fast**: No API calls needed
+- **Deterministic**: Same input always gives same result
+- **Transparent**: Each constraint result is visible
+
+### Limitations
+
+- **Structural only**: Cannot assess semantic quality
+- **Fixed set**: Only supports predefined constraint types
+
+### When to Use
+
+- Evaluating format compliance (word count, JSON, bullet lists)
+- Testing controllability (forbidden words, case requirements)
+- Need reproducible, fast verification
+
+## Absolute Rubric Verification (Criteria Evaluation)
+
+An LLM judge evaluates each criterion independently as met or not met, without comparing against a reference.
+
+### How It Works
+
+1. Present the question and response to the judge
+2. For each criterion, judge decides YES (met) or NO (not met)
+3. Points are tallied: positive for met rewards, negative for met penalties
+4. Score = earned / max_positive, clamped to [0, 1]
+5. Task passes if score ≥ 0.5
+
+### Strengths
+
+- **No reference needed**: Evaluates against a rubric, not a gold answer
+- **Granular scoring**: Per-criterion and per-dimension breakdowns
+- **Penalty support**: Negative points for undesirable behaviors
+
+### Limitations
+
+- **Slower**: Requires LLM judge calls (batched for efficiency)
+- **Cost**: Judge calls add to API usage
+
+### When to Use
+
+- Rubric-based evaluation (medical, educational)
+- No reference document available
+- Need penalty scoring for bad behaviors
+- Want per-dimension quality breakdowns
 
 ---
 

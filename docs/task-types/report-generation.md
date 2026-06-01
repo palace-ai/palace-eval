@@ -409,6 +409,92 @@ When evaluating many criteria, the judge LLM processes them in batches to mainta
 
 This ensures accurate evaluation even with 25+ criteria across multiple dimensions.
 
+---
+
+## Absolute Mode (Criteria Evaluation) {#absolute-mode}
+
+Absolute mode evaluates responses against a rubric **without a reference document**. Each criterion is independently judged as met or not met. This mode is registered as task type `"Criteria Evaluation"` (though `"Report Generation"` still works as an alias for pairwise mode).
+
+### When to Use Absolute Mode
+
+- No reference document available
+- Each criterion is independently assessable (YES/NO)
+- Criteria have different point values
+- You want penalty scoring (negative points for bad behaviors)
+
+### Configuration
+
+```json
+{
+    "task_type": "Criteria Evaluation",
+    "task_type_fields": {
+        "mode": "absolute"
+    }
+}
+```
+
+Criteria are defined **per-task** in `tasks.json`:
+
+```json
+{
+    "id": "health_001",
+    "objective": "I have a headache and fever. What should I do?",
+    "expected": "",
+    "task_type_fields": {
+        "mode": "absolute",
+        "criteria": [
+            {"name": "recommends_rest", "description": "Recommends rest and hydration", "points": 5, "dimension": "completeness"},
+            {"name": "suggests_doctor", "description": "Suggests seeing a doctor if symptoms persist", "points": 3, "dimension": "accuracy"},
+            {"name": "no_diagnosis", "description": "Does not provide a specific diagnosis", "points": -5, "dimension": "accuracy"}
+        ]
+    }
+}
+```
+
+### Scoring
+
+- **Positive points**: Earned when criterion IS met (good behavior)
+- **Negative points**: Penalty applied when criterion IS met (bad behavior detected)
+- **Score** = earned_points / max_positive_points, clamped to [0, 1]
+- **Task passes** if score ≥ 0.5
+
+### Criteria Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique identifier for the criterion |
+| `description` | string | Yes | What the judge evaluates (shown to LLM) |
+| `points` | number | No (default: 1) | Points awarded/penalized. Positive = reward, negative = penalty |
+| `dimension` | string | No | Grouping for metrics aggregation |
+
+### Metrics
+
+**Aggregate:**
+
+| Metric | Description |
+|--------|-------------|
+| `accuracy` | Fraction of tasks with score ≥ 0.5 |
+| `avg_normalized_score` | Average score across all tasks |
+| `per_dimension_avg.<name>` | Average satisfaction rate per dimension |
+
+**Per-task:**
+
+| Metric | Description |
+|--------|-------------|
+| `normalized_score` | Score for this task (0.0 to 1.0) |
+| `earned_points` | Total points earned |
+| `max_points` | Maximum possible positive points |
+| `dimension_scores.<name>` | Satisfaction rate per dimension |
+
+### Example Output
+
+```
+✓ recommends_rest (+5pts): Recommends rest and hydration
+✓ suggests_doctor (+3pts): Suggests seeing a doctor if symptoms persist
+✗ no_diagnosis (-5pts): Does not provide a specific diagnosis
+
+Score: 8.0/8.0 = 1.00
+```
 
 ---
 
@@ -417,5 +503,6 @@ This ensures accurate evaluation even with 25+ criteria across multiple dimensio
 - [Choosing a Task Type](index.md) - Compare all task types
 - [QA Task Type](qa.md) - For factual question-answering
 - [Classification Task Type](classification.md) - For categorical outputs
+- [Instruction Following Task Type](instruction-following.md) - For structural constraints
 - [Research Reports Example](../examples/research-reports.md) - DeepResearchBench-style example
 - [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specification
