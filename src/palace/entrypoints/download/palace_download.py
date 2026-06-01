@@ -75,27 +75,6 @@ def download_tasklist(
     on_progress: Callable[[DownloadEvent], None] | None = None,
     _progress_ctx: tuple[int, int] | None = None,
 ) -> None:
-    if isinstance(split, list):
-        for s in split:
-            download_tasklist(
-                name=f"{name}-{s}",
-                id=id,
-                split=s,
-                config=config,
-                column_names=column_names,
-                attachment_path=attachment_path,
-                inline_attachment=inline_attachment,
-                category=category,
-                task_type=task_type,
-                task_type_fields=task_type_fields,
-                default_labels=default_labels,
-                label_mapping=label_mapping,
-                custom_verificator=custom_verificator,
-                on_progress=on_progress,
-                _progress_ctx=_progress_ctx,
-            )
-        return
-
     if custom_verificator is not None and not bool(
         re.match(
             r"^\s*def\s+verify\s*\(\s*pred\s*,\s*truth\s*\)\s*:\s*",
@@ -107,7 +86,16 @@ def download_tasklist(
         )
 
     # Multi-config: iterate configs and combine into single dataset stream
-    if isinstance(config, list):
+    if isinstance(split, list):
+        def _multi_split_stream():
+            for s in split:
+                ds = load_dataset(path=id, name=config, split=s, streaming=True,
+                                  storage_options={"client_kwargs": {"timeout": 120}})
+                yield from ds
+
+        dataset = _multi_split_stream()
+        split_info = None
+    elif isinstance(config, list):
         def _multi_config_stream():
             for cfg in config:
                 ds = load_dataset(path=id, name=cfg, split=split, streaming=True,
@@ -535,16 +523,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
         except Exception:
             pass
 
-    # Expand list splits
-    expanded = []
     for item in public_info:
-        if isinstance(item["split"], list):
-            for s in item["split"]:
-                expanded.append({**item, "split": s, "name": f"{item['name']}-{s}"})
-        else:
-            expanded.append(item)
-
-    for item in expanded:
         if tasklists and item["name"] not in tasklists:
             continue
         if skip_existing and (TASKLISTS_PATH / item["name"] / "tasks.json").exists():

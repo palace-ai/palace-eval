@@ -10,6 +10,8 @@ build/
 site/
 **/___*
 uv.lock
+tests/
+pytest.ini
 
 # all prohibited by gitlab pattern
 *.3gp
