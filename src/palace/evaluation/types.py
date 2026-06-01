@@ -11,8 +11,13 @@ class PreparedTask:
     """Result of prompt preparation stage."""
 
     prompt: str
-    image: str | None = None
+    images: list[str] = field(default_factory=list)
     attachment_content: str = ""
+
+    @property
+    def image(self) -> str | None:
+        """Backward compat: first image or None."""
+        return self.images[0] if self.images else None
 
 
 @dataclass

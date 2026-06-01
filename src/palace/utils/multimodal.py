@@ -20,7 +20,10 @@ def detect_modalities(tasks: list[dict]) -> list[str]:
     """Detect modalities from task attachments. Always includes 'text'."""
     modalities = {"text"}
     for task in tasks:
-        if attachment := task.get("attachment"):
+        atts = task.get("attachments", [])
+        if not atts and (att := task.get("attachment")):
+            atts = [att]
+        for attachment in atts:
             ext = Path(attachment).suffix.lower()
             for modality, extensions in MODALITY_EXTENSIONS.items():
                 if ext in extensions:
@@ -37,30 +40,28 @@ def is_image_attachment(path: str) -> bool:
 
 
 def build_multimodal_content(
-    prompt: str, image_path: str | None = None
+    prompt: str, images: list[str] | None = None
 ) -> str | list[dict[str, Any]]:
-    """Build message content for OpenAI API, with optional image.
+    """Build message content for OpenAI API, with optional images.
 
     Args:
         prompt: The text prompt
-        image_path: Path to image file, or None for text-only
+        images: List of image file paths, or None for text-only
 
     Returns:
-        String if no image, list of content parts if image provided
+        String if no images, list of content parts if images provided
     """
-    if image_path is None:
+    if not images:
         return prompt
 
-    # Load, resize if needed, and encode image
-    image_data, mime_type = _load_and_resize_image(image_path)
-
-    return [
-        {"type": "text", "text": prompt},
-        {
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for img_path in images:
+        image_data, mime_type = _load_and_resize_image(img_path)
+        content.append({
             "type": "image_url",
             "image_url": {"url": f"data:{mime_type};base64,{image_data}"},
-        },
-    ]
+        })
+    return content
 
 
 def _load_and_resize_image(image_path: str) -> tuple[str, str]:

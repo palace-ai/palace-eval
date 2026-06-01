@@ -62,7 +62,7 @@ def main():
         tasks.append(
             {
                 "id": f"DeepConsult-{i}",
-                "objective": question,
+                "objective": f"Generate a detailed report based on the following prompt:\n\n{question}",
                 "expected": baseline_answer,
             }
         )

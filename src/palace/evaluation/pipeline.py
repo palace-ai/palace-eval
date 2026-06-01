@@ -20,21 +20,21 @@ _logger = logging.getLogger("palace.pipeline")
 
 def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path) -> PreparedTask:
     """Resolve attachments, apply adapter, build final prompt."""
-    image_path = None
+    images: list[str] = []
     attachment_content = ""
 
-    if task.attachment is not None and task.attachment != "":
-        attachment_file = tasklist_path / "task_files" / task.attachment
-
-        if is_image_attachment(task.attachment):
-            image_path = str(attachment_file)
+    for att in task.attachments:
+        if not att:
+            continue
+        attachment_file = tasklist_path / "task_files" / att
+        if is_image_attachment(att):
+            images.append(str(attachment_file))
         else:
             try:
                 with open(attachment_file, encoding="utf-8") as f:
                     attachment_content = f.read()
             except UnicodeDecodeError:
-                return PreparedTask(prompt="", image=None, attachment_content="__UNSUPPORTED__")
-
+                return PreparedTask(prompt="", images=[], attachment_content="__UNSUPPORTED__")
             max_len = 200000
             if len(attachment_content) > max_len:
                 attachment_content = attachment_content[:max_len]
@@ -46,14 +46,14 @@ def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path)
         if attachment_content:
             prompt = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n{prompt}"
 
-    return PreparedTask(prompt=prompt, image=image_path, attachment_content=attachment_content)
+    return PreparedTask(prompt=prompt, images=images, attachment_content=attachment_content)
 
 
 async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> AgentResult:
     """Call agent.run() with error handling."""
     start = time.time()
     try:
-        result = await agent.run(prompt=prepared.prompt, image=prepared.image, task_id=task_id)
+        result = await agent.run(prompt=prepared.prompt, images=prepared.images, task_id=task_id)
         result.elapsed = time.time() - start
         return result
     except ConvergenceError:

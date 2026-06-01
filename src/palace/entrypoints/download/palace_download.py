@@ -96,44 +96,6 @@ def download_tasklist(
             )
         return
 
-    # Multi-config: iterate configs and combine into single tasklist
-    if isinstance(config, list):
-        combined_rows = []
-        for cfg in config:
-            dataset = load_dataset(path=id, name=cfg, split=split, streaming=True,
-                                   storage_options={"client_kwargs": {"timeout": 120}})
-            for row in dataset:
-                combined_rows.append(row)
-        # Build tasks from combined rows (reuse logic below via recursive call with sentinel)
-        # Write directly here to avoid complexity
-        tasklist_path = TASKLISTS_PATH / name
-        os.makedirs(tasklist_path, exist_ok=True)
-        tasks = []
-        seen_ids = set()
-        for i, row in enumerate(combined_rows):
-            task = {
-                "id": f"{name}_{row[column_names['id']] if 'id' in column_names else i}",
-                "objective": row[column_names["objective"]],
-                "expected": row[column_names["expected"]] if "expected" in column_names and column_names["expected"] in row else "",
-                "difficulty": "",
-                "attachment": "",
-                "custom_verificator": custom_verificator if custom_verificator else "",
-            }
-            if task["id"] not in seen_ids:
-                seen_ids.add(task["id"])
-                tasks.append(task)
-        info = {"name": name, "id": id, "original": False, "config": config, "split": split, "category": category, "task_type": task_type}
-        if task_type_fields:
-            info["task_type_fields"] = task_type_fields
-        with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
-            json.dump(info, f, ensure_ascii=False, indent=4)
-        with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
-            json.dump(tasks, f, ensure_ascii=False, indent=4)
-        if on_progress:
-            ctx_current, ctx_total = _progress_ctx or (0, 0)
-            on_progress(DownloadEvent(status="done", name=name, current=ctx_current, total=ctx_total))
-        return
-
     if custom_verificator is not None and not bool(
         re.match(
             r"^\s*def\s+verify\s*\(\s*pred\s*,\s*truth\s*\)\s*:\s*",
@@ -144,10 +106,22 @@ def download_tasklist(
             f"If custom_verificator is specified, it must follow the signature 'def verify(pred, truth) -> bool', found {custom_verificator}."
         )
 
-    # Use streaming to get row-level progress (timeout detects stalled connections)
-    dataset = load_dataset(path=id, name=config, split=split, streaming=True,
-                           storage_options={"client_kwargs": {"timeout": 120}})
-    split_info = dataset.info.splits.get(split) if dataset.info.splits else None
+    # Multi-config: iterate configs and combine into single dataset stream
+    if isinstance(config, list):
+        def _multi_config_stream():
+            for cfg in config:
+                ds = load_dataset(path=id, name=cfg, split=split, streaming=True,
+                                  storage_options={"client_kwargs": {"timeout": 120}})
+                yield from ds
+
+        dataset = _multi_config_stream()
+        split_info = None
+    else:
+        # Use streaming to get row-level progress (timeout detects stalled connections)
+        dataset = load_dataset(path=id, name=config, split=split, streaming=True,
+                               storage_options={"client_kwargs": {"timeout": 120}})
+        split_info = dataset.info.splits.get(split) if dataset.info.splits else None
+
     total_rows = split_info.num_examples if split_info else 0
     total_bytes = split_info.num_bytes if split_info else 0
 
@@ -158,19 +132,28 @@ def download_tasklist(
     # Prepare attachments dir early for inline writes during streaming
     tasklist_path = TASKLISTS_PATH / name
     os.makedirs(tasklist_path, exist_ok=True)
-    if inline_attachment and column_names.get("attachment"):
+    _att_cols_raw = column_names.get("attachments") or column_names.get("attachment")
+    _attachment_cols: list[str] | None = (
+        [_att_cols_raw] if isinstance(_att_cols_raw, str) else _att_cols_raw
+    )
+    if inline_attachment and _attachment_cols:
         (tasklist_path / "task_files").mkdir(parents=True, exist_ok=True)
 
-    # Detect dynamic classes (from_column references in task_type_fields)
+    # Detect dynamic classes (classes_from references in task_type_fields)
     _dynamic_labels = []  # list of (label_index, from_column, class_naming)
     if task_type_fields:
         for i, label in enumerate(task_type_fields.get("labels", [])):
-            classes = label.get("classes")
-            if isinstance(classes, dict) and "from_column" in classes:
-                _dynamic_labels.append((i, classes["from_column"], classes.get("class_naming", "letters")))
+            classes_from = label.get("classes_from")
+            if classes_from:
+                _dynamic_labels.append((i, classes_from["from_column"], classes_from.get("class_naming", "letters")))
 
     # Columns we need to keep in memory
-    _needed_cols = set(column_names.values())
+    _needed_cols = set()
+    for v in column_names.values():
+        if isinstance(v, list):
+            _needed_cols.update(v)
+        else:
+            _needed_cols.add(v)
     for _, col, _ in _dynamic_labels:
         if isinstance(col, list):
             _needed_cols.update(col)
@@ -182,45 +165,45 @@ def download_tasklist(
     # Iterate and collect rows (inline attachments written immediately to avoid memory accumulation)
     dataset_rows = []
     for i, row in enumerate(dataset):
-        # Write inline attachment immediately and replace blob with filename
-        if inline_attachment and column_names.get("attachment"):
-            att_col = column_names["attachment"]
-            raw = row.get(att_col)
-            if raw:
-                # Handle PIL Image objects (HuggingFace Image feature)
-                from PIL import Image as PILImage
-                if isinstance(raw, PILImage.Image):
-                    import io
-                    buf = io.BytesIO()
-                    fmt = raw.format or "PNG"
-                    raw.save(buf, format=fmt)
-                    img_bytes = buf.getvalue()
-                    ext = fmt.lower()
-                    filename = hashlib.sha256(img_bytes).hexdigest()[:24] + f".{ext}"
-                    with open(tasklist_path / "task_files" / filename, "wb") as f:
-                        f.write(img_bytes)
-                elif isinstance(raw, (bytes, bytearray)):
-                    filename = _get_filename(raw)
-                    if filename:
+        # Write inline attachments immediately and replace blobs with filenames
+        if inline_attachment and _attachment_cols:
+            for att_col in _attachment_cols:
+                raw = row.get(att_col)
+                if raw:
+                    # Handle PIL Image objects (HuggingFace Image feature)
+                    from PIL import Image as PILImage
+                    if isinstance(raw, PILImage.Image):
+                        import io
+                        buf = io.BytesIO()
+                        fmt = raw.format or "PNG"
+                        raw.save(buf, format=fmt)
+                        img_bytes = buf.getvalue()
+                        ext = fmt.lower()
+                        filename = hashlib.sha256(img_bytes).hexdigest()[:24] + f".{ext}"
                         with open(tasklist_path / "task_files" / filename, "wb") as f:
-                            f.write(raw)
-                elif isinstance(raw, str) and raw.strip():
-                    filename = _get_filename(raw)
-                    if filename:
-                        attachment_type = _string_type(raw)
-                        if attachment_type == "base64":
-                            data = base64.b64decode(_extract_base64_payload(raw))
-                        else:
-                            data = raw
-                        with open(
-                            tasklist_path / "task_files" / filename,
-                            "w" if attachment_type == "text" else "wb",
-                            encoding="utf-8" if attachment_type == "text" else None,
-                        ) as f:
-                            f.write(data)
-                else:
-                    filename = ""
-                row = {**row, att_col: filename}
+                            f.write(img_bytes)
+                    elif isinstance(raw, (bytes, bytearray)):
+                        filename = _get_filename(raw)
+                        if filename:
+                            with open(tasklist_path / "task_files" / filename, "wb") as f:
+                                f.write(raw)
+                    elif isinstance(raw, str) and raw.strip():
+                        filename = _get_filename(raw)
+                        if filename:
+                            attachment_type = _string_type(raw)
+                            if attachment_type == "base64":
+                                data = base64.b64decode(_extract_base64_payload(raw))
+                            else:
+                                data = raw
+                            with open(
+                                tasklist_path / "task_files" / filename,
+                                "w" if attachment_type == "text" else "wb",
+                                encoding="utf-8" if attachment_type == "text" else None,
+                            ) as f:
+                                f.write(data)
+                    else:
+                        filename = ""
+                    row = {**row, att_col: filename}
 
         # Strip large unused columns to save memory
         if _needed_cols is not None:
@@ -235,12 +218,11 @@ def download_tasklist(
     tasks = []
     seen_ids = set()
     for i, row in enumerate(dataset_rows):
-        # Get attachment name (already a filename for inline_attachment — processed during streaming)
-        attachment = (
-            row[column_names["attachment"]]
-            if "attachment" in column_names and column_names["attachment"] in row
-            else ""
-        )
+        # Get attachment(s) — already filenames for inline_attachment (processed during streaming)
+        if _attachment_cols:
+            attachments = [row.get(col, "") for col in _attachment_cols if row.get(col)]
+        else:
+            attachments = []
 
         # Convert dataset-specific task format to my own task format
         task = {
@@ -252,7 +234,6 @@ def download_tasklist(
             "difficulty": f"{name}_{row[column_names['difficulty']]}"
             if "difficulty" in column_names and column_names["difficulty"] in row
             else "",
-            "attachment": attachment,
             "custom_verificator": custom_verificator
             if custom_verificator is not None and custom_verificator != ""
             else row[column_names["custom_verificator"]]
@@ -260,6 +241,10 @@ def download_tasklist(
             and column_names["custom_verificator"] in row
             else "",
         }
+
+        # Store attachments
+        if attachments:
+            task["attachments"] = attachments
 
         # Add any additional columns from the original dataset if keep_custom_columns is True
         if keep_custom_columns:
@@ -279,6 +264,17 @@ def download_tasklist(
                     options = [row.get(c, "") for c in col]
                 else:
                     options = row.get(col, [])
+                # Shuffle if correct_index is specified (e.g., GPQA where correct is always first)
+                correct_idx = task_type_fields["labels"][label_idx].get("classes_from", {}).get("correct_index")
+                if correct_idx is not None:
+                    import random
+                    rng = random.Random(task["id"])  # deterministic per task
+                    indices = list(range(len(options)))
+                    rng.shuffle(indices)
+                    options = [options[j] for j in indices]
+                    correct_letter_idx = indices.index(correct_idx)
+                else:
+                    correct_letter_idx = None
                 if naming == "letters":
                     names = [chr(ord("A") + j) for j in range(len(options))]
                 elif naming == "numbers":
@@ -288,10 +284,15 @@ def download_tasklist(
                 classes = [{"name": n, "condition": str(o)} for n, o in zip(names, options)]
                 label_def = {**task_type_fields["labels"][label_idx], "classes": classes}
                 resolved_labels.append(label_def)
+                # Set expected to the shuffled correct letter
+                if correct_letter_idx is not None:
+                    label_name = label_def["name"]
+                    task["labels"] = {label_name: names[correct_letter_idx]}
+                    task["expected"] = ""
             task["task_type_fields"] = {"labels": resolved_labels}
 
-            # Set per-task expected label from the expected column
-            if task.get("expected") and resolved_labels:
+            # Set per-task expected label from the expected column (non-shuffled case)
+            if task.get("expected") and resolved_labels and "labels" not in task:
                 label_name = resolved_labels[0]["name"]
                 task["labels"] = {label_name: task["expected"]}
                 task["expected"] = ""
@@ -299,6 +300,18 @@ def download_tasklist(
         # Add task to list if it doesn't already exist
         if task["id"] not in seen_ids:
             seen_ids.add(task["id"])
+            # Build per-task constraints from columns (for InstructionFollowing)
+            if task_type_fields and "constraints_from_columns" in task_type_fields:
+                cfc = task_type_fields["constraints_from_columns"]
+                types_col = cfc["types_column"]
+                params_col = cfc["params_column"]
+                types_list = row.get(types_col, [])
+                params_list = row.get(params_col, [])
+                constraints = []
+                for ctype, kwargs in zip(types_list, params_list):
+                    active_params = {k: v for k, v in kwargs.items() if v is not None} if kwargs else {}
+                    constraints.append({"type": ctype, "params": active_params})
+                task["task_type_fields"] = {"constraints": constraints}
             tasks.append(task)
 
     # Map labels if label_mapping is provided

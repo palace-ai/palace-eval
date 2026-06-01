@@ -18,12 +18,12 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    async def run(self, prompt: str, image: str | None = None, *, task_id: str | None = None) -> "AgentResult":
+    async def run(self, prompt: str, images: list[str] | None = None, *, task_id: str | None = None) -> "AgentResult":
         """Run the agent on the given prompt and return a result.
 
         Args:
             prompt: The text prompt for the agent
-            image: Optional path to an image file for multimodal tasks
+            images: Optional list of image file paths for multimodal tasks
             task_id: Optional task identifier for agents that need to correlate
                 with per-task state (e.g. VivariumAgent environments)
 

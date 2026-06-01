@@ -44,9 +44,9 @@ class OpenAIAPIAgent(Agent):
     def name(self) -> str:
         return self._name
 
-    async def run(self, prompt: str, image: str | None = None, *, task_id: str | None = None) -> AgentResult:
+    async def run(self, prompt: str, images: list[str] | None = None, *, task_id: str | None = None) -> AgentResult:
         self._model.quiet = not self.verbose
-        content = build_multimodal_content(prompt, image)
+        content = build_multimodal_content(prompt, images)
         try:
             output = await self._model.generate([{"role": "user", "content": content}])
         except Exception as e:

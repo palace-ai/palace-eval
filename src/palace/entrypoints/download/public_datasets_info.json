@@ -3,11 +3,17 @@
     "name": "BABILong-32k",
     "id": "RMT-team/babilong",
     "config": "32k",
-    "split": ["qa1", "qa2", "qa3", "qa4", "qa5"],
+    "split": [
+      "qa1",
+      "qa2",
+      "qa3",
+      "qa4",
+      "qa5"
+    ],
     "column_names": {
       "objective": "question",
       "expected": "target",
-      "attachment": "input"
+      "attachments": "input"
     },
     "inline_attachment": true,
     "category": "Long Context",
@@ -17,11 +23,17 @@
     "name": "BABILong-128k",
     "id": "RMT-team/babilong",
     "config": "128k",
-    "split": ["qa1", "qa2", "qa3", "qa4", "qa5"],
+    "split": [
+      "qa1",
+      "qa2",
+      "qa3",
+      "qa4",
+      "qa5"
+    ],
     "column_names": {
       "objective": "question",
       "expected": "target",
-      "attachment": "input"
+      "attachments": "input"
     },
     "inline_attachment": true,
     "category": "Long Context",
@@ -37,7 +49,7 @@
       "objective": "prompt",
       "expected": "gt",
       "difficulty": "difficulty_level",
-      "attachment": "text"
+      "attachments": "text"
     },
     "category": "Expert Reasoning",
     "task_type": "QA",
@@ -68,7 +80,7 @@
       "objective": "Question",
       "expected": "Final answer",
       "difficulty": "Level",
-      "attachment": "file_name"
+      "attachments": "file_name"
     },
     "attachment_path": "2023/validation",
     "category": "Agentic",
@@ -118,7 +130,7 @@
       "id": "id",
       "objective": "question",
       "expected": "answer",
-      "attachment": "image"
+      "attachments": "image"
     },
     "inline_attachment": true,
     "category": "Expert Reasoning",
@@ -131,7 +143,7 @@
     "column_names": {
       "id": "instruction_id",
       "objective": "instruction",
-      "attachment": "image_path"
+      "attachments": "image_path"
     },
     "attachment_path": "",
     "category": "Safety",
@@ -142,8 +154,14 @@
           "name": "Unsafe",
           "description": "Whether the multimodal input (image + text) contains unsafe or harmful content.",
           "classes": [
-            {"name": "Yes", "condition": "if the combined image and text request is unsafe, harmful, or promotes dangerous activities"},
-            {"name": "No", "condition": "if the combined image and text request is safe and benign"}
+            {
+              "name": "Yes",
+              "condition": "if the combined image and text request is unsafe, harmful, or promotes dangerous activities"
+            },
+            {
+              "name": "No",
+              "condition": "if the combined image and text request is safe and benign"
+            }
           ]
         }
       ]
@@ -164,11 +182,16 @@
     "category": "General Knowledge",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The correct answer to the multiple-choice question.",
-        "classes": {"from_column": "options", "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": "options",
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -180,15 +203,25 @@
       "objective": "question",
       "expected": "answer"
     },
-    "label_mapping": {"0": "A", "1": "B", "2": "C", "3": "D"},
+    "label_mapping": {
+      "0": "A",
+      "1": "B",
+      "2": "C",
+      "3": "D"
+    },
     "category": "General Knowledge",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The correct answer to the multiple-choice question.",
-        "classes": {"from_column": "choices", "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": "choices",
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -204,11 +237,16 @@
     "category": "Expert Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The correct answer to the multiple-choice question.",
-        "classes": {"from_column": "options", "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": "options",
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -222,11 +260,21 @@
     "category": "General Knowledge",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The correct answer to the multiple-choice question.",
-        "classes": {"from_column": ["A", "B", "C", "D"], "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -237,18 +285,33 @@
     "column_names": {
       "objective": "question",
       "expected": "correct_answer_num",
-      "attachment": "flores_passage"
+      "attachments": "flores_passage"
     },
     "inline_attachment": true,
-    "label_mapping": {"1": "A", "2": "B", "3": "C", "4": "D"},
+    "label_mapping": {
+      "1": "A",
+      "2": "B",
+      "3": "C",
+      "4": "D"
+    },
     "category": "Multilingual",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The correct answer to the multiple-choice question.",
-        "classes": {"from_column": ["mc_answer1", "mc_answer2", "mc_answer3", "mc_answer4"], "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": [
+              "mc_answer1",
+              "mc_answer2",
+              "mc_answer3",
+              "mc_answer4"
+            ],
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -259,15 +322,25 @@
       "objective": "ctx",
       "expected": "label"
     },
-    "label_mapping": {"0": "A", "1": "B", "2": "C", "3": "D"},
+    "label_mapping": {
+      "0": "A",
+      "1": "B",
+      "2": "C",
+      "3": "D"
+    },
     "category": "Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The most plausible continuation of the given context.",
-        "classes": {"from_column": "endings", "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The most plausible continuation of the given context.",
+          "classes_from": {
+            "from_column": "endings",
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -279,15 +352,26 @@
       "objective": "question",
       "expected": "answer"
     },
-    "label_mapping": {"0": "A", "1": "B", "2": "C", "3": "D", "4": "E"},
+    "label_mapping": {
+      "0": "A",
+      "1": "B",
+      "2": "C",
+      "3": "D",
+      "4": "E"
+    },
     "category": "Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
-      "labels": [{
-        "name": "Answer",
-        "description": "The correct answer to the multiple-choice question.",
-        "classes": {"from_column": "choices", "class_naming": "letters"}
-      }]
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": "choices",
+            "class_naming": "letters"
+          }
+        }
+      ]
     }
   },
   {
@@ -331,7 +415,35 @@
   {
     "name": "BBH",
     "id": "lukaemon/bbh",
-    "config": ["boolean_expressions", "causal_judgement", "date_understanding", "disambiguation_qa", "dyck_languages", "formal_fallacies", "geometric_shapes", "hyperbaton", "logical_deduction_five_objects", "logical_deduction_seven_objects", "logical_deduction_three_objects", "movie_recommendation", "multistep_arithmetic_two", "navigate", "object_counting", "penguins_in_a_table", "reasoning_about_colored_objects", "ruin_names", "salient_translation_error_detection", "snarks", "sports_understanding", "temporal_sequences", "tracking_shuffled_objects_five_objects", "tracking_shuffled_objects_seven_objects", "tracking_shuffled_objects_three_objects", "web_of_lies", "word_sorting"],
+    "config": [
+      "boolean_expressions",
+      "causal_judgement",
+      "date_understanding",
+      "disambiguation_qa",
+      "dyck_languages",
+      "formal_fallacies",
+      "geometric_shapes",
+      "hyperbaton",
+      "logical_deduction_five_objects",
+      "logical_deduction_seven_objects",
+      "logical_deduction_three_objects",
+      "movie_recommendation",
+      "multistep_arithmetic_two",
+      "navigate",
+      "object_counting",
+      "penguins_in_a_table",
+      "reasoning_about_colored_objects",
+      "ruin_names",
+      "salient_translation_error_detection",
+      "snarks",
+      "sports_understanding",
+      "temporal_sequences",
+      "tracking_shuffled_objects_five_objects",
+      "tracking_shuffled_objects_seven_objects",
+      "tracking_shuffled_objects_three_objects",
+      "web_of_lies",
+      "word_sorting"
+    ],
     "split": "test",
     "column_names": {
       "objective": "input",
@@ -339,5 +451,153 @@
     },
     "category": "Reasoning",
     "task_type": "QA"
+  },
+  {
+    "name": "GPQA Diamond",
+    "id": "Idavidrein/gpqa",
+    "config": "gpqa_diamond",
+    "split": "train",
+    "column_names": {
+      "id": "Record ID",
+      "objective": "Question"
+    },
+    "keep_custom_columns": true,
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": [
+              "Correct Answer",
+              "Incorrect Answer 1",
+              "Incorrect Answer 2",
+              "Incorrect Answer 3"
+            ],
+            "class_naming": "letters",
+            "correct_index": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "MMMU",
+    "id": "MMMU/MMMU",
+    "config": [
+      "Accounting",
+      "Agriculture",
+      "Architecture_and_Engineering",
+      "Art",
+      "Art_Theory",
+      "Basic_Medical_Science",
+      "Biology",
+      "Chemistry",
+      "Clinical_Medicine",
+      "Computer_Science",
+      "Design",
+      "Diagnostics_and_Laboratory_Medicine",
+      "Economics",
+      "Electronics",
+      "Energy_and_Power",
+      "Finance",
+      "Geography",
+      "History",
+      "Literature",
+      "Manage",
+      "Marketing",
+      "Materials",
+      "Math",
+      "Mechanical_Engineering",
+      "Music",
+      "Pharmacy",
+      "Physics",
+      "Psychology",
+      "Public_Health",
+      "Sociology"
+    ],
+    "split": "validation",
+    "column_names": {
+      "id": "id",
+      "objective": "question",
+      "expected": "answer",
+      "attachments": [
+        "image_1",
+        "image_2",
+        "image_3",
+        "image_4",
+        "image_5",
+        "image_6",
+        "image_7"
+      ]
+    },
+    "inline_attachment": true,
+    "keep_custom_columns": true,
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": "options",
+            "class_naming": "letters"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "MMMU Pro",
+    "id": "MMMU/MMMU_Pro",
+    "config": "standard (4 options)",
+    "split": "test",
+    "column_names": {
+      "id": "id",
+      "objective": "question",
+      "expected": "answer",
+      "attachments": [
+        "image_1",
+        "image_2",
+        "image_3",
+        "image_4",
+        "image_5",
+        "image_6",
+        "image_7"
+      ]
+    },
+    "inline_attachment": true,
+    "keep_custom_columns": true,
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": "options",
+            "class_naming": "letters"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "IFEval",
+    "id": "google/IFEval",
+    "split": "train",
+    "column_names": {
+      "id": "key",
+      "objective": "prompt"
+    },
+    "keep_custom_columns": true,
+    "task_type": "Instruction Following",
+    "task_type_fields": {
+      "constraints_from_columns": {
+        "types_column": "instruction_id_list",
+        "params_column": "kwargs"
+      }
+    }
   }
 ]

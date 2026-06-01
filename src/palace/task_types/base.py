@@ -36,9 +36,14 @@ class Task:
     references: str | None
     difficulty: str | None
     document: str | None
-    attachment: str | None
+    attachments: list[str]
     custom_verificator: str | None
     custom_fields: dict[str, Any]
+
+    @property
+    def attachment(self) -> str | None:
+        """Backward compat: first attachment or None."""
+        return self.attachments[0] if self.attachments else None
 
     def adapt_prompt(self) -> str:
         """Build the task prompt. Subclasses must override."""
@@ -103,6 +108,8 @@ class Task:
         # Import here to avoid circular imports
         from palace.task_types.agentic import AgenticTask
         from palace.task_types.classification import ClassificationTask
+        from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
+        from palace.task_types.instruction_following import InstructionFollowingTask
         from palace.task_types.qa import QATask
         from palace.task_types.report_generation import ReportGenerationTask
         from palace.utils.printing import print
@@ -114,6 +121,7 @@ class Task:
             "difficulty",
             "document",
             "attachment",
+            "attachments",
             "custom_verificator",
         ]
 
@@ -140,6 +148,8 @@ class Task:
             "QA": QATask,
             "Classification": ClassificationTask,
             "Report Generation": ReportGenerationTask,
+            "Criteria Evaluation": CriteriaEvaluationTask,
+            "Instruction Following": InstructionFollowingTask,
             "Agentic": AgenticTask,
         }
 
@@ -154,7 +164,7 @@ class Task:
         task.references = data.get("references")
         task.difficulty = data.get("difficulty")
         task.document = data.get("document")
-        task.attachment = data.get("attachment")
+        task.attachments = data.get("attachments") or ([data["attachment"]] if data.get("attachment") else [])
         task.custom_verificator = data.get("custom_verificator")
         task.custom_fields = {
             k: v for k, v in data.items() if k not in required_fields + optional_fields

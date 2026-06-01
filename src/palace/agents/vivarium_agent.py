@@ -120,7 +120,7 @@ class VivariumAgent(Agent):
         return container  # satisfies ExecutionEnvironment protocol
 
     async def run(
-        self, prompt: str, image: str | None = None, *, task_id: str | None = None
+        self, prompt: str, images: list[str] | None = None, *, task_id: str | None = None
     ) -> AgentResult:
         """Submit agent run and poll until completion."""
         assert task_id is not None, "VivariumAgent.run() requires task_id"

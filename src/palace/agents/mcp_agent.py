@@ -104,7 +104,7 @@ class MCPAgent(Agent):
 
         return AgentResult(answer=answer, metrics=metrics)
 
-    async def run(self, prompt: str, image: str | None = None, *, task_id: str | None = None) -> AgentResult:
-        if image is not None:
+    async def run(self, prompt: str, images: list[str] | None = None, *, task_id: str | None = None) -> AgentResult:
+        if images:
             raise NotImplementedError("MCPAgent does not support image attachments yet")
         return await self._run_with_retry(prompt)
