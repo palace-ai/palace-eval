@@ -190,7 +190,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
     # --- Options ---
     task_limit = questionary.select(
         "Task limit per tasklist:",
-        choices=["1", "5", "20", "50", "100", "Unlimited"],
+        choices=["1", "5", "20", "50", "100", "500", "Unlimited"],
         default="1",
     ).ask()
     if not task_limit:
