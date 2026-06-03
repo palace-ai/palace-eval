@@ -4,6 +4,7 @@ import asyncio
 import importlib.util
 import inspect
 import io
+import logging
 import os
 import tarfile
 from pathlib import Path
@@ -13,6 +14,8 @@ from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
 from palace.task_types.base import ExecutionEnvironment, Task
 from palace.utils.printing import print
+
+_logger = logging.getLogger("palace.vivarium_agent")
 
 
 class VivariumAgent(Agent):
@@ -91,7 +94,12 @@ class VivariumAgent(Agent):
             archive_bytes = None
 
         try:
+            image = spec_json.get("image")
+            if image:
+                _logger.info(f"Registering spec (image: {image})")
             self._spec_id = await self._client.register_spec(spec_json, archive_bytes)
+            if image:
+                _logger.info("Spec registered (image ready)")
         except Exception as e:
             raise RuntimeError(
                 f"Cannot connect to Vivarium server at {self._client._url}. "
@@ -112,10 +120,12 @@ class VivariumAgent(Agent):
         container = self._client.container(env.id)
 
         if self._seed_fn:
+            _logger.info(f"Seeding environment for {task.id}")
             seed_args = task.custom_fields.get("seed_args")
             result = self._seed_fn(seed_args, container)
             if inspect.isawaitable(result):
                 await result
+            _logger.info(f"Seed complete for {task.id}")
 
         return container  # satisfies ExecutionEnvironment protocol
 

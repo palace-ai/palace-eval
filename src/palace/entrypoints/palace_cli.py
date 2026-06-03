@@ -85,7 +85,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
 
     # --- Agentic mode ---
     agentic = questionary.confirm(
-        "Run agentically via Vivarium? (sandboxed environment with tools)",
+        "Force agentic execution via Vivarium for all tasklists?",
         default=False,
     ).ask()
     if agentic is None:
@@ -151,8 +151,8 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         [
             {
                 "name": t.name,
-                **(info := json.load(open(t / "info.json"))),
-                "category": info.get("category", ""),
+                **(info := json.loads((t / "info.json").read_text())),
+                "category": info["category"],
                 "input_modalities": info.get(
                     "input_modalities", info.get("modalities", ["text"])
                 ),

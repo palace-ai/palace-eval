@@ -144,7 +144,7 @@ def run():
         "--agentic",
         action="store_true",
         default=False,
-        help="Run evaluation agentically via Vivarium (sandboxed environment with tools).",
+        help="Force agentic execution via Vivarium for all tasklists (sandboxed environment with tools).",
     )
     argparser.add_argument(
         "-c",

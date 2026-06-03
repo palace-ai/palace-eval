@@ -61,7 +61,7 @@ palace-run -u <url> -t <tasklist> [-m <model-name>] [options]
 | `--run-name` | `eval` | Name for this evaluation run |
 | `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
 | `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
-| `--agentic` | False | Run agentically via Vivarium (sandboxed environment with tools). Requires Docker + Vivarium SDK ([setup](../getting-started/installation.md#agentic-evaluation-optional)). |
+| `--agentic` | False | Force agentic execution via Vivarium for all tasklists (sandboxed environment with tools). Requires Docker + Vivarium SDK ([setup](../getting-started/installation.md#agentic-evaluation-optional)). |
 | `--report-detail` | `default` | Per-task report detail: `none`, `default`, or `full` |
 
 ### Examples

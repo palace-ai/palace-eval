@@ -328,7 +328,7 @@
       "2": "C",
       "3": "D"
     },
-    "category": "Reasoning",
+    "category": "Common Sense Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
       "labels": [
@@ -359,7 +359,7 @@
       "3": "D",
       "4": "E"
     },
-    "category": "Reasoning",
+    "category": "General Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
       "labels": [
@@ -408,7 +408,7 @@
       "objective": "question",
       "expected": "answer_number"
     },
-    "category": "Mathematical Reasoning",
+    "category": "Multilingual Reasoning",
     "task_type": "QA",
     "custom_verificator": "def verify(pred, truth):\n    import re\n    numbers = re.findall(r'-?\\d+\\.?\\d*', pred.replace(',', ''))\n    if not numbers:\n        return pred.strip() == str(truth).strip()\n    try:\n        return abs(float(numbers[-1]) - float(truth)) < 1e-6\n    except ValueError:\n        return pred.strip() == str(truth).strip()"
   },
@@ -449,7 +449,7 @@
       "objective": "input",
       "expected": "target"
     },
-    "category": "Reasoning",
+    "category": "General Reasoning",
     "task_type": "QA"
   },
   {
@@ -462,6 +462,7 @@
       "objective": "Question"
     },
     "keep_custom_columns": true,
+    "category": "Expert Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
       "labels": [
@@ -534,6 +535,7 @@
     },
     "inline_attachment": true,
     "keep_custom_columns": true,
+    "category": "Visual Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
       "labels": [
@@ -569,6 +571,7 @@
     },
     "inline_attachment": true,
     "keep_custom_columns": true,
+    "category": "Visual Reasoning",
     "task_type": "Classification",
     "task_type_fields": {
       "labels": [
@@ -592,6 +595,7 @@
       "objective": "prompt"
     },
     "keep_custom_columns": true,
+    "category": "Instruction Following",
     "task_type": "Instruction Following",
     "task_type_fields": {
       "constraints_from_columns": {
