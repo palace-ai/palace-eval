@@ -141,7 +141,6 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
                     url=url,
                     token=token,
                     name=m,
-                    api_type="openai" if "claude" not in m.lower() else "anthropic",
                 )
                 for m in selected
             ]

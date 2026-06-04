@@ -59,7 +59,6 @@ def evaluate(
             url=url,
             token=token,
             name=name,
-            api_type="openai" if "claude" not in name.lower() else "anthropic",
         )
     else:
         raise ValueError(f"Unsupported endpoint type: {endpoint_type}")

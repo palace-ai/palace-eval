@@ -314,24 +314,26 @@ class LoadingIcon:
         else:
             if os.isatty(1):
                 builtin_print("\033[?25l", end="", flush=True)  # hide cursor
-            while not self.done:
-                elapsed_time = time.time() - self.start_time
-                with self.lock:
-                    desc = self.description
-                    styled_desc = print(desc, as_str=True) if desc else ""
-                    status_line = ""
-                    if PersistentStatus._instance and PersistentStatus._instance.text:
-                        status_line = f"\n\n{PersistentStatus._instance.text}\033[K\033[2A"
-                    output = f"\r{next(self.spinner)}  ({elapsed_time:.1f}s)  {styled_desc}\033[K{status_line}"
-                builtin_print(output, end="", flush=True)
-                time.sleep(self.animation_interval)
-            # Clear spinner line + blank + progress line below
-            if PersistentStatus._instance and PersistentStatus._instance.text:
-                builtin_print("\r\033[2K\n\033[2K\n\033[2K\033[2A", end="", flush=True)
-            else:
-                builtin_print("\r\033[2K", end="", flush=True)
-            if os.isatty(1):
-                builtin_print("\033[?25h", end="", flush=True)  # show cursor
+            try:
+                while not self.done:
+                    elapsed_time = time.time() - self.start_time
+                    with self.lock:
+                        desc = self.description
+                        styled_desc = print(desc, as_str=True) if desc else ""
+                        status_line = ""
+                        if PersistentStatus._instance and PersistentStatus._instance.text:
+                            status_line = f"\n\n{PersistentStatus._instance.text}\033[K\033[2A"
+                        output = f"\r{next(self.spinner)}  ({elapsed_time:.1f}s)  {styled_desc}\033[K{status_line}"
+                    builtin_print(output, end="", flush=True)
+                    time.sleep(self.animation_interval)
+                # Clear spinner line + blank + progress line below
+                if PersistentStatus._instance and PersistentStatus._instance.text:
+                    builtin_print("\r\033[2K\n\033[2K\n\033[2K\033[2A", end="", flush=True)
+                else:
+                    builtin_print("\r\033[2K", end="", flush=True)
+            finally:
+                if os.isatty(1):
+                    builtin_print("\033[?25h", end="", flush=True)  # show cursor
 
 
 @contextmanager
@@ -403,14 +405,14 @@ def loading() -> Generator["LoadingIcon", None, None]:
     animation_interval = 0.07
 
     loading_icon_obj = LoadingIcon(spinner, animation_interval)
-    thread = threading.Thread(target=loading_icon_obj.animate)
+    thread = threading.Thread(target=loading_icon_obj.animate, daemon=True)
     thread.start()
 
     try:
         yield loading_icon_obj
     finally:
         loading_icon_obj.done = True
-        thread.join()
+        thread.join(timeout=1)
 
 
 class PersistentStatus:

@@ -159,6 +159,9 @@ class VerboseRenderer(_LogMixin):
             self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
 
     def on_all_finished(self) -> None:
+        if self._loading_ctx is not None:
+            self._loading_ctx.__exit__(None, None, None)
+            self._loading_ctx = None
         self._status.stop()
         self._close_log()
 

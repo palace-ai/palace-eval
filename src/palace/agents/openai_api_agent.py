@@ -22,7 +22,7 @@ class OpenAIAPIAgent(Agent):
         name: str,
         url: str,
         token: str | None = None,
-        api_type: str = "openai",
+        api_type: str | None = None,
     ):
         """Initialize an OpenAIAPIAgent.
 
@@ -30,9 +30,10 @@ class OpenAIAPIAgent(Agent):
             name: The name of the agent, corresponding to a model ID on the API server.
             url: The URL of the OpenAI-compatible API server.
             token: The API token for authentication. Defaults to None.
-            api_type: The API type to use ("openai" or "anthropic"). Defaults to "openai".
+            api_type: The API type to use ("openai" or "anthropic").
+                Auto-detected from model name if not specified.
         """
-        if api_type not in ["openai", "anthropic"]:
+        if api_type is not None and api_type not in ["openai", "anthropic"]:
             raise ValueError("api_type must be either 'openai' or 'anthropic'")
         self._name = name
         self.url = url

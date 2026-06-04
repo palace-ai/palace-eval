@@ -56,7 +56,7 @@ class APIModel(Model):
         model_id: str,
         url: str,
         token: str | None = None,
-        api_type: str = "openai",
+        api_type: str | None = None,
         strip_thinking: bool = True,
         quiet: bool = True,
     ):
@@ -68,11 +68,13 @@ class APIModel(Model):
             url (str): The URL of the OpenAI compatible API server.
             token (str): The API token for authentication.
             api_type (str): The API type to use. Allowed values are `openai` and `anthropic`.
-                Defaults to `openai`.
+                Auto-detected from model_id if not specified (uses `anthropic` for Claude models).
             strip_thinking (bool): Whether to strip <think>...</think> tags
                 from model output. Defaults to True.
             quiet (bool): Whether to suppress retry log messages on terminal. Defaults to True.
         """
+        if api_type is None:
+            api_type = "anthropic" if "claude" in model_id.lower() else "openai"
         assert api_type in {"openai", "anthropic"}, (
             "api_type must be either 'openai' or 'anthropic'"
         )
