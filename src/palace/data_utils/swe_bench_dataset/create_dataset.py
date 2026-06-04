@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 
 from datasets import load_dataset
+from platformdirs import user_cache_dir
 from swebench.harness.test_spec.python import (
     MAP_REPO_VERSION_TO_SPECS,
     make_env_script_list_py,
@@ -20,11 +21,11 @@ from swebench.harness.test_spec.python import (
     make_repo_script_list_py,
 )
 
-from platformdirs import user_cache_dir
-
 TASKLISTS_PATH = Path(user_cache_dir("palace")) / "tasklists"
 OUTPUT_DIR = TASKLISTS_PATH / "SWE-bench-Verified"
-ENV_DIR = Path(__file__).parent  # seed.py, verify.py, Dockerfile are alongside this script
+ENV_DIR = Path(
+    __file__
+).parent  # seed.py, verify.py, Dockerfile are alongside this script
 
 
 def generate_task(instance: dict) -> dict:
@@ -39,7 +40,9 @@ def generate_task(instance: dict) -> dict:
     repo_dir = "/testbed"
 
     env_scripts = make_env_script_list_py(instance, specs, env_name)
-    repo_scripts = make_repo_script_list_py(specs, repo, repo_dir, base_commit, env_name)
+    repo_scripts = make_repo_script_list_py(
+        specs, repo, repo_dir, base_commit, env_name
+    )
     eval_scripts = make_eval_script_list_py(
         instance, specs, env_name, repo_dir, base_commit, test_patch
     )
@@ -47,8 +50,12 @@ def generate_task(instance: dict) -> dict:
     setup_script = "#!/bin/bash\nset -e\n" + "\n".join(env_scripts + repo_scripts)
     eval_script = "#!/bin/bash\n" + "\n".join(eval_scripts)
     # swebench uses `: 'marker'` (silent no-op) — replace with echo so we can parse output
-    eval_script = eval_script.replace(": '>>>>> Start Test Output'", "echo '>>>>> Start Test Output'")
-    eval_script = eval_script.replace(": '>>>>> End Test Output'", "echo '>>>>> End Test Output'")
+    eval_script = eval_script.replace(
+        ": '>>>>> Start Test Output'", "echo '>>>>> Start Test Output'"
+    )
+    eval_script = eval_script.replace(
+        ": '>>>>> End Test Output'", "echo '>>>>> End Test Output'"
+    )
 
     # Parse FAIL_TO_PASS and PASS_TO_PASS from the instance
     fail_to_pass = json.loads(instance["FAIL_TO_PASS"])
@@ -79,7 +86,9 @@ def generate_task(instance: dict) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate SWE-bench Verified palace tasklist")
+    parser = argparse.ArgumentParser(
+        description="Generate SWE-bench Verified palace tasklist"
+    )
     parser.add_argument("--limit", type=int, default=None, help="Limit number of tasks")
     args = parser.parse_args()
 
@@ -113,7 +122,7 @@ def main():
 
     # info.json
     info = {
-        "name": "SWE-bench-Verified",
+        "name": "SWE-bench Verified",
         "task_type": "Agentic",
         "category": "Agentic",
         "input_modalities": ["text"],
