@@ -40,7 +40,7 @@ Detailed documentation of `task_type_fields` configuration for each task type:
 
 - QA: `correctness_criterion`, `references`
 - Classification: `labels`
-- Report Generation: `criteria`, `dimensions`, `per_task_criteria`
+- Criteria Evaluation: `criteria`, `dimensions`, `per_task_criteria`
 
 ### [Output Metrics](metrics.md)
 
@@ -76,7 +76,7 @@ Command-line interface documentation for `palace-cli`, `palace-run`, and `palace
 |------|--------------|---------------|
 | QA | LLM judge | `correctness_criterion`, `references` |
 | Classification | Exact match | `labels` (required) |
-| Report Generation | LLM pairwise | `criteria` or `dimensions` |
+| Criteria Evaluation | LLM pairwise | `criteria` or `dimensions` |
 
 ### CLI Commands
 

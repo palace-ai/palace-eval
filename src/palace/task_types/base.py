@@ -111,7 +111,7 @@ class Task:
         from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
         from palace.task_types.instruction_following import InstructionFollowingTask
         from palace.task_types.qa import QATask
-        from palace.task_types.report_generation import ReportGenerationTask
+        from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
         from palace.utils.printing import print
 
         required_fields = ["id", "objective", "task_type"]
@@ -147,7 +147,6 @@ class Task:
         task_type_map = {
             "QA": QATask,
             "Classification": ClassificationTask,
-            "Report Generation": ReportGenerationTask,
             "Criteria Evaluation": CriteriaEvaluationTask,
             "Instruction Following": InstructionFollowingTask,
             "Agentic": AgenticTask,

@@ -91,9 +91,9 @@ The **positive class** for each label is the first class listed in the label's `
 
 For binary tasklists (1 label, 2 classes), macro and micro averages are identical to the per-label metrics.
 
-#### Report Generation
+#### Criteria Evaluation (Pairwise)
 
-Present when evaluating Report Generation tasklists (e.g., DeepConsult, DeepResearchBench).
+Present when evaluating Criteria Evaluation tasklists in pairwise mode (e.g., DeepConsult, DeepResearchBench).
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -174,7 +174,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 
 **Classification**: `metrics.per_label.<name>` with `predicted`, `expected`, `correct`, `positive_class`.
 
-**Report Generation**: `metrics.normalized_score`, `metrics.criteria_scores`, `metrics.dimension_scores`.
+**Criteria Evaluation**: `metrics.normalized_score`, `metrics.criteria_scores`, `metrics.dimension_scores`.
 
 **Criteria Evaluation (absolute)**: `metrics.normalized_score`, `metrics.earned_points`, `metrics.max_points`, `metrics.dimension_scores`.
 
@@ -237,7 +237,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 }
 ```
 
-### Report Generation (DeepResearchBench)
+### Criteria Evaluation (DeepResearchBench)
 
 ```json
 {

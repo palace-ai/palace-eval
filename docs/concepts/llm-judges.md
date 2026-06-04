@@ -1,6 +1,6 @@
 # LLM Judges
 
-This page explains how PALACE uses LLM judges to evaluate model outputs in QA and Report Generation tasks.
+This page explains how PALACE uses LLM judges to evaluate model outputs in QA and Criteria Evaluation tasks.
 
 ## Overview
 
@@ -23,9 +23,9 @@ The judge then:
 2. Compares against references
 3. Outputs a verdict: Correct or Incorrect
 
-### Report Generation Judging
+### Criteria Evaluation Judging
 
-For Report Generation, the judge receives:
+For Criteria Evaluation, the judge receives:
 
 1. **Criteria**: List of evaluation dimensions
 2. **Report A**: One of the reports (generated or reference)
@@ -83,7 +83,7 @@ Your job is to determine whether the provided answer aligns more with the
 CORRECT or INCORRECT references based on the criterion above.
 ```
 
-### Report Generation Judge Prompt
+### Criteria Evaluation Judge Prompt
 
 The judge evaluates each criterion by comparing the two reports and deciding which is better for that specific dimension.
 
@@ -106,7 +106,7 @@ export OPENAI_LIKE_API_KEY=your-api-key
 export JUDGE_MODEL=gpt-4o  # default: minimax-m2
 ```
 
-The `JUDGE_MODEL` environment variable controls which model is used for judging in both QA and Report Generation tasks. If not set, it defaults to `minimax-m2`.
+The `JUDGE_MODEL` environment variable controls which model is used for judging in both QA and Criteria Evaluation tasks. If not set, it defaults to `minimax-m2`.
 
 ### Why Configure JUDGE_MODEL?
 
@@ -197,7 +197,7 @@ If judges make unexpected decisions:
 
 ### Position Bias Mitigation
 
-Report Generation runs comparisons twice:
+Criteria Evaluation runs comparisons twice:
 
 1. First run: Generated = A, Reference = B
 2. Second run: Generated = B, Reference = A
@@ -232,4 +232,4 @@ The "best" field indicates which report won. After running both comparisons (AB 
 - [Evaluation Pipeline](evaluation-pipeline.md) — End-to-end flow
 - [Verification Methods](verification.md) — Comparison of approaches
 - [QA Task Type](../task-types/qa.md) — QA configuration
-- [Report Generation Task Type](../task-types/report-generation.md) — Report Generation configuration
+- [Criteria Evaluation Task Type](../task-types/criteria-evaluation.md) — Criteria Evaluation configuration

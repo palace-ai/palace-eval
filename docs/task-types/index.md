@@ -12,7 +12,7 @@ Every PALACE benchmark uses exactly one task type, specified in `info.json`. The
 
 Understanding the differences helps you choose the right approach for your evaluation goals.
 
-## The Five Task Types
+## The Four Task Types
 
 ### QA (Question-Answering)
 
@@ -46,21 +46,24 @@ Classification evaluates whether a model can correctly categorize content into p
 
 [Learn more about Classification →](classification.md)
 
-### Report Generation
+### Criteria Evaluation
 
-Report Generation evaluates long-form content through pairwise comparison. An LLM judge compares the model's output against a reference document across multiple weighted criteria.
+Criteria Evaluation assesses model outputs against multiple configurable criteria using an LLM judge. Two modes are available:
 
-**Best for**: Research reports, summaries, technical documents, any long-form content where multiple quality dimensions matter.
+- **Pairwise**: Compares model output against a reference document. Best for evaluating reports, summaries, and long-form content.
+- **Absolute**: Evaluates each criterion independently as met/not met. Best for rubric-based scoring without a reference.
 
-**Verification**: LLM judge performs pairwise comparison with configurable criteria.
+**Best for**: Research reports, medical responses, rubric-based evaluation, any task where multiple quality dimensions matter.
+
+**Verification**: LLM judge (pairwise comparison or per-criterion YES/NO).
 
 **Example use cases**:
-- Research report quality assessment
+- Research report quality assessment (pairwise)
+- Medical response quality — HealthBench (absolute)
+- Multi-dimensional rubric scoring with penalty criteria
 - Executive summary evaluation
-- Technical documentation review
-- Multi-dimensional content scoring
 
-[Learn more about Report Generation →](report-generation.md)
+[Learn more about Criteria Evaluation →](criteria-evaluation.md)
 
 ### Instruction Following
 
@@ -78,21 +81,6 @@ Instruction Following evaluates whether a model's response satisfies syntactic a
 
 [Learn more about Instruction Following →](instruction-following.md)
 
-### Criteria Evaluation (Absolute Mode)
-
-Criteria Evaluation in absolute mode evaluates responses against a rubric of criteria, each scored independently as met/not met by an LLM judge. Criteria can have positive points (reward) or negative points (penalty). This is distinct from the pairwise Report Generation mode which compares against a reference.
-
-**Best for**: Rubric-based evaluation without a reference document, medical/domain QA with detailed scoring criteria.
-
-**Verification**: LLM judge evaluates each criterion independently (YES/NO).
-
-**Example use cases**:
-- Medical response quality (HealthBench)
-- Multi-dimensional rubric scoring
-- Penalty-based evaluation (deduct points for bad behaviors)
-
-[Learn more about Criteria Evaluation →](report-generation.md#absolute-mode)
-
 ## Choosing a Task Type
 
 ```mermaid
@@ -103,8 +91,8 @@ flowchart TD
     B -->|Long document| E{Have reference?}
     C -->|Yes, meaning matters| F[QA]
     C -->|No, exact match OK| D
-    E -->|Yes, compare against it| G[Report Generation]
-    E -->|No, use rubric| H[Criteria Evaluation]
+    E -->|Yes, compare against it| G[Criteria Evaluation - pairwise]
+    E -->|No, use rubric| H[Criteria Evaluation - absolute]
     A --> I{Checking format/structure?}
     I -->|Yes| J[Instruction Following]
 ```
@@ -127,7 +115,7 @@ flowchart TD
 - You're building safety filters or content classifiers
 - Reproducibility and determinism matter
 
-**Choose Report Generation when:**
+**Choose Criteria Evaluation when:**
 
 - Evaluating long-form written content
 - Multiple quality dimensions matter (accuracy, completeness, style)
@@ -151,7 +139,7 @@ flowchart TD
 
 ## Quick Comparison
 
-| Aspect | QA | Classification | Report Generation | Instruction Following | Criteria Evaluation |
+| Aspect | QA | Classification | Criteria Evaluation | Instruction Following | Criteria Evaluation |
 |--------|----|-----------------|--------------------|----------------------|---------------------|
 | **Output type** | Short/medium text | Categorical labels | Long-form documents | Any text | Any text |
 | **Verification** | LLM judge | Exact match | LLM judge (pairwise) | Deterministic checkers | LLM judge (absolute) |
@@ -212,10 +200,10 @@ flowchart TD
 // Loses nuance - reports are complex
 ```
 
-✅ **Solution**: Use Report Generation with multiple criteria.
+✅ **Solution**: Use Criteria Evaluation with multiple criteria.
 
 ```json
-{"task_type": "Report Generation", "task_type_fields": {"criteria": [
+{"task_type": "Criteria Evaluation", "task_type_fields": {"criteria": [
     {"name": "accuracy", "description": "...", "weight": 2.0},
     {"name": "completeness", "description": "...", "weight": 1.0},
     {"name": "clarity", "description": "...", "weight": 1.0}
@@ -264,11 +252,11 @@ Each task type has its own configuration in `task_type_fields`:
 }
 ```
 
-### Report Generation Configuration
+### Criteria Evaluation Configuration
 
 ```json
 {
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "criteria": [
             {"name": "criterion_name", "description": "...", "weight": 1.0}
@@ -285,6 +273,6 @@ See each task type's documentation for complete configuration options.
 
 - [QA Task Type](qa.md) - Semantic verification with LLM judges
 - [Classification Task Type](classification.md) - Exact-match categorical outputs
-- [Report Generation Task Type](report-generation.md) - Pairwise document comparison
+- [Criteria Evaluation Task Type](criteria-evaluation.md) - Pairwise document comparison
 - [Instruction Following Task Type](instruction-following.md) - Deterministic constraint verification
 - [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specifications

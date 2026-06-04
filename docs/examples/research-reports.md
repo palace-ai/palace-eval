@@ -1,6 +1,6 @@
 # Research Reports Example
 
-This example demonstrates evaluating long-form research reports using the Report Generation task type. It's based on the DeepResearchBench pattern—hierarchical criteria organized into dimensions for comprehensive quality assessment.
+This example demonstrates evaluating long-form research reports using the Criteria Evaluation task type. It's based on the DeepResearchBench pattern—hierarchical criteria organized into dimensions for comprehensive quality assessment.
 
 ## Use Case
 
@@ -11,7 +11,7 @@ You want to evaluate whether a model can produce high-quality research reports. 
 - Accurate information and sound analysis
 - Quality writing and appropriate depth
 
-A single "correct/incorrect" judgment can't capture this complexity. Report Generation uses multiple weighted criteria to assess different quality dimensions, providing nuanced scores and actionable feedback.
+A single "correct/incorrect" judgment can't capture this complexity. Criteria Evaluation uses multiple weighted criteria to assess different quality dimensions, providing nuanced scores and actionable feedback.
 
 ## The Tasklist
 
@@ -25,7 +25,7 @@ This example follows the DeepResearchBench structure with hierarchical dimension
     "id": "my-org/ResearchReportBench",
     "version": "1.0.0",
     "category": "Deep Research",
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "dimensions": [
             {
@@ -129,7 +129,7 @@ The `expected` field contains a reference report that the model's output will be
 
 ## How It Works
 
-Report Generation uses pairwise comparison:
+Criteria Evaluation uses pairwise comparison:
 
 1. **Model generates report** from the objective prompt
 2. **Judge compares** the generated report against the reference
@@ -319,7 +319,7 @@ For simpler evaluation, use flat criteria without dimensions:
 
 ## When to Use This Pattern
 
-Report Generation works well when:
+Criteria Evaluation works well when:
 
 - Evaluating long-form written content
 - Multiple quality dimensions matter
@@ -335,6 +335,6 @@ For simpler evaluations, consider:
 
 ## Related Pages
 
-- [Report Generation Task Type](../task-types/report-generation.md) — Full documentation
+- [Criteria Evaluation Task Type](../task-types/criteria-evaluation.md) — Full documentation
 - [Task Type Fields Reference](../reference/task-type-fields.md) — Complete field specification
 - [Custom Criteria Guide](../howto/custom-criteria.md) — Designing evaluation criteria

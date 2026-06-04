@@ -9,7 +9,7 @@ Real-world benchmark patterns you can learn from and adapt. Each example shows a
 | [Factual QA](factual-qa.md) | QA | Testing factual knowledge | Simple |
 | [Safety Classification](safety-classification.md) | Classification | Content moderation | Simple |
 | [Sycophancy](sycophancy.md) | Both | Detecting model bias | Medium |
-| [Research Reports](research-reports.md) | Report Generation | Long-form evaluation | Advanced |
+| [Research Reports](research-reports.md) | Criteria Evaluation | Long-form evaluation | Advanced |
 
 ## Start Here
 
@@ -77,11 +77,11 @@ Tests whether models maintain objectivity when users express opinions. Shows two
 
 Evaluates long-form research reports using hierarchical criteria organized into dimensions. Demonstrates weighted multi-criteria assessment.
 
-**Pattern**: Report Generation with dimensions and nested criteria.
+**Pattern**: Criteria Evaluation with dimensions and nested criteria.
 
 ```json
 {
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "dimensions": [
             {"name": "content_quality", "weight": 0.5, "criteria": [...]},
@@ -152,6 +152,6 @@ For nuanced scoring:
 
 ## Related Pages
 
-- [Task Types Overview](../task-types/index.md) — Understanding QA, Classification, and Report Generation
+- [Task Types Overview](../task-types/index.md) — Understanding QA, Classification, and Criteria Evaluation
 - [Your First Benchmark](../getting-started/first-benchmark.md) — Step-by-step tutorial
 - [Task Type Fields Reference](../reference/task-type-fields.md) — Complete configuration options

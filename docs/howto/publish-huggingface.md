@@ -45,7 +45,7 @@ Your `info.json` must include:
 | `id` | HuggingFace dataset ID (username/name format) |
 | `version` | Semantic version (major.minor.patch) |
 | `category` | Grouping category |
-| `task_type` | One of: QA, Classification, Report Generation |
+| `task_type` | One of: QA, Classification, Criteria Evaluation |
 
 ## Step 2: Authenticate with HuggingFace
 

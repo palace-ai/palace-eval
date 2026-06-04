@@ -26,7 +26,7 @@ The `tasks.json` file contains an array of tasks to evaluate. Each task has an o
 |-------|------|----------|-------------|
 | `id` | string | Yes | Unique task identifier |
 | `objective` | string | Yes | The prompt sent to the model |
-| `expected` | string | Depends | Reference answer (required for QA, Report Generation) |
+| `expected` | string | Depends | Reference answer (required for QA, Criteria Evaluation) |
 | `difficulty` | string | No | Difficulty level for analysis |
 | `attachments` | array | No | List of file paths relative to `task_files/` (images or text) |
 | `document` | string | No | Document text associated with the task |
@@ -89,7 +89,7 @@ The field names must match those specified in `task_type_fields.references`.
 
 The `labels` object must include all labels defined in `task_type_fields.labels`.
 
-## Report Generation Tasks
+## Criteria Evaluation Tasks
 
 ### Basic
 
@@ -161,7 +161,7 @@ The prompt sent to the model. Can be multi-line:
 Reference answer for verification. Format depends on task type:
 
 - **QA**: The correct answer
-- **Report Generation**: The reference report for comparison
+- **Criteria Evaluation**: The reference report for comparison
 - **Classification**: Not used (use `labels` instead)
 
 ### labels (Classification only)
@@ -252,7 +252,7 @@ tasklist/
 }
 ```
 
-### Report Generation Task
+### Criteria Evaluation Task
 
 ```json
 {

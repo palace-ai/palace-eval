@@ -18,6 +18,6 @@ Base task class and built-in task type implementations.
     options:
       heading_level: 2
 
-::: palace.task_types.report_generation.ReportGenerationTask
+::: palace.task_types.criteria_evaluation.CriteriaEvaluationTask
     options:
       heading_level: 2

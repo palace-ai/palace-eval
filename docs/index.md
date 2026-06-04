@@ -18,7 +18,7 @@
 
     ---
 
-    Learn about QA, Classification, and Report Generation task types.
+    Learn about QA, Classification, and Criteria Evaluation task types.
 
     [:octicons-arrow-right-24: Explore task types](task-types/index.md)
 
@@ -46,7 +46,7 @@ PALACE evaluates LLM agents across configurable benchmarks. It supports:
 
 - **QA tasks** - Verify factual correctness with LLM judges
 - **Classification tasks** - Exact-match categorical outputs
-- **Report Generation tasks** - Pairwise comparison of long-form content
+- **Criteria Evaluation tasks** - Pairwise comparison of long-form content
 
 ## Three Task Types
 
@@ -54,7 +54,7 @@ PALACE evaluates LLM agents across configurable benchmarks. It supports:
 |-----------|----------|--------------|
 | [QA](task-types/qa.md) | Factual questions, open-ended answers | LLM judge with configurable criteria |
 | [Classification](task-types/classification.md) | Categorical outputs, labels | Exact match against expected labels |
-| [Report Generation](task-types/report-generation.md) | Long-form documents, reports | Pairwise comparison with weighted criteria |
+| [Criteria Evaluation](task-types/criteria-evaluation.md) | Long-form documents, reports | Pairwise comparison with weighted criteria |
 
 ## Getting Help
 

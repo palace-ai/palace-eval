@@ -10,7 +10,7 @@ PALACE supports three types of evaluation:
 
 - **QA** — Test factual knowledge with semantic verification
 - **Classification** — Test categorical outputs with exact matching
-- **Report Generation** — Test long-form content with multi-criteria scoring
+- **Criteria Evaluation** — Test long-form content with multi-criteria scoring
 
 ## Learning Path
 

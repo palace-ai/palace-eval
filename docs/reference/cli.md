@@ -149,9 +149,9 @@ PALACE uses the following environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENAI_LIKE_API_BASE_URL` | API endpoint for the judge model | Required for QA and Report Generation |
-| `OPENAI_LIKE_API_KEY` | API key for the judge endpoint (also used as `-k` fallback for `palace-run`) | Required for QA and Report Generation |
-| `JUDGE_MODEL` | Model used for LLM-based judging (QA and Report Generation) | `minimax-m2` |
+| `OPENAI_LIKE_API_BASE_URL` | API endpoint for the judge model | Required for QA and Criteria Evaluation |
+| `OPENAI_LIKE_API_KEY` | API key for the judge endpoint (also used as `-k` fallback for `palace-run`) | Required for QA and Criteria Evaluation |
+| `JUDGE_MODEL` | Model used for LLM-based judging (QA and Criteria Evaluation) | `minimax-m2` |
 | `ENABLE_CITATION_VERIFIER` | Enable the citation verifier analyzer (`true`/`false`) | `false` |
 | `HUGGINGFACE_TOKEN` | HuggingFace token for downloading gated/private datasets | Optional |
 

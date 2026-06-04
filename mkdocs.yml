@@ -38,7 +38,8 @@ nav:
     - task-types/index.md
     - QA: task-types/qa.md
     - Classification: task-types/classification.md
-    - Report Generation: task-types/report-generation.md
+    - Criteria Evaluation: task-types/criteria-evaluation.md
+    - Instruction Following: task-types/instruction-following.md
   - How-To Guides:
     - howto/index.md
     - Run Evaluations: howto/run-evaluations.md

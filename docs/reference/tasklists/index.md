@@ -17,8 +17,8 @@ The official PALACE tasklists span three task types and cover a diverse range of
 | [Sycophancy](sycophancy.md) | Classification / QA | Reliability | 26,188 | Sycophancy detection in two modalities |
 | [ValuesEval24](valueseval24.md) | Classification | Alignment | 14,904 | Human values detection across 9 languages |
 | [DocRetrieval](docretrieval.md) | QA | Agentic | 1,420 | Multi-document retrieval and synthesis |
-| [DeepConsult](deepconsult.md) | Report Generation | Report Generation | 102 | Long-form consulting report generation |
-| [DeepResearchBench](deepresearchbench.md) | Report Generation | Deep Research | 50 | Research reports with per-task criteria |
+| [DeepConsult](deepconsult.md) | Criteria Evaluation | Criteria Evaluation | 102 | Long-form consulting report generation |
+| [DeepResearchBench](deepresearchbench.md) | Criteria Evaluation | Deep Research | 50 | Research reports with per-task criteria |
 
 ## Downloading Tasklists
 
@@ -76,6 +76,6 @@ The official PALACE tasklists share several design principles:
 
 ## Related Pages
 
-- [Task Types Overview](../task-types/index.md) — Understanding QA, Classification, and Report Generation
+- [Task Types Overview](../task-types/index.md) — Understanding QA, Classification, and Criteria Evaluation
 - [info.json Reference](../info-json.md) — Complete specification for tasklist metadata
 - [tasks.json Reference](../tasks-json.md) — Complete specification for task files

@@ -6,7 +6,7 @@ DeepResearchBench is an advanced report generation benchmark that evaluates rese
 
 | Property | Value |
 |----------|-------|
-| **Task Type** | Report Generation |
+| **Task Type** | Criteria Evaluation |
 | **Category** | Deep Research |
 | **Total Tasks** | 50 |
 | **Evaluation** | Per-task hierarchical criteria |
@@ -144,7 +144,7 @@ Each dimension contains multiple weighted criteria. For example, the **readabili
     "version": "1.0.0",
     "original": true,
     "category": "Deep Research",
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "per_task_criteria": true
     }
@@ -289,7 +289,7 @@ Overall Score: 0.77
 
 ## Related Pages
 
-- [Report Generation Task Type](../../task-types/report-generation.md) — How report generation evaluation works
+- [Criteria Evaluation Task Type](../../task-types/criteria-evaluation.md) — How report generation evaluation works
 - [Hierarchical Criteria Guide](../../howto/custom-criteria.md) — Defining custom evaluation criteria
 - [DeepConsult](deepconsult.md) — Simpler report generation benchmark
 - [Official Tasklists Overview](index.md) — All official PALACE tasklists

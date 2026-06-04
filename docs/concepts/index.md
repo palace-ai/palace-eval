@@ -32,7 +32,7 @@ PALACE supports three task types, each with different verification:
 |-----------|--------------|----------|
 | QA | LLM judge | Factual questions, semantic matching |
 | Classification | Exact match | Categorical outputs, safety filters |
-| Report Generation | Pairwise comparison | Long-form content, multi-criteria |
+| Criteria Evaluation | Pairwise comparison | Long-form content, multi-criteria |
 
 ### Tasklists
 
@@ -49,7 +49,7 @@ Verification determines if a model's output is correct:
 
 - **Semantic**: Does it mean the same thing? (QA)
 - **Exact**: Does it match exactly? (Classification)
-- **Comparative**: Is it better than the reference? (Report Generation)
+- **Comparative**: Is it better than the reference? (Criteria Evaluation)
 
 ### Judges
 

@@ -200,7 +200,7 @@ Note: The `evaluate` function writes results to the output folder and returns `N
 You've run your first evaluation! Here's where to go next:
 
 - [Your First Benchmark](first-benchmark.md) — Create a custom tasklist from scratch
-- [Task Types](../task-types/index.md) — Understand QA, Classification, and Report Generation
+- [Task Types](../task-types/index.md) — Understand QA, Classification, and Criteria Evaluation
 - [Run Evaluations](../howto/run-evaluations.md) — Full guide to CLI and API options
 
 ## Quick Reference

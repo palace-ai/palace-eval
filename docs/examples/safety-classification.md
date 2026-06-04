@@ -316,7 +316,7 @@ Safety classification works well when:
 For more nuanced safety evaluation, consider:
 
 - **QA with custom criteria** — When you need to evaluate the quality of safety explanations
-- **Report Generation** — When evaluating detailed safety analyses
+- **Criteria Evaluation** — When evaluating detailed safety analyses
 
 ---
 

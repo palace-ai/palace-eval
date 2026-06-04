@@ -6,8 +6,8 @@ DeepConsult is a report generation benchmark that evaluates a model's ability to
 
 | Property | Value |
 |----------|-------|
-| **Task Type** | Report Generation |
-| **Category** | Report Generation |
+| **Task Type** | Criteria Evaluation |
+| **Category** | Criteria Evaluation |
 | **Total Tasks** | 102 |
 | **Reference Source** | OpenAI Deep Research |
 | **Report Length** | 2,000–15,000+ words |
@@ -67,8 +67,8 @@ Reference reports typically range from 2,000 to 15,000+ words, depending on topi
     "id": "jrc-ai/DeepConsult",
     "version": "1.0.0",
     "original": true,
-    "category": "Report Generation",
-    "task_type": "Report Generation"
+    "category": "Criteria Evaluation",
+    "task_type": "Criteria Evaluation"
 }
 ```
 
@@ -83,7 +83,7 @@ DeepConsult uses LLM-based pairwise comparison:
 
 ### Default Evaluation Criteria
 
-When no custom criteria are specified, Report Generation tasks use default criteria covering:
+When no custom criteria are specified, Criteria Evaluation tasks use default criteria covering:
 
 - **Content quality**: Accuracy, depth, and relevance of information
 - **Structure and organization**: Logical flow and clear presentation
@@ -202,6 +202,6 @@ Analyze the impact of these strategies on their overall success.
 
 ## Related Pages
 
-- [Report Generation Task Type](../../task-types/report-generation.md) — How report generation evaluation works
+- [Criteria Evaluation Task Type](../../task-types/criteria-evaluation.md) — How report generation evaluation works
 - [Research Reports Example](../../examples/research-reports.md) — Building report generation benchmarks
 - [Official Tasklists Overview](index.md) — All official PALACE tasklists

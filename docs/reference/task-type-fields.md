@@ -135,7 +135,7 @@ Array of label objects:
 }
 ```
 
-## Report Generation Task Type
+## Criteria Evaluation Task Type
 
 ### Fields
 
@@ -243,11 +243,11 @@ Task criteria merge with tasklist criteria:
 - New names are added
 - Same names override
 
-### Complete Report Generation Example
+### Complete Criteria Evaluation Example
 
 ```json
 {
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "dimensions": [
             {
@@ -360,5 +360,5 @@ See [Instruction Following Task Type](../task-types/instruction-following.md) fo
 - [tasks.json Reference](tasks-json.md) — Task file specification
 - [QA Task Type](../task-types/qa.md) — QA documentation
 - [Classification Task Type](../task-types/classification.md) — Classification documentation
-- [Report Generation Task Type](../task-types/report-generation.md) — Report Generation documentation
+- [Criteria Evaluation Task Type](../task-types/criteria-evaluation.md) — Criteria Evaluation documentation
 - [Instruction Following Task Type](../task-types/instruction-following.md) — Instruction Following documentation

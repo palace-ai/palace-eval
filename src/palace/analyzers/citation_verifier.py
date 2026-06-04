@@ -31,7 +31,7 @@ Or programmatically:
     from palace.evaluation import Evaluation
     eval = Evaluation(name="test", enable_citation_verifier=True)
 
-It automatically runs on Report Generation tasks after the main evaluation.
+It automatically runs on Criteria Evaluation tasks after the main evaluation.
 
 Configuration
 -------------
@@ -93,7 +93,7 @@ from palace.prompts.fact_prompts import (
     VALIDATE_PROMPT,
 )
 from palace.task_types import Task, TaskVerificationResult
-from palace.task_types.report_generation import ReportGenerationTask
+from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
 from palace.utils.constants import JUDGE_MODEL, OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
 from palace.utils.secrets import OPENAI_LIKE_API_KEY
@@ -143,7 +143,7 @@ class CitationVerifier(Analyzer):
 
     Attributes:
         name: "citation_verifier" (used as metrics key)
-        supported_task_types: [ReportGenerationTask]
+        supported_task_types: [CriteriaEvaluationTask]
 
     Example:
         >>> from palace.analyzers.fetch import get_fetch_fn
@@ -158,7 +158,7 @@ class CitationVerifier(Analyzer):
 
     @property
     def supported_task_types(self) -> list[type[Task]]:
-        return [ReportGenerationTask]
+        return [CriteriaEvaluationTask]
 
     def __init__(
         self,

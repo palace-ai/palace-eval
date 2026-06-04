@@ -231,13 +231,15 @@ class Evaluation:
         # Resolve task class
         from palace.task_types.agentic import AgenticTask
         from palace.task_types.classification import ClassificationTask
+        from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
+        from palace.task_types.instruction_following import InstructionFollowingTask
         from palace.task_types.qa import QATask
-        from palace.task_types.report_generation import ReportGenerationTask
 
         task_type_map = {
             "QA": QATask,
             "Classification": ClassificationTask,
-            "Report Generation": ReportGenerationTask,
+            "Criteria Evaluation": CriteriaEvaluationTask,
+            "Instruction Following": InstructionFollowingTask,
             "Agentic": AgenticTask,
         }
         task_cls = task_type_map.get(tasklist_info["task_type"], Task)

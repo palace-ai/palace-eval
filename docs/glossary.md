@@ -16,12 +16,12 @@ A [task type](task-types/classification.md) for categorical outputs where the mo
 In [QA tasks](task-types/qa.md), the criterion used by the LLM judge to determine if an answer is correct. Configurable via `task_type_fields.correctness_criterion`.
 
 ### Criteria
-In [Report Generation](task-types/report-generation.md), the dimensions used to evaluate and compare reports (e.g., accuracy, completeness, writing quality).
+In [Criteria Evaluation](task-types/criteria-evaluation.md), the dimensions used to evaluate and compare reports (e.g., accuracy, completeness, writing quality).
 
 ## D
 
 ### Dimension
-In Report Generation, a grouping of related criteria with its own weight. Used for hierarchical evaluation structures.
+In Criteria Evaluation, a grouping of related criteria with its own weight. Used for hierarchical evaluation structures.
 
 ## E
 
@@ -29,7 +29,7 @@ In Report Generation, a grouping of related criteria with its own weight. Used f
 The reference answer or output for a task. Used differently by each task type:
 - **QA**: Reference answer for semantic comparison
 - **Classification**: Not used (labels are in `labels` field)
-- **Report Generation**: Reference report for pairwise comparison
+- **Criteria Evaluation**: Reference report for pairwise comparison
 
 ### Evaluation
 The process of running a model against a tasklist and measuring performance.
@@ -42,7 +42,7 @@ The metadata file for a tasklist, containing name, task type, and configuration.
 ## J
 
 ### Judge
-An LLM used to evaluate model outputs. Used by QA (semantic correctness) and Report Generation (pairwise comparison) task types.
+An LLM used to evaluate model outputs. Used by QA (semantic correctness) and Criteria Evaluation (pairwise comparison) task types.
 
 ## L
 
@@ -64,8 +64,8 @@ A [task type](task-types/qa.md) for question-answering tasks where an LLM judge 
 ### References
 In QA tasks, the fields containing correct and optionally incorrect example answers. Configurable via `task_type_fields.references`.
 
-### Report Generation
-A [task type](task-types/report-generation.md) for evaluating long-form content through pairwise comparison with weighted criteria.
+### Criteria Evaluation
+A [task type](task-types/criteria-evaluation.md) for evaluating long-form content through pairwise comparison with weighted criteria.
 
 ## T
 
@@ -76,10 +76,10 @@ A single evaluation item consisting of an objective (input) and expected output,
 A collection of tasks with shared configuration, stored as `info.json` + `tasks.json` in a directory.
 
 ### Task Type
-The evaluation strategy for a tasklist. One of: `QA`, `Classification`, `Report Generation`. Determines how prompts are adapted and outputs are verified.
+The evaluation strategy for a tasklist. One of: `QA`, `Classification`, `Criteria Evaluation`. Determines how prompts are adapted and outputs are verified.
 
 ### task_type_fields
-Configuration specific to a task type, defined in `info.json`. Examples: `labels` for Classification, `criteria` for Report Generation, `correctness_criterion` for QA.
+Configuration specific to a task type, defined in `info.json`. Examples: `labels` for Classification, `criteria` for Criteria Evaluation, `correctness_criterion` for QA.
 
 ### tasks.json
 The file containing the list of tasks for a tasklist. See [tasks.json Reference](reference/tasks-json.md).
@@ -90,4 +90,4 @@ The file containing the list of tasks for a tasklist. See [tasks.json Reference]
 The process of determining if a model's output is correct. Method depends on task type:
 - **QA**: LLM judge semantic comparison
 - **Classification**: Exact label match
-- **Report Generation**: Pairwise criteria scoring
+- **Criteria Evaluation**: Pairwise criteria scoring

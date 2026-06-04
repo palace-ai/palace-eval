@@ -78,7 +78,7 @@ The `reasoning` field explains why the judge marked it incorrect.
 - Check that label names are consistent between info.json and tasks.json
 - Review the generated prompt to see what format the model was asked for
 
-### Report Generation Scoring
+### Criteria Evaluation Scoring
 
 **Problem**: Reports score unexpectedly low or high.
 
@@ -217,7 +217,7 @@ If you see 429 errors:
 
 ### Timeout Errors
 
-For long-running tasks (especially Report Generation):
+For long-running tasks (especially Criteria Evaluation):
 
 - Check if the model is responding slowly
 - Consider using a faster model for testing

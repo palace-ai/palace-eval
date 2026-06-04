@@ -12,9 +12,9 @@ Run PALACE evaluations using the interactive CLI, command-line interface, or pro
 
 ### [Custom Criteria](custom-criteria.md)
 
-Customize how PALACE evaluates model outputs. Configure correctness criteria for QA, design label schemes for Classification, and set up weighted criteria for Report Generation.
+Customize how PALACE evaluates model outputs. Configure correctness criteria for QA, design label schemes for Classification, and set up weighted criteria for Criteria Evaluation.
 
-**You'll learn**: Custom QA criteria, Classification labels, Report Generation dimensions, before/after examples.
+**You'll learn**: Custom QA criteria, Classification labels, Criteria Evaluation dimensions, before/after examples.
 
 ### [Publish to HuggingFace](publish-huggingface.md)
 
@@ -63,5 +63,5 @@ Evaluate specialized finetuned models (guardrails, classifiers) that can't follo
 ## Related Pages
 
 - [Getting Started](../getting-started/index.md) — New to PALACE? Start here
-- [Task Types](../task-types/index.md) — Understanding QA, Classification, Report Generation
+- [Task Types](../task-types/index.md) — Understanding QA, Classification, Criteria Evaluation
 - [Reference](../reference/index.md) — Technical specifications

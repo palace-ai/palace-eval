@@ -211,15 +211,15 @@ Conditions guide the model's classification. Make them:
 {"name": "Hate Speech", "condition": "if it's hateful"}
 ```
 
-## Report Generation: Custom Criteria
+## Criteria Evaluation: Custom Criteria
 
-Report Generation evaluates long-form content using multiple weighted criteria.
+Criteria Evaluation evaluates long-form content using multiple weighted criteria.
 
 ### Default Behavior
 
 ```json
 {
-    "task_type": "Report Generation"
+    "task_type": "Criteria Evaluation"
 }
 ```
 
@@ -233,7 +233,7 @@ Uses default criteria:
 
 ```json
 {
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "criteria": [
             {
@@ -393,17 +393,17 @@ Example for a technical report:
 }
 ```
 
-### Before/After: Report Generation
+### Before/After: Criteria Evaluation
 
 **Before** (default criteria):
 ```json
-{"task_type": "Report Generation"}
+{"task_type": "Criteria Evaluation"}
 ```
 
 **After** (domain-specific weighted criteria):
 ```json
 {
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "dimensions": [
             {
@@ -489,6 +489,6 @@ This produces `dimension_scores` in the output metrics.
 
 - [QA Task Type](../task-types/qa.md) — Full QA documentation
 - [Classification Task Type](../task-types/classification.md) — Full Classification documentation
-- [Report Generation Task Type](../task-types/report-generation.md) — Full Report Generation documentation
+- [Criteria Evaluation Task Type](../task-types/criteria-evaluation.md) — Full Criteria Evaluation documentation
 - [Instruction Following Task Type](../task-types/instruction-following.md) — Full Instruction Following documentation
 - [Task Type Fields Reference](../reference/task-type-fields.md) — Complete field specification

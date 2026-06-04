@@ -57,14 +57,14 @@ You should see the interactive CLI menu. Press `q` to exit.
 
 ## Configuration
 
-PALACE needs API credentials to run evaluations. The model being evaluated receives its endpoint via the `-u` flag (or `url` parameter). The LLM judge — used for QA and Report Generation verification — reads its endpoint from environment variables.
+PALACE needs API credentials to run evaluations. The model being evaluated receives its endpoint via the `-u` flag (or `url` parameter). The LLM judge — used for QA and Criteria Evaluation verification — reads its endpoint from environment variables.
 
 ### Environment Variables
 
 Create a `.env` file in your working directory or set these environment variables:
 
 ```bash
-# Required for QA and Report Generation: API endpoint for the LLM judge
+# Required for QA and Criteria Evaluation: API endpoint for the LLM judge
 OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
 OPENAI_LIKE_API_KEY=your-api-key
 
@@ -83,8 +83,8 @@ cp .env.example .env
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_LIKE_API_BASE_URL` | For QA / Report Generation | Base URL for the LLM judge API endpoint |
-| `OPENAI_LIKE_API_KEY` | For QA / Report Generation | API key for the judge endpoint |
+| `OPENAI_LIKE_API_BASE_URL` | For QA / Criteria Evaluation | Base URL for the LLM judge API endpoint |
+| `OPENAI_LIKE_API_KEY` | For QA / Criteria Evaluation | API key for the judge endpoint |
 | `JUDGE_MODEL` | No | Model to use for LLM judging (default: minimax-m2) |
 
 ## Download Tasklists

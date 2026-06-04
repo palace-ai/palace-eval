@@ -458,7 +458,7 @@ Multiple independent classification dimensions:
 
 - [Choosing a Task Type](index.md) - Compare all task types
 - [QA Task Type](qa.md) - For semantic verification with LLM judges
-- [Report Generation Task Type](report-generation.md) - For long-form content evaluation
+- [Criteria Evaluation Task Type](criteria-evaluation.md) - For long-form content evaluation
 - [Safety Classification Example](../examples/safety-classification.md) - GuardBench-style walkthrough
 - [Sycophancy Example](../examples/sycophancy.md) - Shows both Classification and QA approaches
 - [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specification

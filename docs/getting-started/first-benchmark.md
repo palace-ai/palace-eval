@@ -296,6 +296,6 @@ This same process applies to any benchmark—change the task type and configurat
 
 ## Next Steps
 
-- [Task Types](../task-types/index.md) — Learn about QA, Classification, and Report Generation
+- [Task Types](../task-types/index.md) — Learn about QA, Classification, and Criteria Evaluation
 - [Custom Criteria](../howto/custom-criteria.md) — Customize how correctness is evaluated
 - [Publish to HuggingFace](../howto/publish-huggingface.md) — Share your benchmark with others

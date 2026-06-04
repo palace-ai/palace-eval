@@ -239,7 +239,7 @@ palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 5
 |-------|------|-------------|
 | `name` | string | Display name and folder name |
 | `id` | string | HuggingFace dataset ID |
-| `task_type` | string | `QA`, `Classification`, or `Report Generation` |
+| `task_type` | string | `QA`, `Classification`, or `Criteria Evaluation` |
 | `column_names.objective` | string | Column with task prompt |
 
 ### Optional Fields

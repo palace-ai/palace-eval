@@ -209,7 +209,7 @@ palace-run -u https://api.example.com/v1 -m gpt-4o -t YourTasklist -l 5
 
 ### "Unknown task type"
 
-Ensure `task_type` is one of: `"QA"`, `"Classification"`, `"Report Generation"`
+Ensure `task_type` is one of: `"QA"`, `"Classification"`, `"Criteria Evaluation"`
 
 ### "Missing labels"
 

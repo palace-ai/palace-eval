@@ -12,7 +12,7 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 |-------|------|-------------|
 | `name` | string | Display name for the tasklist |
 | `id` | string | Unique identifier (typically `org/name` format) |
-| `task_type` | string | One of: `"QA"`, `"Classification"`, `"Report Generation"` |
+| `task_type` | string | One of: `"QA"`, `"Classification"`, `"Criteria Evaluation"`, `"Instruction Following"`, `"Agentic"` |
 
 ## Optional Fields
 
@@ -132,9 +132,9 @@ Determines how tasks are evaluated. Must be one of:
 |-------|-------------|
 | `"QA"` | Semantic verification with LLM judge |
 | `"Classification"` | Exact-match categorical outputs |
-| `"Report Generation"` | Pairwise comparison with weighted criteria |
-| `"Criteria Evaluation"` | Absolute rubric scoring (per-criterion YES/NO) |
+| `"Criteria Evaluation"` | Pairwise comparison or absolute rubric scoring |
 | `"Instruction Following"` | Deterministic constraint verification |
+| `"Agentic"` | Agentic tasks evaluated via Vivarium sandbox |
 
 ### task_type_fields
 
@@ -165,15 +165,38 @@ Defaults to:
 }
 ```
 
-### Report Generation (no task_type_fields)
+### Criteria Evaluation — Pairwise (no task_type_fields)
 
 ```json
 {
-    "task_type": "Report Generation"
+    "task_type": "Criteria Evaluation"
 }
 ```
 
-Defaults to standard criteria: instruction_following, comprehensiveness, completeness, writing_quality.
+Defaults to pairwise mode with standard criteria: instruction_following, comprehensiveness, completeness, writing_quality.
+
+### Criteria Evaluation — Absolute (task_type_fields required)
+
+```json
+{
+    "task_type": "Criteria Evaluation",
+    "task_type_fields": {
+        "mode": "absolute"
+    }
+}
+```
+
+Criteria are defined per-task in `tasks.json`. See [Task Type Fields Reference](task-type-fields.md#criteria-evaluation).
+
+### Instruction Following (no task_type_fields)
+
+```json
+{
+    "task_type": "Instruction Following"
+}
+```
+
+Constraints are defined per-task in `tasks.json`. No info-level configuration needed.
 
 ## Multimodal Example
 
@@ -184,12 +207,30 @@ A tasklist with image attachments (auto-detected by `palace-download`):
     "name": "VLSBench",
     "id": "Foreshhh/vlsbench",
     "task_type": "Classification",
-    "modalities": ["image", "text"],
+    "input_modalities": ["text", "image"],
+    "output_modalities": ["text"],
     "task_type_fields": {
         "labels": [...]
     }
 }
 ```
+
+A tasklist with multiple images per task:
+
+```json
+{
+    "name": "MMMU",
+    "id": "MMMU/MMMU",
+    "task_type": "Classification",
+    "input_modalities": ["text", "image"],
+    "output_modalities": ["text"],
+    "task_type_fields": {
+        "labels": [...]
+    }
+}
+```
+
+Tasks with multiple images use the `attachments` field (list) in `tasks.json`. See [tasks.json Reference](tasks-json.md).
 
 ---
 

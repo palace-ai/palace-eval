@@ -288,7 +288,7 @@ If the judge makes unexpected decisions:
 
 - [Choosing a Task Type](index.md) - Compare all task types
 - [Classification Task Type](classification.md) - For exact-match categorical outputs
-- [Report Generation Task Type](report-generation.md) - For long-form content evaluation
+- [Criteria Evaluation Task Type](criteria-evaluation.md) - For long-form content evaluation
 - [Factual QA Example](../examples/factual-qa.md) - Simple QA benchmark walkthrough
 - [Sycophancy Example](../examples/sycophancy.md) - Custom criterion with correct/incorrect references
 - [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specification

@@ -25,7 +25,7 @@ PALACE loads the tasklist from disk:
 ```
 
 The `info.json` determines:
-- Which task type to use (QA, Classification, Report Generation)
+- Which task type to use (QA, Classification, Criteria Evaluation, Instruction Following, Agentic)
 - How to configure verification
 - Any task-type-specific settings
 
@@ -63,12 +63,19 @@ Consider the following text:
 And consider the following label(s)...
 ```
 
-**Report Generation:**
+**Criteria Evaluation:**
 ```
 Generate a detailed report based on the following prompt:
 
 {objective}
 ```
+
+**Instruction Following:**
+```
+{objective}
+```
+
+The objective is passed directly — constraints are verified post-hoc, not embedded in the prompt.
 
 ### 4. Model Call
 
@@ -82,7 +89,7 @@ Request:
   Body: {"messages": [{"role": "user", "content": "{prompt}"}]}
 ```
 
-**Multimodal tasks (with image attachment):**
+**Multimodal tasks (with image attachments):**
 ```
 Request:
   POST {url}/chat/completions
@@ -91,11 +98,14 @@ Request:
       "role": "user",
       "content": [
         {"type": "text", "text": "{prompt}"},
-        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
       ]
     }]
   }
 ```
+
+Multiple images are supported (up to 7 per task). Each image attachment is encoded as a separate `image_url` content part.
 
 Images are automatically:
 - Resized to max 1024px dimension (to avoid payload limits)
@@ -132,13 +142,29 @@ Judge Output:
 4. All labels must match for task to pass
 ```
 
-**Report Generation**: LLM pairwise comparison
+**Criteria Evaluation**: LLM pairwise comparison
 ```
 1. Compare generated report vs reference
 2. For each criterion, judge which is better
 3. Run comparison twice (swap positions)
 4. Aggregate weighted scores
 5. Task passes if generated scores higher
+```
+
+**Criteria Evaluation (absolute)**: LLM per-criterion judgement
+```
+1. Present objective and response to judge
+2. For each criterion, judge answers YES/NO
+3. Tally points (positive = reward, negative = penalty)
+4. Score = earned / max_positive, clamped [0, 1]
+5. Task passes if score ≥ 0.5
+```
+
+**Instruction Following**: Deterministic constraint checkers
+```
+1. For each constraint, run programmatic checker
+2. Score = fraction of constraints satisfied
+3. Task passes if score ≥ 0.5
 ```
 
 ### 6. Results
@@ -166,7 +192,7 @@ Results are saved as JSONL. Each line is a complete evaluation run:
 
 ## Multimodal Support
 
-PALACE supports evaluating vision-language models on tasks with image attachments.
+PALACE supports evaluating vision-language models on tasks with image attachments, including multiple images per task.
 
 ### Supported Formats
 
@@ -175,6 +201,16 @@ PALACE supports evaluating vision-language models on tasks with image attachment
 | Text | `.txt`, `.md`, `.json`, etc. | Prepended to prompt |
 | Image | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` | Sent via Vision API |
 | Other | `.mp4`, `.pdf`, etc. | Skipped with warning |
+
+### Multi-Image Tasks
+
+Tasks can have multiple image attachments (up to 7 per task). All images are included in a single API request as separate `image_url` content parts. This is used by benchmarks like MMMU where questions reference multiple figures.
+
+Tasks declare multiple images via the `attachments` field in `tasks.json`:
+
+```json
+{"id": "task_001", "objective": "...", "attachments": ["img1.png", "img2.png"]}
+```
 
 ### Image Processing
 
@@ -218,9 +254,11 @@ Non-vision models will fail on image tasks.
 │       │         ┌─────────────────────────────────────────┐    │
 │       │         │              Verification               │    │
 │       │         ├─────────────────────────────────────────┤    │
-│       │         │  QA:            LLM Judge               │    │
-│       │         │  Classification: Exact Match            │    │
-│       │         │  Report Gen:    LLM Pairwise            │    │
+│       │         │  QA:              LLM Judge             │    │
+│       │         │  Classification:  Exact Match           │    │
+│       │         │  Report Gen:      LLM Pairwise          │    │
+│       │         │  Criteria Eval:   LLM Absolute Rubric   │    │
+│       │         │  Instruction:     Constraint Checkers   │    │
 │       │         └─────────────────────────────────────────┘    │
 │       │                                               │         │
 │       │                                               ▼         │
@@ -238,13 +276,16 @@ Non-vision models will fail on image tasks.
 
 - **QA**: Fixed format ("Provide the direct answer..."). Can be overridden via [I/O adapters](../howto/model-adapters.md).
 - **Classification**: Controlled by `labels` configuration
-- **Report Generation**: Fixed format ("Generate a detailed report..."). Can be overridden via [I/O adapters](../howto/model-adapters.md).
+- **Criteria Evaluation**: Fixed format ("Generate a detailed report..."). Can be overridden via [I/O adapters](../howto/model-adapters.md).
+- **Instruction Following**: Passes objective directly (no wrapping).
 
 ### Verification
 
 - **QA**: Customize via `correctness_criterion` and `references`
 - **Classification**: Customize via `labels` and `classes`
-- **Report Generation**: Customize via `criteria` or `dimensions`
+- **Criteria Evaluation**: Customize via `criteria` or `dimensions`
+- **Criteria Evaluation**: Customize via per-task `criteria` with `points` and `dimension`
+- **Instruction Following**: Customize via per-task `constraints` list
 
 ### Model Configuration
 
@@ -252,7 +293,7 @@ Non-vision models will fail on image tasks.
 - Authentication: `-k` / `--token` argument
 - Model selection: `-m` / `--name` argument (required for `palace-run`)
 
-### Judge Configuration (QA, Report Generation)
+### Judge Configuration (QA, Criteria Evaluation)
 
 The judge uses the same API endpoint configured via environment variables:
 

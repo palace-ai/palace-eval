@@ -10,7 +10,7 @@ PALACE supports three verification methods, each suited to different evaluation 
 |--------|-----------|-------|-------------|
 | LLM Judge | QA | Slower | High |
 | Exact Match | Classification | Fast | Low |
-| Pairwise Comparison | Report Generation | Slower | High |
+| Pairwise Comparison | Criteria Evaluation | Slower | High |
 | Constraint Checkers | Instruction Following | Fast | Medium |
 | Absolute Rubric | Criteria Evaluation | Slower | High |
 
@@ -106,7 +106,7 @@ The model's output is parsed and compared exactly against expected values.
 }
 ```
 
-## Pairwise Comparison (Report Generation)
+## Pairwise Comparison (Criteria Evaluation)
 
 An LLM compares the model's output against a reference document across multiple criteria.
 
@@ -143,7 +143,7 @@ An LLM compares the model's output against a reference document across multiple 
 
 ```json
 {
-    "task_type": "Report Generation",
+    "task_type": "Criteria Evaluation",
     "task_type_fields": {
         "criteria": [
             {"name": "accuracy", "description": "...", "weight": 2.0},
@@ -160,13 +160,13 @@ An LLM compares the model's output against a reference document across multiple 
 ```
 Classification (Exact Match)  ████████████████████  Fastest
 QA (LLM Judge)               ████████              Medium
-Report Generation (Pairwise)  ████                  Slowest
+Criteria Evaluation (Pairwise)  ████                  Slowest
 ```
 
 ### Flexibility
 
 ```
-Report Generation (Pairwise)  ████████████████████  Most Flexible
+Criteria Evaluation (Pairwise)  ████████████████████  Most Flexible
 QA (LLM Judge)               ████████████████      Flexible
 Classification (Exact Match)  ████                  Rigid
 ```
@@ -188,7 +188,7 @@ Classification (Exact Match)  ████                  Rigid
 ### Decision Flow
 
 1. **Is output categorical?** → Classification (Exact Match)
-2. **Is output long-form?** → Report Generation (Pairwise)
+2. **Is output long-form?** → Criteria Evaluation (Pairwise)
 3. **Otherwise** → QA (LLM Judge)
 
 ### Trade-offs
@@ -198,7 +198,7 @@ Classification (Exact Match)  ████                  Rigid
 | Speed | Classification or Instruction Following |
 | Flexibility | QA or Criteria Evaluation |
 | Determinism | Classification or Instruction Following |
-| Nuanced scoring | Report Generation or Criteria Evaluation |
+| Nuanced scoring | Criteria Evaluation |
 | Simple setup | QA (default criterion) |
 | No reference needed | Instruction Following or Criteria Evaluation |
 
