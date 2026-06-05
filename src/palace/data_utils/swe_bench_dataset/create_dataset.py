@@ -130,7 +130,7 @@ def main():
         "environment": {
             "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
             "image": "vivarium-env-swebench",
-            "resources": {"memory": "4g", "cpus": 2.0, "network": True},
+            "resources": {"memory": "8g", "cpus": 2.0, "network": True},
         },
     }
     (OUTPUT_DIR / "info.json").write_text(json.dumps(info, indent=2))
