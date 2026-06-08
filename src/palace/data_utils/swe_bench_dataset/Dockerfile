@@ -16,9 +16,7 @@ RUN wget -q 'https://repo.anaconda.com/miniconda/Miniconda3-py311_23.11.0-2-Linu
 
 ENV PATH=/opt/miniconda3/bin:$PATH
 
-RUN conda init --all && conda config --append channels conda-forge && \
-    conda install -n base conda-libmamba-solver -y && \
-    conda config --set solver libmamba
+RUN conda init --all && conda config --append channels conda-forge
 
 WORKDIR /testbed
 

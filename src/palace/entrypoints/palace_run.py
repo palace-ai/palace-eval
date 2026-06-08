@@ -26,6 +26,7 @@ def evaluate(
     report_detail: str = "default",
     agentic: bool = False,
     concurrency: int | None = None,
+    vivarium_url: str | None = None,
 ):
     """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
 
@@ -46,12 +47,14 @@ def evaluate(
         agentic: If True, wrap agent in VivariumAgent with default spec for tool access.
         concurrency: Number of tasks to run concurrently. None falls back to
             PALACE_CONCURRENCY env var, then defaults to 1.
+        vivarium_url: Vivarium server URL for agentic execution. If None, falls back
+            to VIVARIUM_URL env var or auto-starts via SDK.
     """
     if concurrency is None:
         concurrency = int(os.environ.get("PALACE_CONCURRENCY", "1"))
     if agentic:
         from palace.agents.vivarium_agent import VivariumAgent
-        agent = VivariumAgent(name=name, url=url, token=token)
+        agent = VivariumAgent(name=name, url=url, token=token, vivarium_url=vivarium_url)
     elif endpoint_type == "mcp":
         agent = MCPAgent(url=url, token=token, name=name)
     elif endpoint_type == "openai":
