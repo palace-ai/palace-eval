@@ -11,7 +11,7 @@ from typing import Callable
 
 import filetype
 from datasets import load_dataset
-from huggingface_hub import dataset_info as hf_dataset_info, get_collection, hf_hub_download, login
+from huggingface_hub import dataset_info as hf_dataset_info, get_collection, hf_hub_download, list_repo_tree, login
 from huggingface_hub.utils.tqdm import disable_progress_bars
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
@@ -412,6 +412,27 @@ def download_tasklist(
             shutil.rmtree(temp_dir)
         except OSError:
             pass
+
+    # Download environment directory if it exists in the repo
+    try:
+        env_files = [
+            f.rfilename for f in list_repo_tree(id, path_in_repo="environment", repo_type="dataset", recursive=True)
+            if hasattr(f, "rfilename")
+        ]
+    except Exception:
+        env_files = []
+    if env_files:
+        env_dir = tasklist_path / "environment"
+        for filename in env_files:
+            dest = env_dir / filename.removeprefix("environment/")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists():
+                continue
+            try:
+                temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
+                shutil.copy2(temp, dest)
+            except Exception as e:
+                print(f"  Warning: failed to download {filename}: {e}")
 
     # Write tasks.json last — acts as completion marker for skip_existing
     with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
