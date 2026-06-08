@@ -8,36 +8,46 @@ from typing import Any
 from palace.agents.base_agent import Agent
 from palace.analyzers.base import Analyzer
 from palace.evaluation.renderers import Renderer
-from palace.evaluation.types import AgentResult, PreparedTask, TaskResult
+from palace.evaluation.types import AgentResult, Attachment, PreparedTask, TaskResult
 from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
 from palace.utils.exceptions import ConvergenceError
 from palace.utils.io_adapters import IOAdapter
-from palace.utils.multimodal import is_image_attachment
+from palace.utils.multimodal import mime_from_extension
 from palace.utils.printing import loading, print
 
 _logger = logging.getLogger("palace.pipeline")
 
+TEXT_EXTENSIONS = {
+    ".txt", ".md", ".json", ".csv", ".xml", ".html", ".yaml", ".yml",
+    ".log", ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".c", ".cpp",
+    ".h", ".go", ".rs", ".sh", ".bash", ".sql", ".r", ".toml", ".ini", ".cfg",
+}
+
 
 def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path) -> PreparedTask:
     """Resolve attachments, apply adapter, build final prompt."""
-    images: list[str] = []
+    attachments: list[Attachment] = []
     attachment_content = ""
 
     for att in task.attachments:
         if not att:
             continue
         attachment_file = tasklist_path / "task_files" / att
-        if is_image_attachment(att):
-            images.append(str(attachment_file))
-        else:
+        ext = Path(att).suffix.lower()
+        if ext in TEXT_EXTENSIONS:
             try:
                 with open(attachment_file, encoding="utf-8") as f:
                     attachment_content = f.read()
-            except UnicodeDecodeError:
-                return PreparedTask(prompt="", images=[], attachment_content="__UNSUPPORTED__")
+            except (UnicodeDecodeError, OSError):
+                return PreparedTask(prompt="", attachments=[], attachment_content="__UNSUPPORTED__")
             max_len = 200000
             if len(attachment_content) > max_len:
                 attachment_content = attachment_content[:max_len]
+        else:
+            if not attachment_file.exists():
+                return PreparedTask(prompt="", attachments=[], attachment_content="__UNSUPPORTED__")
+            mime = mime_from_extension(ext)
+            attachments.append(Attachment(path=str(attachment_file), mime_type=mime, filename=att))
 
     if adapter is not None:
         prompt = adapter.adapt_input(task, attachment_content)
@@ -46,14 +56,14 @@ def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path)
         if attachment_content:
             prompt = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n{prompt}"
 
-    return PreparedTask(prompt=prompt, images=images, attachment_content=attachment_content)
+    return PreparedTask(prompt=prompt, attachments=attachments, attachment_content=attachment_content)
 
 
 async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> AgentResult:
     """Call agent.run() with error handling."""
     start = time.time()
     try:
-        result = await agent.run(prompt=prepared.prompt, images=prepared.images, task_id=task_id)
+        result = await agent.run(prompt=prepared.prompt, attachments=prepared.attachments or None, task_id=task_id)
         result.elapsed = time.time() - start
         return result
     except ConvergenceError:

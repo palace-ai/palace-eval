@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from palace.evaluation.types import AgentResult
+    from palace.evaluation.types import AgentResult, Attachment
     from palace.task_types.base import ExecutionEnvironment, Task
 
 
@@ -18,12 +18,12 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    async def run(self, prompt: str, images: list[str] | None = None, *, task_id: str | None = None) -> "AgentResult":
+    async def run(self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None) -> "AgentResult":
         """Run the agent on the given prompt and return a result.
 
         Args:
             prompt: The text prompt for the agent
-            images: Optional list of image file paths for multimodal tasks
+            attachments: Optional list of Attachment objects for multimodal tasks
             task_id: Optional task identifier for agents that need to correlate
                 with per-task state (e.g. VivariumAgent environments)
 

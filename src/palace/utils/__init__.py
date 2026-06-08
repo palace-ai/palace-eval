@@ -5,12 +5,14 @@ from palace.utils.multimodal import (
     build_multimodal_content,
     detect_modalities,
     is_image_attachment,
+    mime_from_extension,
 )
 
 __all__ = [
     "is_image_attachment",
     "build_multimodal_content",
     "detect_modalities",
+    "mime_from_extension",
     "IOAdapter",
     "load_io_adapters",
     "get_io_adapter",

@@ -28,7 +28,7 @@ The `tasks.json` file contains an array of tasks to evaluate. Each task has an o
 | `objective` | string | Yes | The prompt sent to the model |
 | `expected` | string | Depends | Reference answer (required for QA, Criteria Evaluation) |
 | `difficulty` | string | No | Difficulty level for analysis |
-| `attachments` | array | No | List of file paths relative to `task_files/` (images or text) |
+| `attachments` | array | No | List of file paths relative to `task_files/` (images, audio, text, etc.) |
 | `document` | string | No | Document text associated with the task |
 | `references` | string | No | Reference material for the task |
 | `custom_verificator` | string | No | Inline Python function for custom verification (overrides task-type verification) |
@@ -191,9 +191,9 @@ Optional difficulty indicator for analysis:
 
 ### attachments
 
-List of file paths relative to `task_files/` directory. Supports multiple images per task. PALACE handles three attachment types:
+List of file paths relative to `task_files/` directory. Supports multiple attachments per task. PALACE classifies attachments by file extension:
 
-**Text attachments** (`.txt`, `.md`, `.json`, etc.):
+**Text attachments** (`.txt`, `.md`, `.json`, `.csv`, `.xml`, `.html`, `.yaml`, `.yml`, `.py`, `.js`, etc.):
 ```json
 {"attachments": ["document.txt"]}
 ```
@@ -212,8 +212,14 @@ Start of text attachment >>>
 ```
 Images are sent to the model using the OpenAI Vision API format (base64-encoded). Multiple images are supported. Large images are automatically resized to max 1024px dimension.
 
-**Unsupported attachments** (video, audio, etc.):
-Tasks with unsupported attachment types are skipped with a warning during evaluation.
+**Audio attachments** (`.mp3`, `.wav`, `.ogg`, `.flac`):
+```json
+{"attachments": ["recording.wav"]}
+```
+Audio is sent using the OpenAI `input_audio` content part format (base64-encoded). The model must support audio input; if not, the task is skipped gracefully.
+
+**Unsupported attachments** (video, PDF, etc.):
+Tasks with attachment types that the model's API does not support are skipped with `skip_reason="unsupported_attachment"`. Video files (`.mp4`, `.webm`, etc.) are detected for modality reporting but not yet supported by major LLM APIs in chat completions.
 
 **Directory structure:**
 ```

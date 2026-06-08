@@ -7,17 +7,21 @@ from palace.task_types.base import TaskVerificationResult
 
 
 @dataclass
+class Attachment:
+    """A binary attachment to pass as perceptual input to the model."""
+
+    path: str        # absolute filesystem path to the file
+    mime_type: str   # e.g. "image/png", "audio/wav", "video/mp4"
+    filename: str    # original filename (for display/reference)
+
+
+@dataclass
 class PreparedTask:
     """Result of prompt preparation stage."""
 
     prompt: str
-    images: list[str] = field(default_factory=list)
+    attachments: list[Attachment] = field(default_factory=list)
     attachment_content: str = ""
-
-    @property
-    def image(self) -> str | None:
-        """Backward compat: first image or None."""
-        return self.images[0] if self.images else None
 
 
 @dataclass

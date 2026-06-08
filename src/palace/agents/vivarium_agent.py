@@ -1,6 +1,7 @@
 """Vivarium agent — delegates execution to vivarium service."""
 
 import asyncio
+import base64
 import importlib.util
 import inspect
 import io
@@ -8,12 +9,15 @@ import logging
 import os
 import tarfile
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
 from palace.task_types.base import ExecutionEnvironment, Task
 from palace.utils.printing import print
+
+if TYPE_CHECKING:
+    from palace.evaluation.types import Attachment
 
 _logger = logging.getLogger("palace.vivarium_agent")
 
@@ -130,11 +134,24 @@ class VivariumAgent(Agent):
         return container  # satisfies ExecutionEnvironment protocol
 
     async def run(
-        self, prompt: str, images: list[str] | None = None, *, task_id: str | None = None
+        self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None
     ) -> AgentResult:
         """Submit agent run and poll until completion."""
         assert task_id is not None, "VivariumAgent.run() requires task_id"
         env = self._envs[task_id]
+
+        # Encode attachments as base64 for vivarium API
+        encoded_attachments = None
+        if attachments:
+            encoded_attachments = []
+            for att in attachments:
+                raw = Path(att.path).read_bytes()
+                encoded_attachments.append({
+                    "filename": att.filename,
+                    "mime_type": att.mime_type,
+                    "data": base64.b64encode(raw).decode("utf-8"),
+                })
+
         run = await self._client.run(
             env,
             objective=prompt,
@@ -143,6 +160,7 @@ class VivariumAgent(Agent):
             model_name=self._name,
             timeout_seconds=self._timeout,
             max_steps=self._max_steps,
+            attachments=encoded_attachments,
         )
 
         # Poll with live trace printing

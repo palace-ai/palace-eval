@@ -170,6 +170,32 @@ def download_tasklist(
                         filename = hashlib.sha256(img_bytes).hexdigest()[:24] + f".{ext}"
                         with open(tasklist_path / "task_files" / filename, "wb") as f:
                             f.write(img_bytes)
+                    elif isinstance(raw, dict) and "array" in raw and "sampling_rate" in raw:
+                        # HuggingFace Audio feature: {"path": ..., "array": ndarray, "sampling_rate": int}
+                        import numpy as np
+                        import wave as _wave
+                        import io as _io
+                        arr = np.asarray(raw["array"])
+                        # Normalize float to int16
+                        if arr.dtype.kind == "f":
+                            arr = (arr * 32767).clip(-32768, 32767).astype(np.int16)
+                        buf = _io.BytesIO()
+                        with _wave.open(buf, "wb") as wf:
+                            wf.setnchannels(1 if arr.ndim == 1 else arr.shape[1])
+                            wf.setsampwidth(2)
+                            wf.setframerate(raw["sampling_rate"])
+                            wf.writeframes(arr.tobytes())
+                        audio_bytes = buf.getvalue()
+                        filename = hashlib.sha256(audio_bytes).hexdigest()[:24] + ".wav"
+                        with open(tasklist_path / "task_files" / filename, "wb") as f:
+                            f.write(audio_bytes)
+                    elif isinstance(raw, dict) and "path" in raw and "bytes" in raw and raw["bytes"]:
+                        # HuggingFace Audio/Image with bytes: {"path": "file.wav", "bytes": b"..."}
+                        audio_bytes = raw["bytes"]
+                        ext = Path(raw["path"]).suffix.lower() if raw.get("path") else ".bin"
+                        filename = hashlib.sha256(audio_bytes).hexdigest()[:24] + ext
+                        with open(tasklist_path / "task_files" / filename, "wb") as f:
+                            f.write(audio_bytes)
                     elif isinstance(raw, (bytes, bytearray)):
                         filename = _get_filename(raw)
                         if filename:

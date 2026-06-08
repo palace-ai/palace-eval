@@ -1,4 +1,4 @@
-"""Multimodal content utilities for image attachments."""
+"""Multimodal content utilities for attachments."""
 
 import base64
 import io
@@ -14,6 +14,23 @@ MODALITY_EXTENSIONS: dict[str, set[str]] = {
     "video": {".mp4", ".webm", ".avi", ".mov"},
     "audio": {".mp3", ".wav", ".ogg", ".flac"},
 }
+
+MIME_MAP: dict[str, str] = {
+    # Image
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".gif": "image/gif", ".webp": "image/webp",
+    # Audio
+    ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".flac": "audio/flac",
+    # Video
+    ".mp4": "video/mp4", ".webm": "video/webm", ".avi": "video/x-msvideo", ".mov": "video/quicktime",
+    # Document
+    ".pdf": "application/pdf",
+}
+
+
+def mime_from_extension(ext: str) -> str:
+    """Return MIME type for a file extension. Falls back to application/octet-stream."""
+    return MIME_MAP.get(ext.lower(), "application/octet-stream")
 
 
 def detect_modalities(tasks: list[dict]) -> list[str]:
@@ -35,33 +52,62 @@ MAX_IMAGE_DIMENSION = 1024
 
 
 def is_image_attachment(path: str) -> bool:
-    """Check if attachment is an image by extension."""
+    """Check if attachment is an image by extension.
+
+    Deprecated: Pipeline now uses mime_from_extension() for MIME-based classification.
+    Kept for backward compatibility with external consumers.
+    """
     return Path(path).suffix.lower() in IMAGE_EXTENSIONS
 
 
 def build_multimodal_content(
-    prompt: str, images: list[str] | None = None
+    prompt: str, attachments: "list[Any] | None" = None
 ) -> str | list[dict[str, Any]]:
-    """Build message content for OpenAI API, with optional images.
+    """Build message content for OpenAI API, with optional typed attachments.
 
     Args:
         prompt: The text prompt
-        images: List of image file paths, or None for text-only
+        attachments: List of Attachment objects (with path, mime_type, filename)
 
     Returns:
-        String if no images, list of content parts if images provided
+        String if no attachments, list of content parts if attachments provided
     """
-    if not images:
+    if not attachments:
         return prompt
 
     content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
-    for img_path in images:
-        image_data, mime_type = _load_and_resize_image(img_path)
-        content.append({
+    for att in attachments:
+        part = _build_content_part(att)
+        if part:
+            content.append(part)
+    # If no parts were buildable, return plain text
+    if len(content) == 1:
+        return prompt
+    return content
+
+
+def _build_content_part(att: Any) -> dict[str, Any] | None:
+    """Map an Attachment to an OpenAI content part by MIME prefix."""
+    if att.mime_type.startswith("image/"):
+        image_data, mime_type = _load_and_resize_image(att.path)
+        return {
             "type": "image_url",
             "image_url": {"url": f"data:{mime_type};base64,{image_data}"},
-        })
-    return content
+        }
+    elif att.mime_type.startswith("audio/"):
+        return _build_audio_part(att)
+    # video, pdf, etc: unsupported by OpenAI chat completions
+    return None
+
+
+def _build_audio_part(att: Any) -> dict[str, Any]:
+    """Build an input_audio content part from an audio Attachment."""
+    raw = Path(att.path).read_bytes()
+    data = base64.b64encode(raw).decode("utf-8")
+    # OpenAI expects format as short name: wav, mp3, etc.
+    ext = Path(att.path).suffix.lstrip(".").lower()
+    fmt = ext if ext in ("wav", "mp3", "flac", "ogg") else "wav"
+    return {"type": "input_audio", "input_audio": {"data": data, "format": fmt}}
 
 
 def _load_and_resize_image(image_path: str) -> tuple[str, str]:
