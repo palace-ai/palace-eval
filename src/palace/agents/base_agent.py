@@ -11,6 +11,7 @@ class Agent(ABC):
     """Base class that defines the agent interface."""
 
     verbose: bool = True
+    agentic: bool = False
 
     @property
     @abstractmethod

@@ -198,6 +198,7 @@ class Evaluation:
                     "tasklist": tasklist,
                     "accuracy": accuracy,
                     "metrics": metrics,
+                    "agentic": agent.agentic,
                 }
                 if self.report_detail != "none":
                     run_results["detailed_report"] = report

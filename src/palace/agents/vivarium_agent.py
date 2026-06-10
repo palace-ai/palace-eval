@@ -34,6 +34,8 @@ class VivariumAgent(Agent):
         max_steps: Max agent loop iterations per task.
     """
 
+    agentic: bool = True
+
     def __init__(
         self,
         name: str,
