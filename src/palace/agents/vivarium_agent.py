@@ -76,9 +76,7 @@ class VivariumAgent(Agent):
     def name(self) -> str:
         return self._name
 
-    DEFAULT_SPEC = {
-        "tools": ["web_search", "bash", "read", "write", "web_fetch"],
-    }
+    DEFAULT_SPEC = {}
 
     async def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
         """Register environment spec with vivarium and load seed script."""
