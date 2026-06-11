@@ -112,7 +112,7 @@ class VivariumAgent(Agent):
             ) from e
 
     async def on_task_start(self, task: Task) -> ExecutionEnvironment | None:
-        """Create a sandboxed environment and run seed if present. Returns Container."""
+        """Create a sandboxed environment and run seed if present. Returns Environment."""
         task_files = self._package_task_files(task)
 
         env = await self._client.create_environment(
@@ -121,17 +121,16 @@ class VivariumAgent(Agent):
             task_files=task_files,
         )
         self._envs[task.id] = env
-        container = self._client.container(env.id)
 
         if self._seed_fn:
             _logger.info(f"Seeding environment for {task.id}")
             seed_args = task.custom_fields.get("seed_args")
-            result = self._seed_fn(seed_args, container)
+            result = self._seed_fn(seed_args, env)
             if inspect.isawaitable(result):
                 await result
             _logger.info(f"Seed complete for {task.id}")
 
-        return container  # satisfies ExecutionEnvironment protocol
+        return env  # satisfies ExecutionEnvironment protocol (exec/read/write)
 
     async def run(
         self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None
