@@ -127,10 +127,12 @@ def main():
         "category": "Agentic",
         "input_modalities": ["text"],
         "output_modalities": ["text"],
-        "environment": {
-            "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-            "image": "vivarium-env-swebench",
-            "resources": {"memory": "8g", "cpus": 2.0, "network": True},
+        "env": {
+            "default": {
+                "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
+                "image": "vivarium-env-swebench",
+                "resources": {"memory": "8g", "cpus": 2.0, "network": True},
+            }
         },
     }
     (OUTPUT_DIR / "info.json").write_text(json.dumps(info, indent=2))

@@ -51,7 +51,7 @@ class VivariumAgent(Agent):
         self._timeout = timeout_seconds
         self._max_steps = max_steps
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
-        self._spec_id: str | None = None
+        self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
         self._envs: dict[str, Any] = {}  # task_id → Environment
         self._client: Any = None
         self._auto_started = False
@@ -76,10 +76,8 @@ class VivariumAgent(Agent):
     def name(self) -> str:
         return self._name
 
-    DEFAULT_SPEC = {}
-
     async def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
-        """Register environment spec with vivarium and load seed script."""
+        """Register environment spec(s) with vivarium and load seed script."""
         started = " (auto-started)" if self._auto_started else ""
         print(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url}{started}[/]")
 
@@ -90,21 +88,31 @@ class VivariumAgent(Agent):
             seed_path = env_dir / "seed.py"
             if seed_path.exists():
                 self._seed_fn = _load_fn(seed_path, "seed")
-
-            spec_json = info.get("environment", {})
             archive_bytes = _tar_gz(env_dir)
         else:
-            spec_json = self.DEFAULT_SPEC
             archive_bytes = None
 
+        # Resolve environment configurations
+        if "env" not in info:
+            raise ValueError("info.json must contain an 'env' key with named environment configurations")
+        env_configs = info["env"]
+
+        # Register one vivarium spec per named environment
         try:
-            image = spec_json.get("image")
-            if image:
-                _logger.info(f"Registering spec (image: {image})")
-            self._spec_id = await self._client.register_spec(spec_json, archive_bytes)
-            if image:
-                _logger.info("Spec registered (image ready)")
+            for name, spec_json in env_configs.items():
+                image = spec_json.get("image")
+                if image:
+                    _logger.info(f"Registering spec '{name}' (image: {image})")
+                spec_id = await self._client.register_spec(spec_json, archive_bytes)
+                self._spec_ids[name] = spec_id
+                if image:
+                    _logger.info(f"Spec '{name}' registered (image ready)")
+            _logger.info(f"Registered {len(self._spec_ids)} environment(s)")
         except Exception as e:
+            # Clean up any specs already registered before this failure
+            for spec_id in self._spec_ids.values():
+                await self._client.delete_spec(spec_id)
+            self._spec_ids = {}
             raise RuntimeError(
                 f"Cannot connect to Vivarium server at {self._client._url}. "
                 f"Check that the server is running; if you set VIVARIUM_URL, make sure it is correct.\n"
@@ -113,10 +121,27 @@ class VivariumAgent(Agent):
 
     async def on_task_start(self, task: Task) -> ExecutionEnvironment | None:
         """Create a sandboxed environment and run seed if present. Returns Environment."""
+        # Resolve which spec to use for this task
+        env_name = task.custom_fields.get("env")
+        if env_name is None:
+            if len(self._spec_ids) == 1:
+                env_name = next(iter(self._spec_ids))
+            else:
+                raise ValueError(
+                    f"Task '{task.id}' has no 'env' field but tasklist defines "
+                    f"{len(self._spec_ids)} environments: {list(self._spec_ids.keys())}"
+                )
+        if env_name not in self._spec_ids:
+            raise ValueError(
+                f"Task '{task.id}' references env '{env_name}' but available environments are: "
+                f"{list(self._spec_ids.keys())}"
+            )
+
+        spec_id = self._spec_ids[env_name]
         task_files = self._package_task_files(task)
 
         env = await self._client.create_environment(
-            spec_id=self._spec_id,
+            spec_id=spec_id,
             task_id=task.id,
             task_files=task_files,
         )
@@ -205,10 +230,10 @@ class VivariumAgent(Agent):
             await env.destroy()
 
     async def on_tasklist_end(self) -> None:
-        """Cleanup spec and stop vivarium if auto-started."""
-        if self._spec_id:
-            await self._client.delete_spec(self._spec_id)
-            self._spec_id = None
+        """Cleanup specs and stop vivarium if auto-started."""
+        for spec_id in self._spec_ids.values():
+            await self._client.delete_spec(spec_id)
+        self._spec_ids = {}
         if self._auto_started:
             from vivarium import stop
             stop()
