@@ -10,7 +10,6 @@ gb_datasets_to_palace_mapping = {
     "prompts_es": "GuardBench-ES",
     "prompts_fr": "GuardBench-FR",
     "prompts_it": "GuardBench-IT",
-    # "unsafe_qa": "GuardBench-QA",
 }
 
 # Create a merged dataframe with id as index and text_{language code} as columns

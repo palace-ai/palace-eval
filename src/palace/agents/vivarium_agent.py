@@ -52,6 +52,8 @@ class VivariumAgent(Agent):
         self._max_steps = max_steps
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
         self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
+        self._env_configs: dict[str, dict] = {}  # env_name → spec config (lazy)
+        self._archive_bytes: bytes | None = None
         self._envs: dict[str, Any] = {}  # task_id → Environment
         self._client: Any = None
         self._auto_started = False
@@ -77,7 +79,7 @@ class VivariumAgent(Agent):
         return self._name
 
     async def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
-        """Register environment spec(s) with vivarium and load seed script."""
+        """Store environment configs and load seed script. Specs registered lazily on first use."""
         started = " (auto-started)" if self._auto_started else ""
         print(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url}{started}[/]")
 
@@ -88,54 +90,48 @@ class VivariumAgent(Agent):
             seed_path = env_dir / "seed.py"
             if seed_path.exists():
                 self._seed_fn = _load_fn(seed_path, "seed")
-            archive_bytes = _tar_gz(env_dir)
+            self._archive_bytes = _tar_gz(env_dir)
         else:
-            archive_bytes = None
+            self._archive_bytes = None
 
-        # Resolve environment configurations
+        # Store environment configurations for lazy registration
         if "env" not in info:
             raise ValueError("info.json must contain an 'env' key with named environment configurations")
-        env_configs = info["env"]
-
-        # Register one vivarium spec per named environment
-        try:
-            for name, spec_json in env_configs.items():
-                image = spec_json.get("image")
-                if image:
-                    _logger.info(f"Registering spec '{name}' (image: {image})")
-                spec_id = await self._client.register_spec(spec_json, archive_bytes)
-                self._spec_ids[name] = spec_id
-                if image:
-                    _logger.info(f"Spec '{name}' registered (image ready)")
-            _logger.info(f"Registered {len(self._spec_ids)} environment(s)")
-        except Exception as e:
-            # Clean up any specs already registered before this failure
-            for spec_id in self._spec_ids.values():
-                await self._client.delete_spec(spec_id)
-            self._spec_ids = {}
-            raise RuntimeError(
-                f"Cannot connect to Vivarium server at {self._client._url}. "
-                f"Check that the server is running; if you set VIVARIUM_URL, make sure it is correct.\n"
-                f"  Original error: {e}"
-            ) from e
+        self._env_configs = info["env"]
+        _logger.info(f"Loaded {len(self._env_configs)} environment config(s) (lazy registration)")
 
     async def on_task_start(self, task: Task) -> ExecutionEnvironment | None:
         """Create a sandboxed environment and run seed if present. Returns Environment."""
         # Resolve which spec to use for this task
         env_name = task.custom_fields.get("env")
         if env_name is None:
-            if len(self._spec_ids) == 1:
-                env_name = next(iter(self._spec_ids))
+            if len(self._env_configs) == 1:
+                env_name = next(iter(self._env_configs))
             else:
                 raise ValueError(
                     f"Task '{task.id}' has no 'env' field but tasklist defines "
-                    f"{len(self._spec_ids)} environments: {list(self._spec_ids.keys())}"
+                    f"{len(self._env_configs)} environments: {list(self._env_configs.keys())}"
                 )
-        if env_name not in self._spec_ids:
+        if env_name not in self._env_configs:
             raise ValueError(
                 f"Task '{task.id}' references env '{env_name}' but available environments are: "
-                f"{list(self._spec_ids.keys())}"
+                f"{list(self._env_configs.keys())}"
             )
+
+        # Lazy spec registration: register on first use
+        if env_name not in self._spec_ids:
+            spec_json = self._env_configs[env_name]
+            image = spec_json.get("image")
+            _logger.info(f"Registering spec '{env_name}' (first use, image: {image})")
+            try:
+                spec_id = await self._client.register_spec(spec_json, self._archive_bytes)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Cannot register spec '{env_name}' with Vivarium at {self._client._url}. "
+                    f"Check that the server is running.\n  Original error: {e}"
+                ) from e
+            self._spec_ids[env_name] = spec_id
+            _logger.info(f"Spec '{env_name}' registered (image ready)")
 
         spec_id = self._spec_ids[env_name]
         task_files = self._package_task_files(task)
@@ -246,7 +242,7 @@ class VivariumAgent(Agent):
         task_files_dir = self._tasklist_path / "task_files"
         if not task_files_dir.is_dir():
             return None
-        target = task_files_dir / task.attachment if task.attachment else task_files_dir
+        target = task_files_dir / task.id
         if not target.is_dir() or not any(target.iterdir()):
             return None
         return _tar_gz(target)

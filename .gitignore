@@ -8,10 +8,13 @@
 .vscode
 build/
 site/
+.cache/
+.ruff_cache/
 **/___*
 uv.lock
 tests/
 pytest.ini
+data_utils/
 
 # all prohibited by gitlab pattern
 *.3gp

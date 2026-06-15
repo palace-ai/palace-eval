@@ -124,7 +124,7 @@ def main():
     info = {
         "name": "SWE-bench Verified",
         "task_type": "Agentic",
-        "category": "Agentic",
+        "category": "Code Generation",
         "input_modalities": ["text"],
         "output_modalities": ["text"],
         "env": {
