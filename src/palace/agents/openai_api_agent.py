@@ -1,9 +1,9 @@
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from palace.agents import Agent
 from palace.evaluation.types import AgentResult
-from palace.models.api_model import APIModel
+from palace.models.api_model import create_api_model
 from palace.utils.multimodal import build_multimodal_content
 from palace.utils.printing import print
 
@@ -42,7 +42,7 @@ class OpenAIAPIAgent(Agent):
         self.url = url
         self.token = token
         self.api_type = api_type
-        self._model = APIModel(model_id=name, url=url, token=token, api_type=api_type)
+        self._model = create_api_model(model_id=name, url=url, token=token, api_type=api_type)
 
     @property
     def name(self) -> str:
@@ -57,11 +57,6 @@ class OpenAIAPIAgent(Agent):
             _logger.warning(f"Agent error: {e}")
             if self.verbose:
                 print(f"[bold red]OpenAIAPI agent error: {e}[/]")
-            # If attachments were sent and error is content-related, mark as unsupported
-            err_str = str(e).lower()
-            if attachments and ("content block" in err_str or "image_url" in err_str or "input_audio" in err_str
-                               or "unsupported" in err_str or "invalid_request_error" in err_str):
-                return AgentResult(is_skipped=True, skip_reason="unsupported_attachment")
             return AgentResult(is_skipped=True, skip_reason="agent_error")
 
         return AgentResult(answer=output, metrics={})

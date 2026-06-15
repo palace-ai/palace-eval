@@ -50,7 +50,7 @@ Deep nesting (arbitrary depth):
 import re
 from typing import Any
 
-from palace.models.api_model import APIModel
+from palace.models.api_model import APIModel, create_api_model
 from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
 from palace.utils.secrets import OPENAI_LIKE_API_KEY
@@ -96,7 +96,7 @@ class Judge:
         assert OPENAI_LIKE_API_BASE_URL is not None, (
             "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
         )
-        self.judge_model = APIModel(
+        self.judge_model = create_api_model(
             judge_model,
             OPENAI_LIKE_API_BASE_URL,
             OPENAI_LIKE_API_KEY,

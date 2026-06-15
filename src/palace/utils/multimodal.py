@@ -87,27 +87,23 @@ def build_multimodal_content(
 
 
 def _build_content_part(att: Any) -> dict[str, Any] | None:
-    """Map an Attachment to an OpenAI content part by MIME prefix."""
+    """Map an Attachment to a provider-agnostic content part by MIME prefix."""
     if att.mime_type.startswith("image/"):
         image_data, mime_type = _load_and_resize_image(att.path)
-        return {
-            "type": "image_url",
-            "image_url": {"url": f"data:{mime_type};base64,{image_data}"},
-        }
+        return {"type": "image", "media_type": mime_type, "data": image_data}
     elif att.mime_type.startswith("audio/"):
         return _build_audio_part(att)
-    # video, pdf, etc: unsupported by OpenAI chat completions
+    # video, pdf, etc: unsupported
     return None
 
 
 def _build_audio_part(att: Any) -> dict[str, Any]:
-    """Build an input_audio content part from an audio Attachment."""
+    """Build a provider-agnostic audio content part from an Attachment."""
     raw = Path(att.path).read_bytes()
     data = base64.b64encode(raw).decode("utf-8")
-    # OpenAI expects format as short name: wav, mp3, etc.
     ext = Path(att.path).suffix.lstrip(".").lower()
     fmt = ext if ext in ("wav", "mp3", "flac", "ogg") else "wav"
-    return {"type": "input_audio", "input_audio": {"data": data, "format": fmt}}
+    return {"type": "audio", "format": fmt, "data": data}
 
 
 def _load_and_resize_image(image_path: str) -> tuple[str, str]:

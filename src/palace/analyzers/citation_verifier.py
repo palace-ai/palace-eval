@@ -86,7 +86,7 @@ import time
 from typing import Any, Callable, Optional
 
 from palace.analyzers.base import Analyzer
-from palace.models.api_model import APIModel
+from palace.models.api_model import APIModel, create_api_model
 from palace.prompts.fact_prompts import (
     DEDUPLICATE_PROMPT,
     EXTRACT_PROMPT,
@@ -107,7 +107,7 @@ def _get_model() -> APIModel:
         raise ValueError("Missing required env var: OPENAI_LIKE_API_BASE_URL")
     if OPENAI_LIKE_API_KEY is None:
         raise ValueError("Missing required env var: OPENAI_LIKE_API_KEY")
-    return APIModel(
+    return create_api_model(
         JUDGE_MODEL,
         OPENAI_LIKE_API_BASE_URL,
         OPENAI_LIKE_API_KEY,
