@@ -5,7 +5,6 @@ import importlib.util
 import itertools
 import json
 import os
-import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -16,8 +15,7 @@ from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
 from palace.evaluation.dispatch import dispatch_tasks
 from palace.evaluation.renderers import select_renderer
-from palace.evaluation.types import TaskResult
-from palace.task_types import Task, TaskVerificationResult
+from palace.task_types import Task
 from palace.utils.constants import JUDGE_MODEL
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.paths import BUNDLED_IO_ADAPTERS_FILE, LOGS_PATH, RESULTS_PATH, TASKLISTS_PATH
@@ -93,15 +91,19 @@ def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
 
 
 class Evaluation:
-    """Runs benchmark evaluations across agents and tasklists.
+    """Runs benchmark evaluations on models.
 
-    Orchestrates the evaluation loop: loads tasks, dispatches them to agents,
-    verifies answers, runs analyzers, computes metrics, and writes JSONL results.
+    Handles agent construction, task dispatch, verification, metrics computation,
+    and result persistence.
 
     Args:
         name: Run name used for the output JSONL filename.
+        url: API endpoint URL.
+        token: API authentication token.
+        endpoint_type: "openai" or "mcp".
+        vivarium_url: Vivarium server URL for agentic execution.
         task_amount_limit: Maximum number of tasks to evaluate per tasklist.
-        runs_per_configuration: Number of evaluation runs per agent/tasklist pair.
+        runs_per_configuration: Number of evaluation runs per model/tasklist pair.
         output_path: Directory for JSONL result files.
         on_task_complete: Optional callback invoked after each task with (current, total).
         enable_citation_verifier: Enable the citation verifier analyzer.
@@ -113,6 +115,11 @@ class Evaluation:
     def __init__(
         self,
         name: str = "eval",
+        url: str = "",
+        token: str | None = None,
+        endpoint_type: str = "openai",
+        agentic: bool | None = None,
+        vivarium_url: str | None = None,
         task_amount_limit: int | None = None,
         runs_per_configuration: int = 1,
         output_path: Path | None = None,
@@ -129,6 +136,11 @@ class Evaluation:
         if concurrency < 1:
             raise ValueError("concurrency must be >= 1")
         self.name = name
+        self.url = url
+        self.token = token
+        self.endpoint_type = endpoint_type
+        self.agentic = agentic
+        self.vivarium_url = vivarium_url
         self.task_amount_limit = task_amount_limit
         self.runs_per_configuration = runs_per_configuration
         self.output_path = output_path or RESULTS_PATH
@@ -144,61 +156,63 @@ class Evaluation:
         if enable_citation_verifier:
             self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
 
-    def evaluate_all(self, agents: list[Agent], tasklists: list[str]):
-        """Run evaluations for all agent/tasklist combinations."""
+    def _create_agent(self, model: str, tasklist_type: str) -> Agent:
+        """Construct the appropriate agent for a model.
+
+        agentic="auto": use VivariumAgent only for Agentic tasklists
+        agentic=True: always use VivariumAgent
+        agentic=False: never use VivariumAgent
+        """
+        use_vivarium = (
+            self.agentic is True
+            or (self.agentic is None and tasklist_type == "Agentic")
+        )
+        if use_vivarium:
+            from palace.agents.vivarium_agent import VivariumAgent
+            return VivariumAgent(name=model, url=self.url, token=self.token, vivarium_url=self.vivarium_url)
+        if self.endpoint_type == "mcp":
+            from palace.agents.mcp_agent import MCPAgent
+            return MCPAgent(url=self.url, token=self.token, name=model)
+        from palace.agents.openai_api_agent import OpenAIAPIAgent
+        return OpenAIAPIAgent(url=self.url, token=self.token, name=model)
+
+    def evaluate_all(self, models: list[str], tasklists: list[str]):
+        """Run evaluations for all model/tasklist combinations. Prints and writes JSONL."""
+        return asyncio.run(self.evaluate_all_async(models, tasklists))
+
+    async def evaluate_all_async(self, models: list[str], tasklists: list[str]):
+        """Async version of evaluate_all."""
         results = []
 
-        grid = list(itertools.product(agents, tasklists))
-        for agent, tasklist in grid:
+        grid = list(itertools.product(models, tasklists))
+        for model, tasklist in grid:
             for run in range(self.runs_per_configuration):
                 print(f"""
 [bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
-:robot: agent [blue] {agent.name}[/]
+:robot: agent [blue] {model}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
 :scales: judge [blue]{JUDGE_MODEL}[/]
 """)
 
-                report, verification_results, task_cls = self.evaluate(agent, tasklist)
-
-                evaluated = [r for r in verification_results if not r.is_skipped]
-                skipped = [r for r in verification_results if r.is_skipped]
-                correct_tasks = sum(r.is_correct for r in evaluated)
-                total_time = sum(t["elapsed_time"] for t in report.values())
-
-                task_type_metrics = task_cls.aggregate(verification_results)
-                accuracy = task_type_metrics.pop("accuracy", 0)
-
-                evaluated_report = {k: v for k, v in report.items() if not v.get("is_skipped")}
-                agent_metrics = compute_agent_metrics(evaluated_report)
+                accuracy, metrics, report = await self.evaluate_async(model, tasklist)
 
                 print()
                 print(
-                    f"[blue]:robot: {agent.name}[/]:\n"
+                    f"[blue]:robot: {model}[/]:\n"
                     + f"on :scroll: [blue]{tasklist}[/]\n\n"
-                    + f"[blue]{correct_tasks}[/] / [blue]{len(evaluated)}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
-                    + (f" [yellow]({len(skipped)} skipped)[/]" if skipped else "")
-                    + f"\nTotal time: [blue]{total_time}[/]",
+                    + f"[blue]{metrics['correct_count']}[/] / [blue]{metrics['evaluated_count']}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
+                    + (f" [yellow]({metrics['skipped_count']} skipped)[/]" if metrics['skipped_count'] else "")
+                    + f"\nTotal time: [blue]{metrics['total_time']}[/]",
                     box=True,
                     box_title="Evaluation Report",
                 )
 
-                metrics: dict[str, int | float | dict] = {
-                    "task_count": len(report),
-                    "evaluated_count": len(evaluated),
-                    "correct_count": correct_tasks,
-                    "skipped_count": len(skipped),
-                    "total_time": total_time,
-                    "accuracy": accuracy,
-                    "task_type": task_type_metrics,
-                    "agent": agent_metrics,
-                }
-
                 run_results = {
-                    "model": agent.name,
+                    "model": model,
                     "tasklist": tasklist,
                     "accuracy": accuracy,
                     "metrics": metrics,
-                    "agentic": agent.agentic,
+                    "agentic": metrics.get("agent") is not None,
                 }
                 if self.report_detail != "none":
                     run_results["detailed_report"] = report
@@ -210,12 +224,12 @@ class Evaluation:
 
         return pd.DataFrame(results)
 
-    def evaluate(
-        self,
-        agent: Agent,
-        tasklist: str,
-    ) -> tuple[dict[str, dict], list[TaskVerificationResult], type[Task]]:
-        """Evaluate a single agent on a single tasklist."""
+    def evaluate(self, model: str, tasklist: str) -> tuple[float, dict, dict[str, dict]]:
+        """Evaluate a model on a tasklist. Returns (accuracy, metrics, report)."""
+        return asyncio.run(self.evaluate_async(model, tasklist))
+
+    async def evaluate_async(self, model: str, tasklist: str) -> tuple[float, dict, dict[str, dict]]:
+        """Async: run model on tasklist, verify, compute metrics. Returns (accuracy, metrics, report)."""
         tasklist_path = TASKLISTS_PATH / tasklist
 
         if not tasklist_path.exists():
@@ -245,23 +259,8 @@ class Evaluation:
         }
         task_cls = task_type_map.get(tasklist_info["task_type"], Task)
 
-        # Route through vivarium for agentic tasklists
-        if tasklist_info["task_type"] == "Agentic":
-            try:
-                from palace.agents.vivarium_agent import VivariumAgent
-            except ImportError:
-                raise RuntimeError(
-                    "Agentic evaluation requires vivarium. "
-                    "Install with:\n"
-                    "  git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git\n"
-                    "  uv pip install -e vivarium/"
-                )
-            if not isinstance(agent, VivariumAgent):
-                agent = VivariumAgent(
-                    name=agent.name,
-                    url=getattr(agent, "url", ""),
-                    token=getattr(agent, "token", None),
-                )
+        # Create agent
+        agent = self._create_agent(model, tasklist_info["task_type"])
 
         # Load tasks
         with open(tasklist_path / "tasks.json") as f:
@@ -276,7 +275,7 @@ class Evaluation:
             for task in json_tasks
         ]
 
-        # Set verify_fn on AgenticTasks (orchestrator responsibility)
+        # Set verify_fn on AgenticTasks
         if tasklist_info["task_type"] == "Agentic":
             verify_fn = _load_verify_fn(tasklist_path / "environment" / "verify.py")
             for task in tasks:
@@ -301,29 +300,45 @@ class Evaluation:
         log_path = LOGS_PATH / f"{self.name}.log"
         renderer = select_renderer(len(tasks), self.concurrency, log_path=log_path)
 
-        # Suppress agent trace output in concurrent mode
         if self.concurrency > 1:
             agent.verbose = False
 
-        task_results = asyncio.run(
-            dispatch_tasks(
-                tasks=tasks,
-                agent=agent,
-                adapter=adapter,
-                tasklist_path=tasklist_path,
-                tasklist_info=tasklist_info,
-                analyzers=self.analyzers,
-                concurrency=self.concurrency,
-                detail=self.report_detail,
-                renderer=renderer,
-                on_task_complete=self.on_task_complete,
-            )
+        task_results = await dispatch_tasks(
+            tasks=tasks,
+            agent=agent,
+            adapter=adapter,
+            tasklist_path=tasklist_path,
+            tasklist_info=tasklist_info,
+            analyzers=self.analyzers,
+            concurrency=self.concurrency,
+            detail=self.report_detail,
+            renderer=renderer,
+            on_task_complete=self.on_task_complete,
         )
 
-        # Build outputs
+        # Build report and compute metrics
         report = {r.task_id: r.report_entry for r in task_results}
         verification_results = [r.verification for r in task_results]
-        return report, verification_results, task_cls
+
+        evaluated = [r for r in verification_results if not r.is_skipped]
+        skipped = [r for r in verification_results if r.is_skipped]
+        task_type_metrics = task_cls.aggregate(verification_results)
+        accuracy = task_type_metrics.pop("accuracy", 0)
+        evaluated_report = {k: v for k, v in report.items() if not v.get("is_skipped")}
+        agent_metrics = compute_agent_metrics(evaluated_report)
+
+        metrics: dict[str, Any] = {
+            "task_count": len(report),
+            "evaluated_count": len(evaluated),
+            "correct_count": sum(r.is_correct for r in evaluated),
+            "skipped_count": len(skipped),
+            "total_time": sum(t["elapsed_time"] for t in report.values()),
+            "accuracy": accuracy,
+            "task_type": task_type_metrics,
+            "agent": agent_metrics,
+        }
+
+        return accuracy, metrics, report
 
 
 def _load_verify_fn(path: Path) -> Callable | None:
@@ -336,3 +351,34 @@ def _load_verify_fn(path: Path) -> Callable | None:
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return getattr(mod, "verify", None)
+
+
+def evaluate(
+    run_name: str,
+    url: str,
+    token: str | None,
+    name: str,
+    tasklist: str | list[str],
+    *,
+    output_folder: str | Path | None = None,
+    limit: int | None = None,
+    runs_per_configuration: int = 1,
+    on_task_complete: Callable[[int, int], None] | None = None,
+    endpoint_type: str = "openai",
+    io_adapter: dict | None = None,
+    report_detail: str = "default",
+    agentic: bool | None = None,
+    concurrency: int | None = None,
+    vivarium_url: str | None = None,
+):
+    """Evaluate a model on tasklists. Convenience function wrapping Evaluation class."""
+    output_path = Path(output_folder) if output_folder else RESULTS_PATH
+    evaluation = Evaluation(
+        name=run_name, url=url, token=token, endpoint_type=endpoint_type,
+        agentic=agentic, vivarium_url=vivarium_url,
+        task_amount_limit=limit, runs_per_configuration=runs_per_configuration,
+        output_path=output_path, on_task_complete=on_task_complete,
+        io_adapter=io_adapter, report_detail=report_detail, concurrency=concurrency,
+    )
+    tasklist_list = [tasklist] if isinstance(tasklist, str) else tasklist
+    return evaluation.evaluate_all([name], tasklist_list)

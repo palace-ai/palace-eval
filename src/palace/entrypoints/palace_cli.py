@@ -4,7 +4,6 @@ import sys
 import emoji
 import questionary
 
-from palace.agents import MCPAgent, OpenAIAPIAgent, VivariumAgent
 from palace.evaluation import Evaluation
 from palace.mcp_utils.mcp_client import list_tools
 from palace.models import APIModel
@@ -106,16 +105,6 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         ).ask()
         if not selected:
             return
-        agents = [
-            MCPAgent(
-                url=url,
-                token=token,
-                name=a,
-                params=mcp_server.get("params"),
-                output_processor=mcp_server.get("output_processor"),
-            )
-            for a in selected
-        ]
     else:
         url = questionary.text("API URL:", default=_DEFAULT_URL).ask()
         if not url:
@@ -133,17 +122,6 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         ).ask()
         if not selected:
             return
-        if agentic:
-            agents = [VivariumAgent(name=m, url=url, token=token) for m in selected]
-        else:
-            agents = [
-                OpenAIAPIAgent(
-                    url=url,
-                    token=token,
-                    name=m,
-                )
-                for m in selected
-            ]
 
     # --- Tasklists ---
     available_tasklists = sorted(
@@ -208,10 +186,12 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
 
     # --- Execute ---
     evaluation = Evaluation(
-        name=name, task_amount_limit=task_limit, runs_per_configuration=runs
+        name=name, url=url, token=token, endpoint_type=endpoint_type,
+        agentic=True if agentic else None,
+        task_amount_limit=task_limit, runs_per_configuration=runs,
     )
     try:
-        evaluation.evaluate_all(agents, tasklists=tasklists)
+        evaluation.evaluate_all(selected, tasklists=tasklists)
     except KeyboardInterrupt:
         pass
 

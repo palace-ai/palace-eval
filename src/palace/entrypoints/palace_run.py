@@ -1,84 +1,9 @@
 import argparse
 import os
-from pathlib import Path
-from typing import Callable
 
-from palace.agents.mcp_agent import MCPAgent
-from palace.agents.openai_api_agent import OpenAIAPIAgent
 from palace.evaluation import Evaluation
 from palace.models.api_model import APIModel
-from palace.utils.paths import RESULTS_PATH
 from palace.utils.printing import print
-
-
-def evaluate(
-    run_name: str,
-    output_folder: str | None,
-    url: str,
-    token: str | None,
-    name: str,
-    tasklist: str | list[str],
-    limit: int | None = None,
-    runs_per_configuration: int = 1,
-    on_task_complete: Callable[[int, int], None] | None = None,
-    endpoint_type: str = "openai",
-    io_adapter: dict | None = None,
-    report_detail: str = "default",
-    agentic: bool = False,
-    concurrency: int | None = None,
-    vivarium_url: str | None = None,
-):
-    """Evaluate a remote model/agent via OpenAI API on the specified tasklists and save results to a JSONL file.
-
-    Args:
-        run_name: The name of the run.
-        output_folder: The path to the output folder (default: ~/.cache/palace/results/).
-        url: The URL of the OpenAI API.
-        token: The token to use for authentication, if required.
-        name: The name of the model/agent.
-        tasklist: The tasklist(s) to evaluate the model/agent on.
-        limit: The maximum number of tasks to evaluate per tasklist.
-        runs_per_configuration: The number of evaluation runs to perform.
-        on_task_complete: Optional callback invoked after each task with (current, total).
-        endpoint_type: The type of endpoint ("openai" or "mcp").
-        io_adapter: Optional model I/O adapter config dict for specialized models.
-        report_detail: Level of detail in per-task report: "none" (omit report),
-            "default" (slimmed), "full" (includes task text).
-        agentic: If True, wrap agent in VivariumAgent with default spec for tool access.
-        concurrency: Number of tasks to run concurrently. None falls back to
-            PALACE_CONCURRENCY env var, then defaults to 1.
-        vivarium_url: Vivarium server URL for agentic execution. If None, falls back
-            to VIVARIUM_URL env var or auto-starts via SDK.
-    """
-    if concurrency is None:
-        concurrency = int(os.environ.get("PALACE_CONCURRENCY", "1"))
-    if agentic:
-        from palace.agents.vivarium_agent import VivariumAgent
-        agent = VivariumAgent(name=name, url=url, token=token, vivarium_url=vivarium_url)
-    elif endpoint_type == "mcp":
-        agent = MCPAgent(url=url, token=token, name=name)
-    elif endpoint_type == "openai":
-        agent = OpenAIAPIAgent(
-            url=url,
-            token=token,
-            name=name,
-        )
-    else:
-        raise ValueError(f"Unsupported endpoint type: {endpoint_type}")
-    
-    output_path = Path(output_folder) if output_folder else RESULTS_PATH
-    evaluation = Evaluation(
-        name=run_name,
-        task_amount_limit=limit,
-        runs_per_configuration=runs_per_configuration,
-        output_path=output_path,
-        on_task_complete=on_task_complete,
-        io_adapter=io_adapter,
-        report_detail=report_detail,
-        concurrency=concurrency,
-    )
-    tasklists = [tasklist] if isinstance(tasklist, str) else tasklist
-    evaluation.evaluate_all([agent], tasklists=tasklists)
 
 
 def run():
@@ -173,20 +98,22 @@ def run():
         exit(0)
 
     try:
-        evaluate(
-            run_name=args.run_name,
-            output_folder=args.output_folder,
+        from pathlib import Path
+        from palace.utils.paths import RESULTS_PATH
+        output_path = Path(args.output_folder) if args.output_folder else RESULTS_PATH
+        evaluation = Evaluation(
+            name=args.run_name,
             url=args.url,
             token=args.token,
-            name=args.name,
-            tasklist=args.tasklist,
-            limit=args.limit,
-            runs_per_configuration=args.runs_per_configuration,
             endpoint_type=args.endpoint_type,
+            agentic=True if args.agentic else None,
+            task_amount_limit=args.limit,
+            runs_per_configuration=args.runs_per_configuration,
+            output_path=output_path,
             report_detail=args.report_detail,
-            agentic=args.agentic,
             concurrency=args.concurrency,
         )
+        evaluation.evaluate_all([args.name], tasklists=args.tasklist)
     except FileNotFoundError as e:
         print(f"[red]Error: {e}[/red]")
         exit(1)
