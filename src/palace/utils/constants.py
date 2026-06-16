@@ -15,4 +15,4 @@ TS_STAGING_URL = os.getenv("TS_STAGING_URL")
 ABW_SERVE_STAGING_URL = os.getenv("ABW_SERVE_STAGING_URL")
 
 # Judge model
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "minimax-m2")
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gpt-oss-120b")

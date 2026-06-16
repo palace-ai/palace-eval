@@ -46,10 +46,11 @@ async def dispatch_tasks(
                 )
             except Exception as e:
                 from palace.task_types.base import TaskVerificationResult
-                vr = TaskVerificationResult(is_correct=False, is_skipped=True, skip_reason=f"task_error: {e}")
+                error_msg = str(e) or type(e).__name__
+                vr = TaskVerificationResult(is_correct=False, is_skipped=True, skip_reason=f"task_error: {error_msg}")
                 entry = {
                     "actual": None, "is_correct": False, "is_skipped": True,
-                    "skip_reason": f"task_error: {e}", "reasoning": str(e), "elapsed_time": 0.0,
+                    "skip_reason": f"task_error: {error_msg}", "reasoning": error_msg, "elapsed_time": 0.0,
                 }
                 result = TaskResult(task.id, entry, vr)
                 renderer.on_task_finished(i, result)

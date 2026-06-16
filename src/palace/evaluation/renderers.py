@@ -24,6 +24,7 @@ class Renderer(Protocol):
 
     verbose: bool
 
+    def on_init_started(self, i: int) -> None: ...
     def on_task_started(self, i: int, task: "Task", prompt: str) -> None: ...
     def on_agent_started(self, i: int) -> None: ...
     def on_agent_finished(self, i: int, result: "AgentResult") -> None: ...
@@ -84,6 +85,9 @@ class VerboseRenderer(_LogMixin):
         self._init_log(log_path)
 
     def on_dispatch_start(self) -> None:
+        pass
+
+    def on_init_started(self, i: int) -> None:
         pass
 
     def start_ticker(self) -> "asyncio.Task | None":
@@ -187,8 +191,12 @@ class CompactRenderer(_LogMixin):
     def on_dispatch_start(self):
         """Print legend and placeholder lines. Called after agent banner."""
         print(f"\n[dim]:high_voltage: Running {self.concurrency} tasks concurrently. Use --concurrency 1 for detailed output.[/dim]")
-        print("○ pending  ● running  ◍ verifying  ✓ correct  ✗ incorrect  ⏭ skipped")
+        print("○ pending  ⊙ init  ● running  ◆ verifying  ✓ correct  ✗ incorrect  ⏭ skipped")
         print("")
+
+    def on_init_started(self, i: int) -> None:
+        self.states[i] = "⊙"
+        self._render()
 
     def on_task_started(self, i: int, task: "Task", prompt: str) -> None:
         self._log_line(f"[{i+1}/{self.total}] START task={task.id}")
@@ -205,7 +213,7 @@ class CompactRenderer(_LogMixin):
             self._log_line(f"[{i+1}/{self.total}] AGENT_OK len={len(result.answer or '')}")
 
     def on_verify_started(self, i: int) -> None:
-        self.states[i] = "◍"
+        self.states[i] = "◆"
         self._render()
 
     def on_verify_finished(self, i: int, vr: TaskVerificationResult) -> None:
@@ -286,6 +294,9 @@ class PlainRenderer(_LogMixin):
         self._init_log(log_path)
 
     def on_dispatch_start(self) -> None:
+        pass
+
+    def on_init_started(self, i: int) -> None:
         pass
 
     def start_ticker(self) -> "asyncio.Task | None":

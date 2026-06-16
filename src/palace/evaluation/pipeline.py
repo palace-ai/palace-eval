@@ -169,9 +169,12 @@ async def execute_task(
     renderer: Renderer,
 ) -> TaskResult:
     """Run one task through the full pipeline with lifecycle hooks."""
-    env = await agent.on_task_start(task)
+    renderer.on_init_started(i)
+    env = None
 
     try:
+        env = await agent.on_task_start(task)
+
         # Prepare
         prepared = prepare_prompt(task, adapter, tasklist_path)
 
