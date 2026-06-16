@@ -261,9 +261,29 @@ def _tar_gz(directory: Path) -> bytes:
 def _format_trace_line(entry: dict) -> str:
     """Format a tool trace entry as a clean one-liner."""
     tool = entry["tool"]
-    args = entry.get("args", "")
+    args = entry.get("args", {})
     result = entry.get("result", "")
-    return f"[bold]{tool}[/] [dim]{args}[/]\n    [dim]→ {result}[/]"
+    thought = entry.get("thought", "")
+    # Format thought
+    prefix = ""
+    if thought:
+        t = thought.replace("\n", " ").strip()
+        if len(t) > 200:
+            t = t[:200] + "…"
+        prefix = f"[dim italic]💭 {t}[/]\n  "
+    # Format args
+    parts = []
+    for k, v in args.items():
+        val = v if isinstance(v, str) else str(v)
+        if len(val) > 80:
+            val = val[:80] + "…"
+        parts.append(f"[dim]{k}=[/][dim blue]{val}[/]")
+    formatted_args = " ".join(parts)
+    # Format result
+    res = str(result).replace("\n", " ").strip()
+    if len(res) > 200:
+        res = res[:200] + "…"
+    return f"{prefix}[bold]{tool}[/] {formatted_args}\n    [dim]→ {res}[/]"
 
 
 def _load_fn(path: Path, fn_name: str):
