@@ -136,11 +136,22 @@ class VivariumAgent(Agent):
         spec_id = self._spec_ids[env_name]
         task_files = self._package_task_files(task)
 
-        env = await self._client.create_environment(
-            spec_id=spec_id,
-            task_id=task.id,
-            task_files=task_files,
-        )
+        # Retry on 429 (vivarium at capacity) with generous backoff for long-running tasks
+        import httpx
+        while True:
+            try:
+                env = await self._client.create_environment(
+                    spec_id=spec_id,
+                    task_id=task.id,
+                    task_files=task_files,
+                )
+                break
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429:
+                    await asyncio.sleep(5)
+                else:
+                    raise
+
         self._envs[task.id] = env
 
         if self._seed_fn:
