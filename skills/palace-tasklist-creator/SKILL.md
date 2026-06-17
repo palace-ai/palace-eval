@@ -2,7 +2,8 @@
 name: palace-tasklist-creator
 description: >
   Create palace-lib evaluation tasklists (benchmarks) from scratch or from HuggingFace datasets.
-  Covers all 5 task types: QA, Classification, Criteria Evaluation, Instruction Following, and Agentic (with vivarium sandboxed containers, custom tools, seed/verify scripts). Use when the user wants to create a new benchmark, build a tasklist, implement an evaluation dataset, or adapt an existing dataset for palace evaluation — even if they don't say "palace" explicitly.
+  Covers all 5 task types: QA, Classification, Criteria Evaluation, Instruction Following, and Agentic (with vivarium sandboxed containers, custom tools, seed/verify scripts).
+  Use when the user wants to create a new benchmark, build a tasklist, implement an evaluation dataset, or adapt an existing dataset for palace evaluation — even if they don't say "palace" explicitly.
 compatibility: Requires Python 3.11+ and access to ~/.cache/palace/tasklists/ directory.
 metadata:
   author: palace-team
