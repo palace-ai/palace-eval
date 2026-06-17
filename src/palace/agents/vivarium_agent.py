@@ -42,8 +42,8 @@ class VivariumAgent(Agent):
         url: str,
         token: str | None,
         vivarium_url: str | None = None,
-        timeout_seconds: int = 3600,
-        max_steps: int = 100,
+        timeout_seconds: int = 7200,
+        max_steps: int = 200,
     ):
         self._name = name
         self._url = url
@@ -136,7 +136,7 @@ class VivariumAgent(Agent):
         spec_id = self._spec_ids[env_name]
         task_files = self._package_task_files(task)
 
-        # Retry on 429 (vivarium at capacity) with generous backoff for long-running tasks
+        # Retry on 429 (vivarium at capacity) or transient errors until task timeout
         import httpx
         while True:
             try:
@@ -151,6 +151,8 @@ class VivariumAgent(Agent):
                     await asyncio.sleep(5)
                 else:
                     raise
+            except httpx.TimeoutException:
+                await asyncio.sleep(5)
 
         self._envs[task.id] = env
 

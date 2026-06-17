@@ -1,0 +1,12 @@
+[
+  {
+    "id": "qa_001",
+    "objective": "What is the capital of France?",
+    "expected": "Paris"
+  },
+  {
+    "id": "qa_002",
+    "objective": "Who wrote Romeo and Juliet?",
+    "expected": "William Shakespeare"
+  }
+]

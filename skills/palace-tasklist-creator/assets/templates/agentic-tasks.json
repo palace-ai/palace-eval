@@ -1,0 +1,13 @@
+[
+  {
+    "id": "task_001",
+    "objective": "Fix the bug in /app/calculator.py. The add() function returns incorrect results for negative numbers. Verify by running: pytest /app/tests/",
+    "seed_args": {
+      "bug_code": "def add(a, b):\n    return abs(a) + abs(b)\n",
+      "test_code": "from calculator import add\n\ndef test_positive():\n    assert add(2, 3) == 5\n\ndef test_negative():\n    assert add(-1, 3) == 2\n"
+    },
+    "expected_outcome": {
+      "test_command": "pytest /app/tests/ -v"
+    }
+  }
+]

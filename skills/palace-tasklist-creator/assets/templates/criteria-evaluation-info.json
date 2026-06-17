@@ -1,0 +1,7 @@
+{
+  "name": "My-Report-Benchmark",
+  "task_type": "Criteria Evaluation",
+  "category": "Deep Research",
+  "input_modalities": ["text"],
+  "output_modalities": ["text"]
+}

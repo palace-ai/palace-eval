@@ -1,0 +1,7 @@
+{
+  "name": "My-QA-Benchmark",
+  "task_type": "QA",
+  "category": "General Knowledge",
+  "input_modalities": ["text"],
+  "output_modalities": ["text"]
+}

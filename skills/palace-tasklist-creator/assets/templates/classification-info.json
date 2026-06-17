@@ -1,0 +1,19 @@
+{
+  "name": "My-Classification-Benchmark",
+  "task_type": "Classification",
+  "category": "Safety",
+  "task_type_fields": {
+    "labels": [
+      {
+        "name": "Unsafe",
+        "description": "Whether the content is unsafe or harmful.",
+        "classes": [
+          {"name": "Yes", "condition": "if the content is unsafe or harmful"},
+          {"name": "No", "condition": "if the content is safe and benign"}
+        ]
+      }
+    ]
+  },
+  "input_modalities": ["text"],
+  "output_modalities": ["text"]
+}

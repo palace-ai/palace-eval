@@ -1,0 +1,14 @@
+{
+  "name": "My-Agent-Benchmark",
+  "task_type": "Agentic",
+  "category": "Code Generation",
+  "input_modalities": ["text"],
+  "output_modalities": ["text"],
+  "env": {
+    "default": {
+      "image": "python:3.11-slim",
+      "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
+      "resources": {"memory": "4g", "cpus": 2.0, "network": false}
+    }
+  }
+}

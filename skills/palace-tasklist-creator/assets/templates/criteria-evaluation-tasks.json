@@ -1,0 +1,28 @@
+[
+  {
+    "id": "report_001",
+    "objective": "Write a detailed analysis of renewable energy adoption trends in Europe.",
+    "expected": "# Renewable Energy in Europe\n\n## Executive Summary\nEurope has significantly accelerated renewable energy deployment...\n\n## Key Findings\n1. Solar capacity doubled between 2020-2024\n2. Offshore wind expanded to 15 countries\n3. Storage solutions remain the primary bottleneck\n\n## Recommendations\n- Increase grid interconnection investment\n- Standardize permitting across EU",
+    "task_type_fields": {
+      "dimensions": [
+        {
+          "name": "readability",
+          "weight": 0.3,
+          "criteria": [
+            {"name": "structure", "description": "Clear logical structure with headings and sections", "weight": 0.5},
+            {"name": "language", "description": "Professional, clear, unambiguous language", "weight": 0.5}
+          ]
+        },
+        {
+          "name": "content",
+          "weight": 0.7,
+          "criteria": [
+            {"name": "accuracy", "description": "Factually correct claims supported by evidence", "weight": 0.4},
+            {"name": "depth", "description": "Goes beyond surface-level analysis", "weight": 0.3},
+            {"name": "completeness", "description": "Covers all major aspects of the topic", "weight": 0.3}
+          ]
+        }
+      ]
+    }
+  }
+]
