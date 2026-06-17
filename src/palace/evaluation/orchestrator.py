@@ -90,6 +90,19 @@ def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
     return metrics
 
 
+def _check_endpoint(url: str, token: str | None) -> None:
+    """Verify LLM endpoint is reachable. Raises RuntimeError if not."""
+    import httpx
+    try:
+        r = httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
+    except httpx.ConnectError as e:
+        raise RuntimeError(f"Cannot reach LLM endpoint: {url}\n  {e}") from e
+    except httpx.TimeoutException as e:
+        raise RuntimeError(f"LLM endpoint timed out: {url}\n  {e}") from e
+    except Exception:
+        pass  # Other errors (401, 404, etc.) mean the endpoint is reachable
+
+
 class Evaluation:
     """Runs benchmark evaluations on models.
 
@@ -261,6 +274,9 @@ class Evaluation:
 
         # Create agent
         agent = self._create_agent(model, tasklist_info["task_type"])
+
+        # Pre-check: verify LLM endpoint is reachable
+        _check_endpoint(self.url, self.token)
 
         # Load tasks
         with open(tasklist_path / "tasks.json") as f:

@@ -191,7 +191,7 @@ class CompactRenderer(_LogMixin):
     def on_dispatch_start(self):
         """Print legend and placeholder lines. Called after agent banner."""
         print(f"\n[dim]:high_voltage: Running {self.concurrency} tasks concurrently. Use --concurrency 1 for detailed output.[/dim]")
-        print("○ pending  ⊙ init  ● running  ◆ verifying  ✓ correct  ✗ incorrect  ⏭ skipped")
+        print("○ queued  ⊙ waiting  ● running  ◆ verifying  ✓ correct  ✗ incorrect  ⏭ skipped")
         print("")
 
     def on_init_started(self, i: int) -> None:
