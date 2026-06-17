@@ -270,7 +270,7 @@ class CompactRenderer(_LogMixin):
             line1 = f"{bar}{suffix}"
         else:
             c = Counter(self.states)
-            line1 = f"●{c['●']} ◍{c['◍']} ✓{c['✓']} ✗{c['✗']} ⏭{c['⏭']} ○{c['○']} | {self.completed}/{self.total}"
+            line1 = f"○{c['○']} ⊙{c['⊙']} ●{c['●']} ◆{c['◆']} ✓{c['✓']} ✗{c['✗']} ⏭{c['⏭']} | {self.completed}/{self.total}"
 
         elapsed = time.monotonic() - self._start
         if self._task_times:
