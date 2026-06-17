@@ -344,6 +344,39 @@ WORKDIR /app
 
 The entire `environment/` directory is sent as the build context (tar.gz archive) when registering the spec with vivarium.
 
+**IMPORTANT**: If you reference a custom image name in info.json (e.g., `"image": "cybench-base"`), you MUST either:
+1. Include a `Dockerfile` in `environment/` so vivarium can build it (preferred — makes the tasklist self-contained), OR
+2. Use a publicly available image from Docker Hub (e.g., `"image": "python:3.11-slim"`)
+
+A tasklist that references a non-public, non-buildable image is broken — it cannot be run by anyone else. **Always make tasklists self-contained.**
+
+### Dependency Consistency
+
+**Critical**: The Dockerfile (or chosen base image) must install EVERYTHING that your scripts and agent will need at runtime. Audit your seed.py, verify.py, custom tools, and agent_instructions — every binary, package, or library they reference must be present in the image.
+
+Common mistakes:
+- seed.py calls `gcc` to compile a challenge binary, but the image doesn't have gcc
+- agent_instructions promise tools like `gdb`, `objdump`, `radare2`, but they aren't installed
+- verify.py imports a Python package (`requests`, `flask`) not in the image
+- seed.py runs `npm install` but Node.js isn't in the image
+
+**Checklist before finalizing your Dockerfile:**
+1. Read seed.py — what commands does it `exec()`? What does it `import`?
+2. Read verify.py — same questions
+3. Read agent_instructions — what tools are promised to the agent?
+4. Read custom tools — what do they import or shell out to?
+5. Ensure ALL of the above are installed in the Dockerfile
+
+Example: if seed.py compiles C code and the agent needs reverse engineering tools:
+```dockerfile
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y \
+    gcc gdb objdump strings file ltrace strace \
+    python3 python3-pip radare2 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
+```
+
 ## Companion Containers
 
 For tasks needing server processes (e.g., web servers, databases):

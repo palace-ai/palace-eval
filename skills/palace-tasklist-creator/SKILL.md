@@ -125,6 +125,8 @@ Fix any reported errors, then your tasklist is ready for evaluation with `palace
 - **palace-download column_names**: Maps palace field names to HuggingFace column names (e.g., `{"objective": "question", "expected": "answer"}`).
 - **Modalities**: Declare `"input_modalities": ["image", "text"]` if tasks have image attachments.
 - **Smoke test vs structural validation**: `validate_tasklist.py` is instant (checks format). `smoke_test_tasklist.py` needs Docker (checks that images build, seed runs, verify loads). Run structural first, smoke test when ready to deliver.
+- **Custom images must be self-contained**: If info.json references a custom image name, include a `Dockerfile` in `environment/` so vivarium can build it. Otherwise use a public Docker Hub image (e.g., `python:3.11-slim`). A tasklist referencing a non-buildable, non-public image is broken.
+- **Image must have all runtime dependencies**: Everything that seed.py, verify.py, custom tools, or the agent needs (compilers, interpreters, libraries, CLI tools) MUST be installed in the Dockerfile or already present in the base image. If seed.py calls `gcc`, the image must have gcc. If agent_instructions promise `gdb` and `objdump`, the image must have them. A bare `ubuntu:22.04` has almost nothing — always install what you need.
 
 ## When to Read Reference Files
 

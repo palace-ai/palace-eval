@@ -68,6 +68,19 @@ def validate(tasklist_path: Path) -> bool:
     if task_type == "Agentic" and "env" not in info:
         passed = error("Agentic tasklist must have 'env' key in info.json") and passed
 
+    # Agentic: check image is self-contained
+    if task_type == "Agentic" and "env" in info:
+        env_dir = tasklist_path / "environment"
+        has_dockerfile = env_dir.is_dir() and (env_dir / "Dockerfile").exists()
+        public_prefixes = ("python:", "ubuntu:", "debian:", "alpine:", "node:", "golang:", "rust:", "fedora:", "centos:")
+        for env_name, env_spec in info["env"].items():
+            img = env_spec.get("image", "")
+            if not img:
+                continue  # No image = uses vivarium default
+            is_public = any(img.startswith(p) for p in public_prefixes) or "/" in img
+            if not is_public and not has_dockerfile:
+                warn(f"env '{env_name}' uses custom image '{img}' but no Dockerfile in environment/ — tasklist may not be self-contained")
+
     # Classification should have task_type_fields.labels
     if task_type == "Classification":
         ttf = info.get("task_type_fields", {})
