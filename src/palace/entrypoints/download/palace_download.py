@@ -460,6 +460,27 @@ def download_tasklist(
             except Exception as e:
                 print(f"  Warning: failed to download {filename}: {e}")
 
+    # Download task_files directory if it exists in the repo
+    try:
+        tf_files = [
+            f.rfilename for f in list_repo_tree(id, path_in_repo="task_files", repo_type="dataset", recursive=True)
+            if hasattr(f, "rfilename")
+        ]
+    except Exception:
+        tf_files = []
+    if tf_files:
+        tf_dir = tasklist_path / "task_files"
+        for filename in tf_files:
+            dest = tf_dir / filename.removeprefix("task_files/")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists():
+                continue
+            try:
+                temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
+                shutil.copy2(temp, dest)
+            except Exception as e:
+                print(f"  Warning: failed to download {filename}: {e}")
+
     # Write tasks.json last — acts as completion marker for skip_existing
     with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
