@@ -170,7 +170,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
         # Cleanup: unregister all specs
         for env_name, spec_id in registered_specs.items():
             try:
-                await client._http.delete(f"/specs/{spec_id}")
+                await client.delete_spec(spec_id)
             except Exception:
                 pass
 

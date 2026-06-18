@@ -163,7 +163,7 @@ class Task:
         task.references = data.get("references")
         task.difficulty = data.get("difficulty")
         task.document = data.get("document")
-        task.attachments = data.get("attachments") or ([data["attachment"]] if data.get("attachment") else [])
+        task.attachments = data.get("attachments") or ([data["attachment"]] if data.get("attachment") else [])  # "attachment" is deprecated shorthand for "attachments": [x]
         task.custom_verificator = data.get("custom_verificator")
         task.custom_fields = {
             k: v for k, v in data.items() if k not in required_fields + optional_fields
