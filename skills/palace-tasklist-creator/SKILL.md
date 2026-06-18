@@ -2,8 +2,7 @@
 name: palace-tasklist-creator
 description: >
   Create palace-lib evaluation tasklists (benchmarks) from scratch or from HuggingFace datasets.
-  Covers all 5 task types: QA, Classification, Criteria Evaluation, Instruction Following, and Agentic (with vivarium sandboxed containers, custom tools, seed/verify scripts).
-  Use when the user wants to create a new benchmark, build a tasklist, implement an evaluation dataset, or adapt an existing dataset for palace evaluation — even if they don't say "palace" explicitly.
+  Covers all 5 task types: QA, Classification, Criteria Evaluation, Instruction Following, and Agentic (with vivarium sandboxed containers, custom tools, seed/verify scripts). Use when the user wants to create a new benchmark, build a tasklist, implement an evaluation dataset, or adapt an existing dataset for palace evaluation — even if they don't say "palace" explicitly.
 compatibility: Requires Python 3.11+ and access to ~/.cache/palace/tasklists/ directory.
 metadata:
   author: palace-team
@@ -118,7 +117,7 @@ Fix any reported errors, then your tasklist is ready for evaluation with `palace
 - **seed.py and verify.py must be async**: `async def seed(seed_args, container)` — NOT `def seed(...)`.
 - **Custom tool execute() is sync**: `def execute(args, container, context)` — NOT async.
 - **container.read() returns str, container.write() takes bytes**: Asymmetric API.
-- **task_files/ lands at `/task_files/` in the container** for agentic tasks (vivarium adds prefix).
+- **task_files/ lands at `/task_files/` in the container** for agentic tasks (vivarium adds prefix). Matched by task ID — do NOT add `"attachment"` field for agentic tasks (causes silent skip).
 - **Multi-env tasklists**: When info.json has multiple `env` entries, each task MUST have `"env": "name"` field.
 - **Labels in tasks.json**: Maps `label_name → class_name` (e.g., `{"Unsafe": "Yes"}`), NOT booleans.
 - **task_type_fields merge**: Tasklist-level fields are overridden by task-level fields (task wins).

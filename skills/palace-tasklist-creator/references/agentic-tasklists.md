@@ -317,13 +317,14 @@ When different tasks need different Docker images (e.g., SWE-bench Pro with per-
 
 For per-task file bundles that get uploaded to the container:
 
-1. Create `task_files/{attachment_id}/` with the files
-2. Set `"attachment": "{attachment_id}"` in the task
-3. Files land at `/task_files/` inside the container
+1. Create `task_files/{task_id}/` with the files (directory name MUST match the task's `id` field)
+2. Files land at `/task_files/` inside the container automatically — no `"attachment"` field needed
 
 ```json
-{"id": "task_001", "objective": "...", "attachment": "instance_repo_abc123", "seed_args": {...}}
+{"id": "task_001", "objective": "...", "seed_args": {...}}
 ```
+
+
 
 In seed.py, reference these files:
 ```python

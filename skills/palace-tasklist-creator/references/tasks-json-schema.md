@@ -255,13 +255,12 @@ The `env` field must match a key in `info.json`'s `env` object.
   "id": "task_with_files",
   "objective": "Run the test suite and fix failures",
   "env": "env-name",
-  "attachment": "task_with_files",
   "seed_args": {"problem_statement": "..."},
   "expected_outcome": {"all_tests_pass": true}
 }
 ```
 
-The `attachment` value points to a subdirectory in `task_files/` that gets uploaded to the container at `/task_files/`.
+Task files are matched by **task ID**: place files in `task_files/{task_id}/` and they are automatically uploaded to the container at `/task_files/`.
 
 ## Field Interaction Rules
 
