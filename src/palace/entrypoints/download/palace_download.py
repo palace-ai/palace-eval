@@ -470,16 +470,19 @@ def download_tasklist(
         tf_files = []
     if tf_files:
         tf_dir = tasklist_path / "task_files"
-        for filename in tf_files:
+        if on_progress:
+            on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=len(tf_files)))
+        for file_idx, filename in enumerate(tf_files):
             dest = tf_dir / filename.removeprefix("task_files/")
             dest.parent.mkdir(parents=True, exist_ok=True)
-            if dest.exists():
-                continue
-            try:
-                temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
-                shutil.copy2(temp, dest)
-            except Exception as e:
-                print(f"  Warning: failed to download {filename}: {e}")
+            if not dest.exists():
+                try:
+                    temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
+                    shutil.copy2(temp, dest)
+                except Exception as e:
+                    print(f"  Warning: failed to download {filename}: {e}")
+            if on_progress:
+                on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=len(tf_files)))
 
     # Write tasks.json last — acts as completion marker for skip_existing
     with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
