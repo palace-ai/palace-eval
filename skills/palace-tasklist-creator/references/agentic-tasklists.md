@@ -206,40 +206,34 @@ CONTEXT = {
     "model_name": "run.model_name",  # The model name being evaluated
 }
 
-# Required: execution function (SYNC — not async!)
-def execute(args, container, context):
+# Required: execution function (MUST be async)
+async def execute(args, container, context):
     """Execute the tool.
     
     Args:
         args: dict of parameter values from the agent's tool call
-        container: Container object (sync API: container.read(), container.write(), container.exec_sync())
+        container: Container object (async API: await container.read(), await container.write(), await container.exec())
         context: dict of resolved CONTEXT values (empty dict if no CONTEXT defined)
     
     Returns:
         {"content": "result string"} on success
         {"error": "error message"} on failure
     """
-    data = json.loads(container.read("/data/db.json"))
+    data = json.loads(await container.read("/data/db.json"))
     result = data.get(args["param1"])
     if result is None:
         return {"error": f"Not found: {args['param1']}"}
     return {"content": json.dumps(result, indent=2)}
 ```
 
-### Important: Sync Container API in Tools
+### Container API (async everywhere)
 
-In custom tools, the container API is **synchronous** (unlike seed/verify which are async):
+All container methods are async — in tools, seed, and verify:
 
 ```python
-# In tools (SYNC):
-content = container.read("/path")          # returns str
-container.write("/path", b"bytes")         # takes bytes
-exit_code, output = container.exec_sync("cmd", timeout=30)  # sync exec
-
-# In seed.py/verify.py (ASYNC):
-content = await container.read("/path")
-await container.write("/path", b"bytes")
-exit_code, output = await container.exec("cmd", timeout=30)
+content = await container.read("/path")           # returns str
+await container.write("/path", b"bytes")          # takes bytes
+exit_code, output = await container.exec("cmd")   # returns (int, str)
 ```
 
 ### Tool with LLM Access (User Simulator)
@@ -253,7 +247,7 @@ CONTEXT = {
     "model_name": "run.model_name",
 }
 
-def execute(args, container, context):
+async def execute(args, container, context):
     from openai import OpenAI
     client = OpenAI(base_url=context["model_url"], api_key=context["model_key"])
     response = client.chat.completions.create(

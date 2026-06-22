@@ -154,6 +154,15 @@ def validate(tasklist_path: Path) -> bool:
                 else:
                     ok("verify.py has correct async signature")
 
+            # Custom tools
+            tools_dir = env_dir / "tools"
+            if tools_dir.exists():
+                for tool_file in sorted(tools_dir.glob("*.py")):
+                    if not _check_async_function(tool_file, "execute"):
+                        passed = error(f"tools/{tool_file.name} must define 'async def execute(args, container, context)'") and passed
+                    else:
+                        ok(f"tools/{tool_file.name} has correct async signature")
+
         # Multi-env: check tasks have env field
         if "env" in info and len(info["env"]) > 1:
             missing_env = [t.get("id", f"idx-{i}") for i, t in enumerate(tasks) if "env" not in t]

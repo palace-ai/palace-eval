@@ -27,22 +27,22 @@ TOOL = {
 # }
 
 
-def execute(args, container, context):
-    """Execute the tool. MUST be sync (not async).
+async def execute(args, container, context):
+    """Execute the tool. MUST be async.
 
     Args:
         args: dict of parameter values from the agent's tool call
-        container: Container object with SYNC API:
-            container.read(path) → str
-            container.write(path, bytes)
-            container.exec_sync(cmd, timeout=N) → (exit_code, output)
+        container: Container object with async API:
+            await container.read(path) → str
+            await container.write(path, bytes)
+            await container.exec(cmd) → (exit_code, output)
         context: dict of resolved CONTEXT values (empty if no CONTEXT defined)
 
     Returns:
         {"content": "result string"} on success
         {"error": "error message"} on failure
     """
-    data = json.loads(container.read("/data/db.json"))
+    data = json.loads(await container.read("/data/db.json"))
     result = data.get(args["query"])
     if result is None:
         return {"error": f"Not found: {args['query']}"}
