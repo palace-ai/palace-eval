@@ -136,7 +136,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
                 "output_modalities": info.get("output_modalities", ["text"]),
             }
             for t in TASKLISTS_PATH.iterdir()
-            if t.is_dir() and (t / "tasks.json").exists()
+            if t.is_dir() and ((t / "tasks.json").exists() or (t / "info.json").exists())
         ],
         key=lambda x: (x["category"], x["name"]),
     )

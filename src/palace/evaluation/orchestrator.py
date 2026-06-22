@@ -279,8 +279,17 @@ class Evaluation:
         _check_endpoint(self.url, self.token)
 
         # Load tasks
-        with open(tasklist_path / "tasks.json") as f:
-            json_tasks = json.load(f)
+        tasks_path = tasklist_info.get("tasks_path", "tasks.json")
+        json_tasks = []
+        for p in sorted(tasklist_path.glob(tasks_path)):
+            if not p.is_file():
+                continue
+            with open(p) as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                json_tasks.extend(data)
+            else:
+                json_tasks.append(data)
         tasks: list[Task] = [
             Task.from_dict(
                 task | {
@@ -291,11 +300,20 @@ class Evaluation:
             for task in json_tasks
         ]
 
+        # Resolve task_files search directories
+        task_files_path = tasklist_info.get("task_files_path", "task_files")
+        task_files_dirs = sorted(d for d in tasklist_path.glob(task_files_path) if d.is_dir())
+
         # Set verify_fn on AgenticTasks
         if tasklist_info["task_type"] == "Agentic":
-            verify_fn = _load_verify_fn(tasklist_path / "environment" / "verify.py")
+            env_configs = tasklist_info.get("env", {})
+            verify_fns: dict[str, object] = {}
             for task in tasks:
-                task._verify_fn = verify_fn  # type: ignore[attr-defined]
+                env_name = task.custom_fields.get("env") or next(iter(env_configs), None)
+                env_path = env_configs.get(env_name, {}).get("path", "environment") if env_name else "environment"
+                if env_path not in verify_fns:
+                    verify_fns[env_path] = _load_verify_fn(tasklist_path / env_path / "verify.py")
+                task._verify_fn = verify_fns[env_path]  # type: ignore[attr-defined]
                 task._tasklist_path = tasklist_path  # type: ignore[attr-defined]
 
         # Limit tasks
@@ -325,6 +343,7 @@ class Evaluation:
             adapter=adapter,
             tasklist_path=tasklist_path,
             tasklist_info=tasklist_info,
+            task_files_dirs=task_files_dirs,
             analyzers=self.analyzers,
             concurrency=self.concurrency,
             detail=self.report_detail,

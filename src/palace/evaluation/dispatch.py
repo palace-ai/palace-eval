@@ -20,6 +20,7 @@ async def dispatch_tasks(
     adapter: IOAdapter | None,
     tasklist_path: Path,
     tasklist_info: dict,
+    task_files_dirs: list[Path],
     analyzers: list[Analyzer],
     concurrency: int,
     detail: str,
@@ -42,7 +43,7 @@ async def dispatch_tasks(
         async with sem:
             try:
                 result = await execute_task(
-                    i, task, agent, adapter, tasklist_path, analyzers, detail, renderer
+                    i, task, agent, adapter, tasklist_path, task_files_dirs, analyzers, detail, renderer
                 )
             except Exception as e:
                 from palace.task_types.base import TaskVerificationResult

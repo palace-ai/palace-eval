@@ -24,15 +24,23 @@ TEXT_EXTENSIONS = {
 }
 
 
-def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path) -> PreparedTask:
+def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path, task_files_dirs: "list[Path] | None" = None) -> PreparedTask:
     """Resolve attachments, apply adapter, build final prompt."""
     attachments: list[Attachment] = []
     attachment_content = ""
+    _dirs = task_files_dirs or [tasklist_path / "task_files"]
 
     for att in task.attachments:
         if not att:
             continue
-        attachment_file = tasklist_path / "task_files" / att
+        attachment_file = None
+        for d in _dirs:
+            candidate = d / att
+            if candidate.exists():
+                attachment_file = candidate
+                break
+        if attachment_file is None:
+            attachment_file = tasklist_path / "task_files" / att  # fallback (will error naturally)
         ext = Path(att).suffix.lower()
         if ext in TEXT_EXTENSIONS:
             try:
@@ -164,6 +172,7 @@ async def execute_task(
     agent: Agent,
     adapter: "IOAdapter | None",
     tasklist_path: Path,
+    task_files_dirs: "list[Path] | None",
     analyzers: list[Analyzer],
     detail: str,
     renderer: Renderer,
@@ -176,7 +185,7 @@ async def execute_task(
         env = await agent.on_task_start(task)
 
         # Prepare
-        prepared = prepare_prompt(task, adapter, tasklist_path)
+        prepared = prepare_prompt(task, adapter, tasklist_path, task_files_dirs)
 
         # Handle unsupported attachment
         if prepared.attachment_content == "__UNSUPPORTED__":

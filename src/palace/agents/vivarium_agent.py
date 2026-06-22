@@ -53,12 +53,13 @@ class VivariumAgent(Agent):
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
         self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
         self._env_configs: dict[str, dict] = {}  # env_name → spec config (lazy)
-        self._archive_bytes: bytes | None = None
+        self._seed_fns: dict[str, object] = {}  # env_path → seed function
+        self._archives: dict[str, bytes | None] = {}  # env_path → tar.gz bytes
+        self._task_files_dirs: list[Path] = []  # resolved task_files directories
         self._envs: dict[str, Any] = {}  # task_id → Environment
         self._client: Any = None
         self._auto_started = False
         self._tasklist_path: Path | None = None
-        self._seed_fn = None
 
         try:
             from vivarium import Client
@@ -79,25 +80,36 @@ class VivariumAgent(Agent):
         return self._name
 
     async def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
-        """Store environment configs and load seed script. Specs registered lazily on first use."""
+        """Store environment configs. Specs registered lazily on first use."""
         started = " (auto-started)" if self._auto_started else ""
         print(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url}{started}[/]")
 
         self._tasklist_path = tasklist_path
-        env_dir = tasklist_path / "environment"
 
-        if env_dir.is_dir():
-            seed_path = env_dir / "seed.py"
-            if seed_path.exists():
-                self._seed_fn = _load_fn(seed_path, "seed")
-            self._archive_bytes = _tar_gz(env_dir)
-        else:
-            self._archive_bytes = None
+        # Resolve task_files search directories
+        task_files_path = info.get("task_files_path", "task_files")
+        self._task_files_dirs = sorted(d for d in tasklist_path.glob(task_files_path) if d.is_dir())
 
         # Store environment configurations for lazy registration
         if "env" not in info:
             raise ValueError("info.json must contain an 'env' key with named environment configurations")
         self._env_configs = info["env"]
+
+        # Pre-load seed functions and archives per unique environment path
+        self._seed_fns: dict[str, object] = {}
+        self._archives: dict[str, bytes | None] = {}
+        for env_name, env_config in self._env_configs.items():
+            env_path = env_config.get("path", "environment")
+            if env_path not in self._archives:
+                env_dir = tasklist_path / env_path
+                if env_dir.is_dir():
+                    seed_path = env_dir / "seed.py"
+                    if seed_path.exists():
+                        self._seed_fns[env_path] = _load_fn(seed_path, "seed")
+                    self._archives[env_path] = _tar_gz(env_dir)
+                else:
+                    self._archives[env_path] = None
+
         _logger.info(f"Loaded {len(self._env_configs)} environment config(s) (lazy registration)")
 
     async def on_task_start(self, task: Task) -> ExecutionEnvironment | None:
@@ -121,10 +133,11 @@ class VivariumAgent(Agent):
         # Lazy spec registration: register on first use
         if env_name not in self._spec_ids:
             spec_json = self._env_configs[env_name]
+            env_path = spec_json.get("path", "environment")
             image = spec_json.get("image")
             _logger.info(f"Registering spec '{env_name}' (first use, image: {image})")
             try:
-                spec_id = await self._client.register_spec(spec_json, self._archive_bytes)
+                spec_id = await self._client.register_spec(spec_json, self._archives.get(env_path))
             except Exception as e:
                 raise RuntimeError(
                     f"Cannot register spec '{env_name}' with Vivarium at {self._client._url}. "
@@ -156,10 +169,12 @@ class VivariumAgent(Agent):
 
         self._envs[task.id] = env
 
-        if self._seed_fn:
+        env_path = self._env_configs[env_name].get("path", "environment")
+        seed_fn = self._seed_fns.get(env_path)
+        if seed_fn:
             _logger.info(f"Seeding environment for {task.id}")
             seed_args = task.custom_fields.get("seed_args")
-            result = self._seed_fn(seed_args, env)
+            result = seed_fn(seed_args, env)
             if inspect.isawaitable(result):
                 await result
             _logger.info(f"Seed complete for {task.id}")
@@ -251,14 +266,11 @@ class VivariumAgent(Agent):
 
     def _package_task_files(self, task: Task) -> bytes | None:
         """Package task_files for upload, if any exist for this task."""
-        assert self._tasklist_path is not None
-        task_files_dir = self._tasklist_path / "task_files"
-        if not task_files_dir.is_dir():
-            return None
-        target = task_files_dir / task.id
-        if not target.is_dir() or not any(target.iterdir()):
-            return None
-        return _tar_gz(target)
+        for d in self._task_files_dirs:
+            target = d / task.id
+            if target.is_dir() and any(target.iterdir()):
+                return _tar_gz(target)
+        return None
 
 
 def _tar_gz(directory: Path) -> bytes:
