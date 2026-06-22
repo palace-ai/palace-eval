@@ -50,6 +50,10 @@ def _ensure_login():
     _logged_in = True
 
 
+def _glob_has_wildcards(pattern: str) -> bool:
+    return any(c in pattern for c in "*?[")
+
+
 def download_tasklist(
     name: str,
     id: str,
@@ -439,41 +443,63 @@ def download_tasklist(
         except OSError:
             pass
 
-    # Download environment directory if it exists in the repo
-    try:
-        env_files = [
-            f.rfilename for f in list_repo_tree(id, path_in_repo="environment", repo_type="dataset", recursive=True)
-            if hasattr(f, "rfilename")
-        ]
-    except Exception:
-        env_files = []
-    if env_files:
-        env_dir = tasklist_path / "environment"
-        for filename in env_files:
-            dest = env_dir / filename.removeprefix("environment/")
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if dest.exists():
-                continue
-            try:
-                temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
-                shutil.copy2(temp, dest)
-            except Exception as e:
-                print(f"  Warning: failed to download {filename}: {e}")
+    # Read info.json to determine paths for environment and task_files
+    with open(tasklist_path / "info.json") as f:
+        _info = json.load(f)
 
-    # Download task_files directory if it exists in the repo
-    try:
-        tf_files = [
-            f.rfilename for f in list_repo_tree(id, path_in_repo="task_files", repo_type="dataset", recursive=True)
+    # Download environment directories
+    env_dirs = set()
+    if "env" in _info:
+        for cfg in _info["env"].values():
+            env_dirs.add(cfg.get("path", "environment"))
+    else:
+        env_dirs.add("environment")
+    for env_path in env_dirs:
+        try:
+            env_files = [
+                f.rfilename for f in list_repo_tree(id, path_in_repo=env_path, repo_type="dataset", recursive=True)
+                if hasattr(f, "rfilename")
+            ]
+        except Exception:
+            env_files = []
+        if env_files:
+            for filename in env_files:
+                dest = tasklist_path / filename
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if dest.exists():
+                    continue
+                try:
+                    temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
+                    shutil.copy2(temp, dest)
+                except Exception as e:
+                    print(f"  Warning: failed to download {filename}: {e}")
+
+    # Download task_files directories
+    task_files_path = _info.get("task_files_path", "task_files")
+    if _glob_has_wildcards(task_files_path):
+        # Glob pattern — list full tree and match
+        from fnmatch import fnmatch
+        all_files = [
+            f.rfilename for f in list_repo_tree(id, repo_type="dataset", recursive=True)
             if hasattr(f, "rfilename")
         ]
-    except Exception:
-        tf_files = []
+        tf_files = [f for f in all_files if any(
+            fnmatch("/".join(f.split("/")[:i]), task_files_path)
+            for i in range(1, len(f.split("/")))
+        )]
+    else:
+        try:
+            tf_files = [
+                f.rfilename for f in list_repo_tree(id, path_in_repo=task_files_path, repo_type="dataset", recursive=True)
+                if hasattr(f, "rfilename")
+            ]
+        except Exception:
+            tf_files = []
     if tf_files:
-        tf_dir = tasklist_path / "task_files"
         if on_progress:
             on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=len(tf_files)))
         for file_idx, filename in enumerate(tf_files):
-            dest = tf_dir / filename.removeprefix("task_files/")
+            dest = tasklist_path / filename
             dest.parent.mkdir(parents=True, exist_ok=True)
             if not dest.exists():
                 try:
@@ -484,9 +510,12 @@ def download_tasklist(
             if on_progress:
                 on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=len(tf_files)))
 
-    # Write tasks.json last — acts as completion marker for skip_existing
+    # Write tasks.json
     with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
         json.dump(tasks, f, ensure_ascii=False, indent=4)
+
+    # Write .palace-complete marker (authoritative completion signal)
+    (tasklist_path / ".palace-complete").touch()
 
 
 def _string_type(s):
@@ -578,7 +607,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
                 name = item.item_id.replace("jrc-ai/", "")
                 if tasklists and name not in tasklists:
                     continue
-                if skip_existing and (TASKLISTS_PATH / name / "tasks.json").exists():
+                if skip_existing and (TASKLISTS_PATH / name / ".palace-complete").exists():
                     continue
                 all_items.append({"name": name, "id": item.item_id, "_private": True})
     except EnvironmentError:
@@ -597,7 +626,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
     for item in public_info:
         if tasklists and item["name"] not in tasklists:
             continue
-        if skip_existing and (TASKLISTS_PATH / item["name"] / "tasks.json").exists():
+        if skip_existing and (TASKLISTS_PATH / item["name"] / ".palace-complete").exists():
             continue
         all_items.append({**item, "_private": False})
 
