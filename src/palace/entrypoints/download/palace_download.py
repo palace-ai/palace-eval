@@ -447,7 +447,36 @@ def download_tasklist(
     with open(tasklist_path / "info.json") as f:
         _info = json.load(f)
 
-    # Download environment directories
+    # Helper: download files from repo to local tasklist directory
+    def _download_repo_files(filenames: list[str]):
+        for filename in filenames:
+            dest = tasklist_path / filename
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists():
+                continue
+            try:
+                temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
+                shutil.copy2(temp, dest)
+            except Exception as e:
+                print(f"  Warning: failed to download {filename}: {e}")
+
+    def _list_repo_path(path: str) -> list[str]:
+        try:
+            return [f.rfilename for f in list_repo_tree(id, path_in_repo=path, repo_type="dataset", recursive=True) if hasattr(f, "rfilename")]
+        except Exception:
+            return []
+
+    # List full repo tree once (for glob matching)
+    from fnmatch import fnmatch
+    try:
+        _all_repo_files = [f.rfilename for f in list_repo_tree(id, repo_type="dataset", recursive=True) if hasattr(f, "rfilename")]
+    except Exception:
+        _all_repo_files = []
+
+    def _match_glob(pattern: str) -> list[str]:
+        return [f for f in _all_repo_files if fnmatch(f, pattern)]
+
+    # Download environment + companions directories
     env_dirs = set()
     if "env" in _info:
         for cfg in _info["env"].values():
@@ -455,46 +484,19 @@ def download_tasklist(
     else:
         env_dirs.add("environment")
     for env_path in env_dirs:
-        try:
-            env_files = [
-                f.rfilename for f in list_repo_tree(id, path_in_repo=env_path, repo_type="dataset", recursive=True)
-                if hasattr(f, "rfilename")
-            ]
-        except Exception:
-            env_files = []
-        if env_files:
-            for filename in env_files:
-                dest = tasklist_path / filename
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                if dest.exists():
-                    continue
-                try:
-                    temp = hf_hub_download(repo_id=id, filename=filename, repo_type="dataset")
-                    shutil.copy2(temp, dest)
-                except Exception as e:
-                    print(f"  Warning: failed to download {filename}: {e}")
+        _download_repo_files(_list_repo_path(env_path))
+        companions_path = str(Path(env_path).parent / "companions")
+        _download_repo_files(_list_repo_path(companions_path))
 
-    # Download task_files directories
+    # Download task_files
     task_files_path = _info.get("task_files_path", "task_files")
     if _glob_has_wildcards(task_files_path):
-        # Glob pattern — list full tree and match
-        from fnmatch import fnmatch
-        all_files = [
-            f.rfilename for f in list_repo_tree(id, repo_type="dataset", recursive=True)
-            if hasattr(f, "rfilename")
-        ]
-        tf_files = [f for f in all_files if any(
+        tf_files = [f for f in _all_repo_files if any(
             fnmatch("/".join(f.split("/")[:i]), task_files_path)
             for i in range(1, len(f.split("/")))
         )]
     else:
-        try:
-            tf_files = [
-                f.rfilename for f in list_repo_tree(id, path_in_repo=task_files_path, repo_type="dataset", recursive=True)
-                if hasattr(f, "rfilename")
-            ]
-        except Exception:
-            tf_files = []
+        tf_files = _list_repo_path(task_files_path)
     if tf_files:
         if on_progress:
             on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=len(tf_files)))
@@ -510,9 +512,15 @@ def download_tasklist(
             if on_progress:
                 on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=len(tf_files)))
 
-    # Write tasks.json
-    with open(tasklist_path / "tasks.json", "w", encoding="utf-8") as f:
-        json.dump(tasks, f, ensure_ascii=False, indent=4)
+    # Download task files matching tasks_path; write compiled fallback if none found in repo
+    _tasks_path_pattern = _info.get("tasks_path", "tasks.json")
+    task_json_files = _match_glob(_tasks_path_pattern)
+    if task_json_files:
+        _download_repo_files(task_json_files)
+    else:
+        out_path = _tasks_path_pattern if not _glob_has_wildcards(_tasks_path_pattern) else "tasks.json"
+        with open(tasklist_path / out_path, "w", encoding="utf-8") as f:
+            json.dump(tasks, f, ensure_ascii=False, indent=4)
 
     # Write .palace-complete marker (authoritative completion signal)
     (tasklist_path / ".palace-complete").touch()
