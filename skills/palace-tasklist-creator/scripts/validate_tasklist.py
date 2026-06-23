@@ -70,16 +70,19 @@ def validate(tasklist_path: Path) -> bool:
 
     # Agentic: check image is self-contained
     if task_type == "Agentic" and "env" in info:
-        env_dir = tasklist_path / "environment"
-        has_dockerfile = env_dir.is_dir() and (env_dir / "Dockerfile").exists()
         public_prefixes = ("python:", "ubuntu:", "debian:", "alpine:", "node:", "golang:", "rust:", "fedora:", "centos:")
         for env_name, env_spec in info["env"].items():
             img = env_spec.get("image", "")
             if not img:
                 continue  # No image = uses vivarium default
             is_public = any(img.startswith(p) for p in public_prefixes) or "/" in img
-            if not is_public and not has_dockerfile:
-                warn(f"env '{env_name}' uses custom image '{img}' but no Dockerfile in environment/ — tasklist may not be self-contained")
+            if is_public:
+                continue
+            env_path = env_spec.get("path", "environment")
+            env_dir = tasklist_path / env_path
+            has_dockerfile = env_dir.is_dir() and (env_dir / "Dockerfile").exists()
+            if not has_dockerfile:
+                warn(f"env '{env_name}' uses custom image '{img}' but no Dockerfile in {env_path}/ — tasklist may not be self-contained")
 
     # Classification should have task_type_fields.labels
     if task_type == "Classification":
@@ -87,24 +90,42 @@ def validate(tasklist_path: Path) -> bool:
         if "labels" not in ttf:
             warn("Classification info.json has no task_type_fields.labels (tasks must provide per-task overrides)")
 
-    # 2. tasks.json
-    tasks_path = tasklist_path / "tasks.json"
-    if not tasks_path.exists():
-        return error("tasks.json not found")
-
-    try:
-        with open(tasks_path) as f:
-            tasks = json.load(f)
-    except json.JSONDecodeError as e:
-        return error(f"tasks.json is invalid JSON: {e}")
-
-    if not isinstance(tasks, list):
-        return error("tasks.json must be a JSON array")
-
-    if len(tasks) == 0:
-        passed = error("tasks.json is empty") and passed
+    # 2. Tasks — support both tasks.json and tasks_path glob
+    tasks_path_pattern = info.get("tasks_path")
+    if tasks_path_pattern:
+        task_files = sorted(tasklist_path.glob(tasks_path_pattern))
+        if not task_files:
+            return error(f"No task files found matching tasks_path: '{tasks_path_pattern}'")
+        tasks = []
+        for tf in task_files:
+            try:
+                with open(tf) as f:
+                    data = json.load(f)
+            except json.JSONDecodeError as e:
+                passed = error(f"{tf.relative_to(tasklist_path)} is invalid JSON: {e}") and passed
+                continue
+            if isinstance(data, list):
+                tasks.extend(data)
+            elif isinstance(data, dict):
+                tasks.append(data)
+            else:
+                passed = error(f"{tf.relative_to(tasklist_path)} must be a JSON array or object") and passed
+        ok(f"tasks_path '{tasks_path_pattern}': {len(tasks)} tasks from {len(task_files)} file(s)")
     else:
-        ok(f"tasks.json: {len(tasks)} tasks")
+        tasks_file = tasklist_path / "tasks.json"
+        if not tasks_file.exists():
+            return error("tasks.json not found (and no tasks_path in info.json)")
+        try:
+            with open(tasks_file) as f:
+                tasks = json.load(f)
+        except json.JSONDecodeError as e:
+            return error(f"tasks.json is invalid JSON: {e}")
+        if not isinstance(tasks, list):
+            return error("tasks.json must be a JSON array")
+        if len(tasks) == 0:
+            passed = error("tasks.json is empty") and passed
+        else:
+            ok(f"tasks.json: {len(tasks)} tasks")
 
     # Check task fields
     ids_seen = set()
@@ -128,40 +149,50 @@ def validate(tasklist_path: Path) -> bool:
 
     # 3. Agentic-specific checks
     if task_type == "Agentic":
-        env_dir = tasklist_path / "environment"
-        if not env_dir.is_dir():
-            passed = error("Agentic tasklist missing environment/ directory") and passed
+        # Collect all unique env paths to validate
+        env_paths = {}
+        if "env" in info:
+            for env_name, env_spec in info["env"].items():
+                env_paths[env_name] = env_spec.get("path", "environment")
         else:
-            ok("environment/ directory exists")
+            env_paths["default"] = "environment"
+
+        for env_name, env_path in env_paths.items():
+            env_dir = tasklist_path / env_path
+            if not env_dir.is_dir():
+                passed = error(f"Agentic env '{env_name}' missing {env_path}/ directory") and passed
+                continue
+
+            ok(f"{env_path}/ directory exists")
 
             # seed.py
             seed_path = env_dir / "seed.py"
             if not seed_path.exists():
-                warn("environment/seed.py not found (optional but common)")
+                warn(f"{env_path}/seed.py not found (optional but common)")
             else:
                 if not _check_async_function(seed_path, "seed"):
-                    passed = error("seed.py must define 'async def seed(seed_args, container)'") and passed
+                    passed = error(f"{env_path}/seed.py must define 'async def seed(seed_args, container)'") and passed
                 else:
-                    ok("seed.py has correct async signature")
+                    ok(f"{env_path}/seed.py has correct async signature")
 
             # verify.py
             verify_path = env_dir / "verify.py"
             if not verify_path.exists():
-                passed = error("Agentic tasklist missing environment/verify.py") and passed
+                passed = error(f"Agentic env '{env_name}' missing {env_path}/verify.py") and passed
             else:
                 if not _check_async_function(verify_path, "verify"):
-                    passed = error("verify.py must define 'async def verify(expected_outcome, agent_answer, ctx)'") and passed
+                    passed = error(f"{env_path}/verify.py must define 'async def verify(expected_outcome, agent_answer, ctx)'") and passed
                 else:
-                    ok("verify.py has correct async signature")
+                    ok(f"{env_path}/verify.py has correct async signature")
 
             # Custom tools
             tools_dir = env_dir / "tools"
             if tools_dir.exists():
                 for tool_file in sorted(tools_dir.glob("*.py")):
                     if not _check_async_function(tool_file, "execute"):
-                        passed = error(f"tools/{tool_file.name} must define 'async def execute(args, container, context)'") and passed
+                        passed = error(f"{env_path}/tools/{tool_file.name} must define 'async def execute(args, container, context)'") and passed
                     else:
-                        ok(f"tools/{tool_file.name} has correct async signature")
+                        ok(f"{env_path}/tools/{tool_file.name} has correct async signature")
 
         # Multi-env: check tasks have env field
         if "env" in info and len(info["env"]) > 1:

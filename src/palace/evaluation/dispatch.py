@@ -25,7 +25,7 @@ async def dispatch_tasks(
     concurrency: int,
     detail: str,
     renderer: Renderer,
-    on_task_complete: Callable[[int, int], None] | None,
+    on_task_complete: Callable[..., None] | None,
 ) -> list[TaskResult]:
     """Dispatch all tasks with bounded concurrency. Single path for all values."""
     await agent.on_tasklist_start(tasklist_path, tasklist_info)
@@ -58,7 +58,7 @@ async def dispatch_tasks(
 
             completed_count += 1
             if on_task_complete:
-                on_task_complete(completed_count, total)
+                on_task_complete(completed_count, total, result)
             return result
 
     try:

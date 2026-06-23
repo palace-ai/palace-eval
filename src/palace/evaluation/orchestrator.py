@@ -118,7 +118,7 @@ class Evaluation:
         task_amount_limit: Maximum number of tasks to evaluate per tasklist.
         runs_per_configuration: Number of evaluation runs per model/tasklist pair.
         output_path: Directory for JSONL result files.
-        on_task_complete: Optional callback invoked after each task with (current, total).
+        on_task_complete: Optional callback invoked after each task with (current, total, result).
         enable_citation_verifier: Enable the citation verifier analyzer.
         io_adapter: Optional model I/O adapter config dict.
         report_detail: Level of detail in per-task report.
