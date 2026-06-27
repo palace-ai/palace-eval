@@ -26,6 +26,7 @@ async def dispatch_tasks(
     detail: str,
     renderer: Renderer,
     on_task_complete: Callable[..., None] | None,
+    task_timeout: float = 3600,
 ) -> list[TaskResult]:
     """Dispatch all tasks with bounded concurrency. Single path for all values."""
     await agent.on_tasklist_start(tasklist_path, tasklist_info)
@@ -42,8 +43,11 @@ async def dispatch_tasks(
         nonlocal completed_count
         async with sem:
             try:
-                result = await execute_task(
-                    i, task, agent, adapter, tasklist_path, task_files_dirs, analyzers, detail, renderer
+                result = await asyncio.wait_for(
+                    execute_task(
+                        i, task, agent, adapter, tasklist_path, task_files_dirs, analyzers, detail, renderer
+                    ),
+                    timeout=task_timeout,
                 )
             except Exception as e:
                 from palace.task_types.base import TaskVerificationResult

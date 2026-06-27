@@ -115,7 +115,7 @@ Fix any reported errors, then your tasklist is ready for evaluation with `palace
 - **id must be unique** across all tasks in the tasklist.
 - **Agentic info.json MUST have `"env"` key**: VivariumAgent raises ValueError without it.
 - **seed.py and verify.py must be async**: `async def seed(seed_args, container)` — NOT `def seed(...)`.
-- **Custom tool execute() must be async**: `async def execute(args, container, context)` — uses `await container.read(...)`, `await container.write(...)`, `await container.exec(...)`.
+- **Custom tool execute() must be async**: `async def execute(args, context)` — container accessed via `context["container"]` with methods `await container.read(...)`, `await container.write(...)`, `await container.exec(...)`.
 - **container methods are async**: `await container.read()` returns str, `await container.write()` takes bytes, `await container.exec()` returns `(code, output)`.
 - **task_files/ lands at `/task_files/` in the container** for agentic tasks (vivarium adds prefix). Matched by task ID — do NOT add `"attachment"` field for agentic tasks (causes silent skip).
 - **Multi-env tasklists**: When info.json has multiple `env` entries, each task MUST have `"env": "name"` field.

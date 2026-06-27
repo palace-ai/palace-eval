@@ -190,7 +190,7 @@ def validate(tasklist_path: Path) -> bool:
             if tools_dir.exists():
                 for tool_file in sorted(tools_dir.glob("*.py")):
                     if not _check_async_function(tool_file, "execute"):
-                        passed = error(f"{env_path}/tools/{tool_file.name} must define 'async def execute(args, container, context)'") and passed
+                        passed = error(f"{env_path}/tools/{tool_file.name} must define 'async def execute(args, context)'") and passed
                     else:
                         ok(f"{env_path}/tools/{tool_file.name} has correct async signature")
 

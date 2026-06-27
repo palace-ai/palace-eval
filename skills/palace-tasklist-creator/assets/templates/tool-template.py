@@ -20,28 +20,30 @@ TOOL = {
 }
 
 # Optional: request context values from vivarium's namespaced pool
-# CONTEXT = {
-#     "model_url": "run.model_url",
-#     "model_key": "run.model_key",
-#     "model_name": "run.model_name",
-# }
+# Available keys: env.container, env.id, env.task_id, env.group, env.container_id,
+#                 run.objective, run.model_url, run.model_key, run.model_name,
+#                 run.notifications, run.delegate_fn, server.env_registry, spec.id
+CONTEXT = {
+    "container": "env.container",
+}
 
 
-async def execute(args, container, context):
+async def execute(args, context):
     """Execute the tool. MUST be async.
 
     Args:
         args: dict of parameter values from the agent's tool call
-        container: Container object with async API:
-            await container.read(path) → str
-            await container.write(path, bytes)
-            await container.exec(cmd) → (exit_code, output)
-        context: dict of resolved CONTEXT values (empty if no CONTEXT defined)
+        context: dict of resolved CONTEXT values. Common entries:
+            context["container"]: Container object with async API:
+                await container.read(path) → str
+                await container.write(path, bytes)
+                await container.exec(cmd) → (exit_code, output)
 
     Returns:
         {"content": "result string"} on success
         {"error": "error message"} on failure
     """
+    container = context["container"]
     data = json.loads(await container.read("/data/db.json"))
     result = data.get(args["query"])
     if result is None:

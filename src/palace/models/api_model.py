@@ -149,7 +149,7 @@ class OpenAIModel(APIModel):
 
     def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True):
         super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
-        self.client = AsyncOpenAI(base_url=url, api_key=token or "no-key")
+        self.client = AsyncOpenAI(base_url=url, api_key=token or "no-key", timeout=3000)
 
     @staticmethod
     def _format_content(content):
@@ -171,6 +171,7 @@ class OpenAIModel(APIModel):
         response = await self.client.chat.completions.create(
             model=self.model_id,
             messages=formatted,  # type: ignore
+            max_tokens=16384,
             stream=False,
         )
         if not response.choices or response.choices[0].message.content is None:
@@ -186,6 +187,7 @@ class AnthropicModel(APIModel):
         self.client = AsyncAnthropic(
             base_url=url.removesuffix("/v1"),
             default_headers={"Authorization": f"Bearer {token}"},
+            timeout=3000,
         )
 
     @staticmethod
@@ -214,7 +216,7 @@ class AnthropicModel(APIModel):
         response = await self.client.messages.create(
             model=self.model_id,
             messages=formatted,  # type: ignore
-            max_tokens=2048,
+            max_tokens=16384,
             stream=False,
             system=system_prompt if system_prompt is not None else omit,
         )  # type: ignore

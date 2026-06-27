@@ -207,7 +207,8 @@ CONTEXT = {
 }
 
 # Required: execution function (MUST be async)
-async def execute(args, container, context):
+async def execute(args, context):
+    container = context["container"]
     """Execute the tool.
     
     Args:
@@ -247,7 +248,8 @@ CONTEXT = {
     "model_name": "run.model_name",
 }
 
-async def execute(args, container, context):
+async def execute(args, context):
+    container = context["container"]
     from openai import OpenAI
     client = OpenAI(base_url=context["model_url"], api_key=context["model_key"])
     response = client.chat.completions.create(
