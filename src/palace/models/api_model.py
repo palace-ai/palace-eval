@@ -171,7 +171,7 @@ class OpenAIModel(APIModel):
         response = await self.client.chat.completions.create(
             model=self.model_id,
             messages=formatted,  # type: ignore
-            max_tokens=16384,
+            max_tokens=32768,
             stream=False,
         )
         if not response.choices or response.choices[0].message.content is None:
@@ -216,7 +216,7 @@ class AnthropicModel(APIModel):
         response = await self.client.messages.create(
             model=self.model_id,
             messages=formatted,  # type: ignore
-            max_tokens=16384,
+            max_tokens=32768,
             stream=False,
             system=system_prompt if system_prompt is not None else omit,
         )  # type: ignore
