@@ -106,29 +106,39 @@ def _build_audio_part(att: Any) -> dict[str, Any]:
     return {"type": "audio", "format": fmt, "data": data}
 
 
+def _detect_mime_from_format(img_format: str | None) -> str:
+    """Map PIL image format to MIME type based on actual content, not extension."""
+    FORMAT_TO_MIME = {
+        "JPEG": "image/jpeg", "PNG": "image/png",
+        "GIF": "image/gif", "WEBP": "image/webp",
+    }
+    return FORMAT_TO_MIME.get(img_format or "", "image/png")
+
+
 def _load_and_resize_image(image_path: str) -> tuple[str, str]:
     """Load image, resize if too large, return base64 and MIME type.
 
     If the image doesn't need resizing or mode conversion, sends the original
     file bytes to avoid re-encoding artifacts and compatibility issues.
     Falls back to high-quality JPEG for large images to avoid payload size issues.
+
+    MIME type is detected from actual image content (not file extension) to
+    prevent mismatches rejected by Anthropic's API.
     """
-    MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-                  ".gif": "image/gif", ".webp": "image/webp"}
     MAX_BASE64_BYTES = 1_000_000  # ~1MB base64 threshold
 
-    ext = Path(image_path).suffix.lower()
-
     with Image.open(image_path) as img:
+        actual_format = img.format  # Detected from file content (e.g. "JPEG", "PNG")
+        actual_mime = _detect_mime_from_format(actual_format)
         needs_resize = max(img.size) > MAX_IMAGE_DIMENSION
         needs_convert = img.mode in ("RGBA", "P")
 
-        if not needs_resize and not needs_convert and ext in MIME_TYPES:
+        if not needs_resize and not needs_convert and actual_format:
             # Send original file bytes — avoids re-encoding issues
             raw = Path(image_path).read_bytes()
             b64 = base64.b64encode(raw).decode("utf-8")
             if len(b64) <= MAX_BASE64_BYTES:
-                return b64, MIME_TYPES[ext]
+                return b64, actual_mime
 
         if needs_convert:
             img = img.convert("RGB")

@@ -78,6 +78,9 @@ class OpenAIAPIAgent(Agent):
 
     async def run(self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None) -> AgentResult:
         self._model.quiet = not self.verbose
+        # Inline text attachments into prompt (non-agentic presentation)
+        if attachments:
+            prompt = self._inline_text_attachments(prompt, attachments)
         content = build_multimodal_content(prompt, attachments)
         try:
             output = await self._model.generate([{"role": "user", "content": content}])
@@ -90,3 +93,12 @@ class OpenAIAPIAgent(Agent):
             return AgentResult(outcome="error", reason=f"agent_error: {e}")
 
         return AgentResult(answer=output, metrics={})
+
+    @staticmethod
+    def _inline_text_attachments(prompt: str, attachments: "list[Attachment]") -> str:
+        """Inline text file content into the prompt for non-agentic evaluation."""
+        for att in attachments:
+            text = att.read_text()
+            if text:
+                prompt = f"Start of text attachment >>>\n{text}\n<<< End of text attachment\n\n{prompt}"
+        return prompt

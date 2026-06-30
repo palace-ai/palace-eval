@@ -63,7 +63,7 @@
     "penalize_unsupported": true
   },
   {
-    "name": "LongBench-v2",
+    "name": "LongBench v2",
     "id": "zai-org/LongBench-v2",
     "split": "train",
     "column_names": {

@@ -1,6 +1,7 @@
 """Shared dataclasses for the evaluation pipeline."""
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from palace.task_types.base import TaskVerificationResult
@@ -8,11 +9,25 @@ from palace.task_types.base import TaskVerificationResult
 
 @dataclass
 class Attachment:
-    """A binary attachment to pass as perceptual input to the model."""
+    """A resolved file attachment for model evaluation."""
 
     path: str        # absolute filesystem path to the file
-    mime_type: str   # e.g. "image/png", "audio/wav", "video/mp4"
+    mime_type: str   # e.g. "image/png", "audio/wav", "text/plain"
     filename: str    # original filename (for display/reference)
+
+    def read_bytes(self) -> bytes:
+        """Read raw file content."""
+        return Path(self.path).read_bytes()
+
+    def read_text(self, max_length: int = 200_000) -> str | None:
+        """Try reading as UTF-8 text. Returns None if not text or not decodable."""
+        if not self.mime_type.startswith("text/"):
+            return None
+        try:
+            text = Path(self.path).read_text(encoding="utf-8")
+            return text[:max_length] if len(text) > max_length else text
+        except (UnicodeDecodeError, OSError):
+            return None
 
 
 @dataclass
@@ -21,7 +36,7 @@ class PreparedTask:
 
     prompt: str
     attachments: list[Attachment] = field(default_factory=list)
-    attachment_content: str = ""
+    error: str | None = None  # e.g. "missing_attachment" — replaces __UNSUPPORTED__ sentinel
 
 
 @dataclass

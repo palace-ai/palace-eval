@@ -199,24 +199,10 @@ class VivariumAgent(Agent):
         assert task_id is not None, "VivariumAgent.run() requires task_id"
         env = self._envs[task_id]
 
-        # Write attachments to container filesystem and add note to prompt
+        # Agentic presentation: write to disk, encode embeddable for API, add note
         encoded_attachments = None
         if attachments:
-            await env.exec("mkdir -p /workspace/attachments")
-            encoded_attachments = []
-            filenames = []
-            for att in attachments:
-                raw = Path(att.path).read_bytes()
-                await env.write(f"/workspace/attachments/{att.filename}", raw)
-                filenames.append(att.filename)
-                encoded_attachments.append({
-                    "filename": att.filename,
-                    "mime_type": att.mime_type,
-                    "data": base64.b64encode(raw).decode("utf-8"),
-                })
-            # Inform the agent about files available on disk
-            files_str = ", ".join(f"attachments/{f}" for f in filenames)
-            prompt = f"{prompt}\n\n[Attached files: {files_str}]"
+            prompt, encoded_attachments = await self._prepare_attachments(env, prompt, attachments)
 
         run = await self._client.run(
             env,
@@ -281,6 +267,31 @@ class VivariumAgent(Agent):
             stop()
             self._auto_started = False
         await self._client.aclose()
+
+    async def _prepare_attachments(
+        self, env, prompt: str, attachments: "list[Attachment]"
+    ) -> "tuple[str, list[dict] | None]":
+        """Write all attachments to container, return (updated_prompt, encoded_for_api).
+
+        - All files are written to /workspace/attachments/ for tool access.
+        - Only image/audio are encoded for model-context embedding via vivarium API.
+        - A note listing all files is appended to the prompt.
+        """
+        await env.exec("mkdir -p /workspace/attachments")
+        filenames: list[str] = []
+        encoded: list[dict] = []
+        for att in attachments:
+            raw = att.read_bytes()
+            await env.write(f"/workspace/attachments/{att.filename}", raw)
+            filenames.append(att.filename)
+            if att.mime_type.startswith(("image/", "audio/")):
+                encoded.append({
+                    "filename": att.filename,
+                    "mime_type": att.mime_type,
+                    "data": base64.b64encode(raw).decode("utf-8"),
+                })
+        note = "\n\n[Attached files: " + ", ".join(f"attachments/{f}" for f in filenames) + "]"
+        return prompt + note, encoded or None
 
     def _package_task_files(self, task: Task) -> bytes | None:
         """Package task_files for upload, if any exist for this task."""

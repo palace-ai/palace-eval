@@ -25,48 +25,58 @@ TEXT_EXTENSIONS = {
 
 
 def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path, task_files_dirs: "list[Path] | None" = None) -> PreparedTask:
-    """Resolve attachments, apply adapter, build final prompt."""
-    attachments: list[Attachment] = []
-    attachment_content = ""
+    """Resolve attachments and build prompt. Presentation is the agent's responsibility."""
     _dirs = task_files_dirs or [tasklist_path / "task_files"]
 
+    attachments, error = _resolve_attachments(task, _dirs, tasklist_path)
+    if error:
+        return PreparedTask(prompt="", error=error)
+
+    if adapter is not None:
+        text_content = _get_text_content(attachments)
+        prompt = adapter.adapt_input(task, text_content)
+    else:
+        prompt = task.create_prompt()
+
+    return PreparedTask(prompt=prompt, attachments=attachments)
+
+
+def _resolve_attachments(task: Task, dirs: "list[Path]", tasklist_path: Path) -> "tuple[list[Attachment], str | None]":
+    """Find files and assign mime types. Returns (attachments, error_or_None)."""
+    attachments: list[Attachment] = []
     for att in task.attachments:
         if not att:
             continue
-        attachment_file = None
-        for d in _dirs:
-            candidate = d / att
-            if candidate.exists():
-                attachment_file = candidate
-                break
-        if attachment_file is None:
-            attachment_file = tasklist_path / "task_files" / att  # fallback (will error naturally)
+        path = _find_file(att, dirs)
+        if path is None:
+            # Fallback check in default location
+            fallback = tasklist_path / "task_files" / att
+            if fallback.exists():
+                path = fallback
+            else:
+                return [], "missing_attachment"
         ext = Path(att).suffix.lower()
-        if ext in TEXT_EXTENSIONS:
-            try:
-                with open(attachment_file, encoding="utf-8") as f:
-                    attachment_content = f.read()
-            except (UnicodeDecodeError, OSError):
-                return PreparedTask(prompt="", attachments=[], attachment_content="__UNSUPPORTED__")
-            max_len = 200000
-            if len(attachment_content) > max_len:
-                attachment_content = attachment_content[:max_len]
-            # Also pass as Attachment so agentic runs can write it to container filesystem
-            attachments.append(Attachment(path=str(attachment_file), mime_type="text/plain", filename=att))
-        else:
-            if not attachment_file.exists():
-                return PreparedTask(prompt="", attachments=[], attachment_content="__UNSUPPORTED__")
-            mime = mime_from_extension(ext)
-            attachments.append(Attachment(path=str(attachment_file), mime_type=mime, filename=att))
+        mime = "text/plain" if ext in TEXT_EXTENSIONS else mime_from_extension(ext)
+        attachments.append(Attachment(path=str(path), mime_type=mime, filename=att))
+    return attachments, None
 
-    if adapter is not None:
-        prompt = adapter.adapt_input(task, attachment_content)
-    else:
-        prompt = task.create_prompt()
-        if attachment_content:
-            prompt = f"Start of text attachment >>>\n{attachment_content}\n<<< End of text attachment\n\n{prompt}"
 
-    return PreparedTask(prompt=prompt, attachments=attachments, attachment_content=attachment_content)
+def _find_file(filename: str, dirs: "list[Path]") -> "Path | None":
+    """Search for a file in the given directories. Returns first match or None."""
+    for d in dirs:
+        candidate = d / filename
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _get_text_content(attachments: "list[Attachment]") -> str:
+    """Extract text content from text attachments (for adapter template substitution)."""
+    for att in attachments:
+        text = att.read_text()
+        if text is not None:
+            return text
+    return ""
 
 
 async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> AgentResult:
@@ -191,8 +201,8 @@ async def execute_task(
         # Prepare
         prepared = prepare_prompt(task, adapter, tasklist_path, task_files_dirs)
 
-        # Handle unsupported attachment
-        if prepared.attachment_content == "__UNSUPPORTED__":
+        # Handle attachment resolution error
+        if prepared.error:
             vr = TaskVerificationResult(is_correct=False, outcome="error", reason="unsupported_attachment")
             entry = build_report(task, AgentResult(outcome="error", reason="unsupported_attachment"), vr, {}, detail)
             return TaskResult(task.id, entry, vr)
