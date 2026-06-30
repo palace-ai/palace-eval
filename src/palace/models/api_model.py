@@ -168,15 +168,19 @@ class OpenAIModel(APIModel):
 
     async def _call_api(self, messages: list[Message]) -> str:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
-        response = await self.client.chat.completions.create(
+        collected: list[str] = []
+        stream = await self.client.chat.completions.create(
             model=self.model_id,
             messages=formatted,  # type: ignore
             max_tokens=32768,
-            stream=False,
+            stream=True,
         )
-        if not response.choices or response.choices[0].message.content is None:
+        async for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                collected.append(chunk.choices[0].delta.content)
+        if not collected:
             raise ValueError("Empty API response: no content returned")
-        return response.choices[0].message.content
+        return "".join(collected)
 
 
 class AnthropicModel(APIModel):
@@ -213,11 +217,15 @@ class AnthropicModel(APIModel):
             system_prompt = str(msgs[0]["content"])
             msgs = msgs[1:]
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in msgs]
-        response = await self.client.messages.create(
+        collected: list[str] = []
+        async with self.client.messages.stream(
             model=self.model_id,
             messages=formatted,  # type: ignore
             max_tokens=32768,
-            stream=False,
             system=system_prompt if system_prompt is not None else omit,
-        )  # type: ignore
-        return response.content[0].text
+        ) as stream:
+            async for text in stream.text_stream:
+                collected.append(text)
+        if not collected:
+            raise ValueError("Empty API response: no content returned")
+        return "".join(collected)
