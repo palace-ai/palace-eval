@@ -214,7 +214,7 @@ class Evaluation:
                     f"[blue]:robot: {model}[/]:\n"
                     + f"on :scroll: [blue]{tasklist}[/]\n\n"
                     + f"[blue]{metrics['correct_count']}[/] / [blue]{metrics['evaluated_count']}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
-                    + (f" [yellow]({metrics['skipped_count']} skipped)[/]" if metrics['skipped_count'] else "")
+                    + (f" [yellow]({metrics['error_count']} errors, {metrics['unsupported_count']} unsupported)[/]" if metrics.get('skipped_count') else "")
                     + f"\nTotal time: [blue]{metrics['total_time']}[/]",
                     box=True,
                     box_title="Evaluation Report",
@@ -355,9 +355,11 @@ class Evaluation:
         report = {r.task_id: r.report_entry for r in task_results}
         verification_results = [r.verification for r in task_results]
 
+        penalize_unsupported = tasklist_info.get("penalize_unsupported", False)
         evaluated = [r for r in verification_results if not r.is_skipped]
-        skipped = [r for r in verification_results if r.is_skipped]
-        task_type_metrics = task_cls.aggregate(verification_results)
+        error_results = [r for r in verification_results if r.outcome == "error"]
+        unsupported_results = [r for r in verification_results if r.outcome == "unsupported"]
+        task_type_metrics = task_cls.aggregate(verification_results, penalize_unsupported=penalize_unsupported)
         accuracy = task_type_metrics.pop("accuracy", 0)
         evaluated_report = {k: v for k, v in report.items() if not v.get("is_skipped")}
         agent_metrics = compute_agent_metrics(evaluated_report)
@@ -366,12 +368,26 @@ class Evaluation:
             "task_count": len(report),
             "evaluated_count": len(evaluated),
             "correct_count": sum(r.is_correct for r in evaluated),
-            "skipped_count": len(skipped),
+            "skipped_count": len(error_results) + len(unsupported_results),
+            "error_count": len(error_results),
+            "unsupported_count": len(unsupported_results),
             "total_time": sum(t["elapsed_time"] for t in report.values()),
             "accuracy": accuracy,
             "task_type": task_type_metrics,
             "agent": agent_metrics,
         }
+
+        # Per-group breakdown
+        groups: dict[str, list] = {}
+        for task, result in zip(tasks, task_results):
+            group = task.group
+            if group:
+                groups.setdefault(group, []).append(result.verification)
+        if groups:
+            metrics["per_group"] = {
+                g: task_cls.aggregate(vrs, penalize_unsupported=penalize_unsupported)
+                for g, vrs in groups.items()
+            }
 
         return accuracy, metrics, report
 

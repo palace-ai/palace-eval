@@ -14,13 +14,34 @@ class ExecutionEnvironment(Protocol):
 
 @dataclass
 class TaskVerificationResult:
-    """Structured result from task verification with optional metrics."""
+    """Structured result from task verification with optional metrics.
+
+    Outcomes:
+        - "correct": model answered correctly
+        - "incorrect": model answered incorrectly
+        - "error": infrastructure/transient failure (excluded from score)
+        - "unsupported": model capability limitation (optionally penalized)
+    """
 
     is_correct: bool
+    outcome: str = ""  # auto-set in __post_init__ if empty
+    reason: str | None = None
     reasoning: str | None = None
     metrics: dict[str, Any] = field(default_factory=dict)
-    is_skipped: bool = False
-    skip_reason: str | None = None
+
+    def __post_init__(self):
+        if not self.outcome:
+            self.outcome = "correct" if self.is_correct else "incorrect"
+
+    @property
+    def is_skipped(self) -> bool:
+        """Backward compat: True when outcome is error or unsupported."""
+        return self.outcome in ("error", "unsupported")
+
+    @property
+    def skip_reason(self) -> str | None:
+        """Backward compat: returns reason for error/unsupported outcomes."""
+        return self.reason if self.is_skipped else None
 
 
 class Task:
@@ -35,6 +56,7 @@ class Task:
     expected: str | None
     references: str | None
     difficulty: str | None
+    group: str | None
     document: str | None
     attachments: list[str]
     custom_verificator: str | None
@@ -69,20 +91,31 @@ class Task:
         return self.adapt_prompt()
 
     @classmethod
-    def aggregate(cls, results: list[TaskVerificationResult]) -> dict[str, Any]:
+    def aggregate(cls, results: list[TaskVerificationResult], penalize_unsupported: bool = False) -> dict[str, Any]:
         """Compute aggregate metrics from all task results.
 
         Default implementation computes accuracy only.
         Subclasses override for richer metrics (e.g., F1, normalized scores).
-        Skipped tasks are excluded from all calculations.
+
+        When penalize_unsupported is False (default), only correct/incorrect
+        outcomes are included in the denominator (backward-compatible behavior).
+        When True, unsupported outcomes also count in the denominator (scored as 0).
+        Error outcomes are always excluded.
 
         Args:
             results: List of verification results from all evaluated tasks.
+            penalize_unsupported: If True, unsupported tasks count as failures
+                in the score. If False, they are excluded like errors.
 
         Returns:
             Dict of metric names to values. Always includes "accuracy".
         """
-        evaluated = [r for r in results if not r.is_skipped]
+        if penalize_unsupported:
+            # Denominator = correct + incorrect + unsupported (exclude only errors)
+            evaluated = [r for r in results if r.outcome != "error"]
+        else:
+            # Denominator = correct + incorrect only (legacy behavior)
+            evaluated = [r for r in results if not r.is_skipped]
         if not evaluated:
             return {"accuracy": 0}
         correct = sum(1 for r in evaluated if r.is_correct)
@@ -119,6 +152,7 @@ class Task:
             "expected",
             "references",
             "difficulty",
+            "group",
             "document",
             "attachment",
             "attachments",
@@ -162,6 +196,7 @@ class Task:
         task.expected = data.get("expected")
         task.references = data.get("references")
         task.difficulty = data.get("difficulty")
+        task.group = data.get("group")
         task.document = data.get("document")
         task.attachments = data.get("attachments") or ([data["attachment"]] if data.get("attachment") else [])  # "attachment" is deprecated shorthand for "attachments": [x]
         task.custom_verificator = data.get("custom_verificator")

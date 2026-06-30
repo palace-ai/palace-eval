@@ -91,9 +91,20 @@ class VivariumAgent(Agent):
         self._task_files_dirs = sorted(d for d in tasklist_path.glob(task_files_path) if d.is_dir())
 
         # Store environment configurations for lazy registration
-        if "env" not in info:
-            raise ValueError("info.json must contain an 'env' key with named environment configurations")
-        self._env_configs = info["env"]
+        if "env" in info:
+            self._env_configs = info["env"]
+        else:
+            # No env key — use vivarium's built-in default spec (registered at server startup)
+            specs = await self._client.list_specs()
+            if not any(s.get("id") == "default" for s in specs):
+                raise RuntimeError(
+                    f"No 'env' key in info.json and no 'default' spec registered on "
+                    f"Vivarium at {self._client._url}. Either add an 'env' config to "
+                    f"the tasklist's info.json, or ensure Vivarium is running (the "
+                    f"default spec is registered automatically at server startup)."
+                )
+            self._env_configs = {"default": {}}
+            self._spec_ids["default"] = "default"
 
         # Pre-load seed functions and archives per unique environment path
         self._seed_fns: dict[str, object] = {}
@@ -188,17 +199,24 @@ class VivariumAgent(Agent):
         assert task_id is not None, "VivariumAgent.run() requires task_id"
         env = self._envs[task_id]
 
-        # Encode attachments as base64 for vivarium API
+        # Write attachments to container filesystem and add note to prompt
         encoded_attachments = None
         if attachments:
+            await env.exec("mkdir -p /workspace/attachments")
             encoded_attachments = []
+            filenames = []
             for att in attachments:
                 raw = Path(att.path).read_bytes()
+                await env.write(f"/workspace/attachments/{att.filename}", raw)
+                filenames.append(att.filename)
                 encoded_attachments.append({
                     "filename": att.filename,
                     "mime_type": att.mime_type,
                     "data": base64.b64encode(raw).decode("utf-8"),
                 })
+            # Inform the agent about files available on disk
+            files_str = ", ".join(f"attachments/{f}" for f in filenames)
+            prompt = f"{prompt}\n\n[Attached files: {files_str}]"
 
         run = await self._client.run(
             env,
@@ -225,7 +243,7 @@ class VivariumAgent(Agent):
             prev_tc = len(data.tool_trace)
             await asyncio.sleep(1)
         else:
-            return AgentResult(is_skipped=True, skip_reason="timeout")
+            return AgentResult(outcome="error", reason="timeout")
 
         # Print remaining trace
         if self.verbose:
@@ -245,7 +263,7 @@ class VivariumAgent(Agent):
         error = data.error if data else "unknown"
         if self.verbose:
             print(f"  [red]⚠ Run failed: {error}[/]")
-        return AgentResult(is_skipped=True, skip_reason="agent_error")
+        return AgentResult(outcome="error", reason="agent_error")
 
     async def on_task_end(self, task: Task) -> None:
         """Destroy the environment container."""

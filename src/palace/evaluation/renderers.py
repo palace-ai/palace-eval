@@ -137,9 +137,12 @@ class VerboseRenderer(_LogMixin):
         if self._loading_ctx is not None:
             self._loading_ctx.__exit__(None, None, None)
             self._loading_ctx = None
-        if vr.is_skipped:
-            self._log_line(f"[{i+1}/{self.total}] VERIFY skipped={vr.skip_reason}")
-            print(f"[bold yellow]:next_track_button: Skipped: {vr.skip_reason}[/]")
+        if vr.outcome == "unsupported":
+            self._log_line(f"[{i+1}/{self.total}] VERIFY unsupported={vr.reason}")
+            print(f"[bold magenta]:prohibited: Unsupported: {vr.reason}[/]")
+        elif vr.outcome == "error":
+            self._log_line(f"[{i+1}/{self.total}] VERIFY error={vr.reason}")
+            print(f"[bold yellow]:warning: Error: {vr.reason}[/]")
         elif vr.is_correct:
             self._log_line(f"[{i+1}/{self.total}] VERIFY correct=True")
             print("[bold green]:white_check_mark: Correct[/]")
@@ -157,8 +160,8 @@ class VerboseRenderer(_LogMixin):
             self._correct += 1
         elapsed = result.report_entry.get("elapsed_time", 0)
         if result.verification.is_skipped:
-            reason = result.verification.skip_reason or "unknown"
-            self._log_line(f"[{i+1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+            reason = result.verification.reason or "unknown"
+            self._log_line(f"[{i+1}/{self.total}] {result.verification.outcome.upper()} task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
         else:
             self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
 

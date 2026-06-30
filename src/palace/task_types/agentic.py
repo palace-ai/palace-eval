@@ -36,11 +36,11 @@ class AgenticTask(Task):
     async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
         if env is None:
             return TaskVerificationResult(
-                is_correct=False, is_skipped=True, skip_reason="no_execution_environment"
+                is_correct=False, outcome="error", reason="no_execution_environment"
             )
         if not self._verify_fn:
             return TaskVerificationResult(
-                is_correct=False, is_skipped=True, skip_reason="no_verify_function"
+                is_correct=False, outcome="error", reason="no_verify_function"
             )
 
         # Copy verify_files if present in tasklist
@@ -74,7 +74,7 @@ class AgenticTask(Task):
                 await env.write(dest, f.read_bytes())
 
     @classmethod
-    def aggregate(cls, results: list[TaskVerificationResult]) -> dict[str, Any]:
+    def aggregate(cls, results: list[TaskVerificationResult], penalize_unsupported: bool = False) -> dict[str, Any]:
         evaluated = [r for r in results if not r.is_skipped]
         if not evaluated:
             return {"accuracy": 0}

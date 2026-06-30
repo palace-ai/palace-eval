@@ -34,7 +34,7 @@ class InstructionFollowingTask(Task):
         )
 
     @classmethod
-    def aggregate(cls, results: list[TaskVerificationResult]) -> dict[str, Any]:
+    def aggregate(cls, results: list[TaskVerificationResult], penalize_unsupported: bool = False) -> dict[str, Any]:
         evaluated = [r for r in results if not r.is_skipped]
         if not evaluated:
             return {"accuracy": 0, "avg_score": 0}

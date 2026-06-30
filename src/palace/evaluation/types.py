@@ -26,13 +26,29 @@ class PreparedTask:
 
 @dataclass
 class AgentResult:
-    """Result from an agent run."""
+    """Result from an agent run.
+
+    Outcomes:
+        - "success": agent produced an answer (default when answer is set)
+        - "error": infrastructure/transient failure
+        - "unsupported": model capability limitation (e.g., context too long)
+    """
 
     answer: str | None = None
     metrics: dict[str, Any] | None = None
-    is_skipped: bool = False
-    skip_reason: str | None = None
+    outcome: str = "success"  # "success", "error", "unsupported"
+    reason: str | None = None
     elapsed: float = 0.0
+
+    @property
+    def is_skipped(self) -> bool:
+        """Backward compat: True when outcome is not success."""
+        return self.outcome != "success"
+
+    @property
+    def skip_reason(self) -> str | None:
+        """Backward compat: returns reason for non-success outcomes."""
+        return self.reason if self.is_skipped else None
 
 
 @dataclass

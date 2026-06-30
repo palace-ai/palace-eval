@@ -76,6 +76,9 @@ def download_tasklist(
     default_labels: dict[str, str] | None = None,
     label_mapping: dict[str, str] | None = None,
     custom_verificator: str | None = None,
+    group_from: str | None = None,
+    interleave_groups: bool = False,
+    penalize_unsupported: bool = False,
     on_progress: Callable[[DownloadEvent], None] | None = None,
     _progress_ctx: tuple[int, int] | None = None,
 ) -> None:
@@ -90,12 +93,33 @@ def download_tasklist(
         )
 
     # Multi-config: iterate configs and combine into single dataset stream
-    if isinstance(split, list):
+    if isinstance(config, list) and isinstance(split, list):
+        # Both config and split are lists: iterate all combinations
+        def _multi_config_split_stream():
+            for cfg in config:
+                for s in split:
+                    ds = load_dataset(path=id, name=cfg, split=s, streaming=True,
+                                      storage_options={"client_kwargs": {"timeout": 120}})
+                    for row in ds:
+                        row = dict(row)
+                        if group_from == "config":
+                            row["_group"] = cfg
+                        elif group_from == "split":
+                            row["_group"] = s
+                        yield row
+
+        dataset = _multi_config_split_stream()
+        split_info = None
+    elif isinstance(split, list):
         def _multi_split_stream():
             for s in split:
                 ds = load_dataset(path=id, name=config, split=s, streaming=True,
                                   storage_options={"client_kwargs": {"timeout": 120}})
-                yield from ds
+                for row in ds:
+                    if group_from == "split":
+                        row = dict(row)
+                        row["_group"] = s
+                    yield row
 
         dataset = _multi_split_stream()
         split_info = None
@@ -104,7 +128,11 @@ def download_tasklist(
             for cfg in config:
                 ds = load_dataset(path=id, name=cfg, split=split, streaming=True,
                                   storage_options={"client_kwargs": {"timeout": 120}})
-                yield from ds
+                for row in ds:
+                    if group_from == "config":
+                        row = dict(row)
+                        row["_group"] = cfg
+                    yield row
 
         dataset = _multi_config_stream()
         split_info = None
@@ -151,6 +179,8 @@ def download_tasklist(
             _needed_cols.update(col)
         else:
             _needed_cols.add(col)
+    if group_from:
+        _needed_cols.add("_group")
     if keep_custom_columns:
         _needed_cols = None  # keep all
 
@@ -259,6 +289,12 @@ def download_tasklist(
             and column_names["custom_verificator"] in row
             else "",
         }
+
+        # Set group field if group_from is configured
+        if group_from and "_group" in row:
+            task["group"] = row["_group"]
+        elif "group" in column_names and column_names["group"] in row:
+            task["group"] = row[column_names["group"]]
 
         # Store attachments
         if attachments:
@@ -518,9 +554,31 @@ def download_tasklist(
     if task_json_files:
         _download_repo_files(task_json_files)
     else:
+        # Interleave tasks by group (round-robin) if requested
+        if interleave_groups and tasks and tasks[0].get("group"):
+            from itertools import zip_longest
+            group_buckets: dict[str, list] = {}
+            for t in tasks:
+                group_buckets.setdefault(t.get("group", ""), []).append(t)
+            interleaved = []
+            for batch in zip_longest(*group_buckets.values()):
+                for t in batch:
+                    if t is not None:
+                        interleaved.append(t)
+            tasks = interleaved
+
         out_path = _tasks_path_pattern if not _glob_has_wildcards(_tasks_path_pattern) else "tasks.json"
         with open(tasklist_path / out_path, "w", encoding="utf-8") as f:
             json.dump(tasks, f, ensure_ascii=False, indent=4)
+
+    # Add penalize_unsupported to info.json if requested
+    if penalize_unsupported:
+        info_path = tasklist_path / "info.json"
+        with open(info_path) as f:
+            info_data = json.load(f)
+        info_data["penalize_unsupported"] = True
+        with open(info_path, "w", encoding="utf-8") as f:
+            json.dump(info_data, f, ensure_ascii=False, indent=4)
 
     # Write .palace-complete marker (authoritative completion signal)
     (tasklist_path / ".palace-complete").touch()

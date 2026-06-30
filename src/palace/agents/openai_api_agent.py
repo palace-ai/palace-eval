@@ -12,6 +12,34 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger("palace.openai_api_agent")
 
+# Patterns that indicate a deterministic model capability limitation (not transient)
+_UNSUPPORTED_PATTERNS = [
+    "context_length_exceeded",
+    "too many tokens",
+    "prompt is too long",
+    "maximum context length",
+    "input too long",
+    "exceeds the model's maximum",
+    "content_too_large",
+    "request too large",
+    "input tokens exceed",
+]
+
+
+def _is_unsupported_error(e: Exception) -> bool:
+    """Detect deterministic capability limitations from API errors.
+
+    Returns True for errors that indicate the model cannot process the input
+    (e.g., context too long, unsupported modality). These are permanent for
+    the given input and should not be retried.
+    """
+    # OpenAI / vLLM: BadRequestError has a .code attribute
+    if hasattr(e, "code") and e.code == "context_length_exceeded":
+        return True
+    # Message-based detection (Anthropic, vLLM variants, other providers)
+    msg = str(e).lower()
+    return any(p in msg for p in _UNSUPPORTED_PATTERNS)
+
 
 class OpenAIAPIAgent(Agent):
     """Agent that calls an OpenAI-compatible or Anthropic API endpoint.
@@ -57,6 +85,8 @@ class OpenAIAPIAgent(Agent):
             _logger.warning(f"Agent error: {e}")
             if self.verbose:
                 print(f"[bold red]OpenAIAPI agent error: {e}[/]")
-            return AgentResult(is_skipped=True, skip_reason="agent_error")
+            if _is_unsupported_error(e):
+                return AgentResult(outcome="unsupported", reason=f"unsupported: {e}")
+            return AgentResult(outcome="error", reason=f"agent_error: {e}")
 
         return AgentResult(answer=output, metrics={})

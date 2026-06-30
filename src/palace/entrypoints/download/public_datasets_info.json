@@ -40,6 +40,58 @@
     "task_type": "QA"
   },
   {
+    "name": "BABILong",
+    "id": "RMT-team/babilong",
+    "config": ["4k", "8k", "16k", "32k", "64k", "128k"],
+    "split": [
+      "qa1",
+      "qa2",
+      "qa3",
+      "qa4",
+      "qa5"
+    ],
+    "column_names": {
+      "objective": "question",
+      "expected": "target",
+      "attachments": "input"
+    },
+    "inline_attachment": true,
+    "category": "Long Context",
+    "task_type": "QA",
+    "group_from": "config",
+    "interleave_groups": true,
+    "penalize_unsupported": true
+  },
+  {
+    "name": "LongBench-v2",
+    "id": "zai-org/LongBench-v2",
+    "split": "train",
+    "column_names": {
+      "id": "_id",
+      "objective": "question",
+      "expected": "answer",
+      "difficulty": "difficulty",
+      "group": "length",
+      "attachments": "context"
+    },
+    "inline_attachment": true,
+    "category": "Long Context",
+    "task_type": "Classification",
+    "task_type_fields": {
+      "labels": [
+        {
+          "name": "Answer",
+          "description": "The correct answer to the multiple-choice question.",
+          "classes_from": {
+            "from_column": ["choice_A", "choice_B", "choice_C", "choice_D"],
+            "class_naming": "letters"
+          }
+        }
+      ]
+    },
+    "penalize_unsupported": true
+  },
+  {
     "name": "CURIE-protein",
     "id": "nhop/curie",
     "config": "pdb",

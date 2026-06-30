@@ -10,10 +10,10 @@ class ClassificationTask(Task):
     """Classification task type for categorical outputs with exact-match verification."""
 
     @classmethod
-    def aggregate(cls, results: list["TaskVerificationResult"]) -> dict[str, Any]:
+    def aggregate(cls, results: list["TaskVerificationResult"], penalize_unsupported: bool = False) -> dict[str, Any]:
         """Compute classification metrics: per-label P/R/F1/FPR/FNR + macro/micro."""
         results = [r for r in results if not r.is_skipped]
-        base = super().aggregate(results)
+        base = super().aggregate(results, penalize_unsupported=penalize_unsupported)
         if not results:
             return base
 

@@ -107,5 +107,5 @@ class MCPAgent(Agent):
     async def run(self, prompt: str, attachments: "list[Any] | None" = None, *, task_id: str | None = None) -> AgentResult:
         if attachments:
             # TODO: pass image attachments as ImageContent when MCP SDK supports it in tool calls
-            return AgentResult(is_skipped=True, skip_reason="unsupported_attachment")
+            return AgentResult(outcome="error", reason="unsupported_attachment")
         return await self._run_with_retry(prompt)

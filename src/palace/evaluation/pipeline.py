@@ -51,6 +51,8 @@ def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path,
             max_len = 200000
             if len(attachment_content) > max_len:
                 attachment_content = attachment_content[:max_len]
+            # Also pass as Attachment so agentic runs can write it to container filesystem
+            attachments.append(Attachment(path=str(attachment_file), mime_type="text/plain", filename=att))
         else:
             if not attachment_file.exists():
                 return PreparedTask(prompt="", attachments=[], attachment_content="__UNSUPPORTED__")
@@ -75,10 +77,10 @@ async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> Agent
         result.elapsed = time.time() - start
         return result
     except ConvergenceError:
-        return AgentResult(is_skipped=True, skip_reason="no_response", elapsed=time.time() - start)
+        return AgentResult(outcome="error", reason="no_response", elapsed=time.time() - start)
     except Exception as e:
         _logger.warning(f"Agent error on task {task_id}: {e}")
-        return AgentResult(is_skipped=True, skip_reason=f"agent_error: {e}", elapsed=time.time() - start)
+        return AgentResult(outcome="error", reason=f"agent_error: {e}", elapsed=time.time() - start)
 
 
 async def verify_answer(
@@ -99,7 +101,7 @@ async def verify_answer(
             return TaskVerificationResult(is_correct=is_correct, reasoning=None)
         except Exception as e:
             _logger.warning(f"Custom verificator error on task {task.id}: {e}")
-            return TaskVerificationResult(is_correct=False, is_skipped=True, skip_reason="custom_verificator_error", reasoning=str(e))
+            return TaskVerificationResult(is_correct=False, outcome="error", reason=f"custom_verificator_error: {e}", reasoning=str(e))
 
     # Standard verification via task type
     vr = await task.verify(answer, env=env)
@@ -148,8 +150,10 @@ def build_report(
     entry: dict[str, Any] = {
         "actual": agent_result.answer,
         "is_correct": vr.is_correct,
+        "outcome": vr.outcome,
         "is_skipped": vr.is_skipped,
         "skip_reason": vr.skip_reason,
+        "reason": vr.reason,
         "reasoning": vr.reasoning,
         "elapsed_time": round(agent_result.elapsed, 2),
     }
@@ -189,8 +193,8 @@ async def execute_task(
 
         # Handle unsupported attachment
         if prepared.attachment_content == "__UNSUPPORTED__":
-            vr = TaskVerificationResult(is_correct=False, is_skipped=True, skip_reason="unsupported_attachment")
-            entry = build_report(task, AgentResult(is_skipped=True, skip_reason="unsupported_attachment"), vr, {}, detail)
+            vr = TaskVerificationResult(is_correct=False, outcome="error", reason="unsupported_attachment")
+            entry = build_report(task, AgentResult(outcome="error", reason="unsupported_attachment"), vr, {}, detail)
             return TaskResult(task.id, entry, vr)
 
         renderer.on_task_started(i, task, prepared.prompt)
@@ -207,8 +211,8 @@ async def execute_task(
             renderer.on_verify_finished(i, vr)
         else:
             vr = TaskVerificationResult(
-                is_correct=False, is_skipped=True,
-                skip_reason=agent_result.skip_reason or "no_response"
+                is_correct=False, outcome=agent_result.outcome,
+                reason=agent_result.reason or "no_response"
             )
 
         # Analyze
