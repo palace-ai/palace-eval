@@ -119,6 +119,7 @@ class Evaluation:
         runs_per_configuration: Number of evaluation runs per model/tasklist pair.
         output_path: Directory for JSONL result files.
         on_task_complete: Optional callback invoked after each task with (current, total, result).
+        on_task_state: Optional callback invoked on task state changes with (task_index, state_label).
         enable_citation_verifier: Enable the citation verifier analyzer.
         io_adapter: Optional model I/O adapter config dict.
         report_detail: Level of detail in per-task report.
@@ -137,6 +138,7 @@ class Evaluation:
         runs_per_configuration: int = 1,
         output_path: Path | None = None,
         on_task_complete: Callable[[int, int], None] | None = None,
+        on_task_state: Callable[[int, str], None] | None = None,
         enable_citation_verifier: bool | None = None,
         io_adapter: dict | None = None,
         report_detail: str = "default",
@@ -158,6 +160,7 @@ class Evaluation:
         self.runs_per_configuration = runs_per_configuration
         self.output_path = output_path or RESULTS_PATH
         self.on_task_complete = on_task_complete
+        self.on_task_state = on_task_state
         self.io_adapter = io_adapter
         self.report_detail = report_detail
         self.concurrency = concurrency
@@ -349,6 +352,7 @@ class Evaluation:
             detail=self.report_detail,
             renderer=renderer,
             on_task_complete=self.on_task_complete,
+            on_task_state=self.on_task_state,
         )
 
         # Build report and compute metrics

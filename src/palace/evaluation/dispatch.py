@@ -26,6 +26,7 @@ async def dispatch_tasks(
     detail: str,
     renderer: Renderer,
     on_task_complete: Callable[..., None] | None,
+    on_task_state: Callable[[int, str], None] | None = None,
     task_timeout: float = 3600,
 ) -> list[TaskResult]:
     """Dispatch all tasks with bounded concurrency. Single path for all values."""
@@ -42,6 +43,8 @@ async def dispatch_tasks(
     async def bounded(i: int, task: Task) -> TaskResult:
         nonlocal completed_count
         async with sem:
+            if on_task_state:
+                on_task_state(i, "active")
             try:
                 result = await asyncio.wait_for(
                     execute_task(
@@ -62,6 +65,8 @@ async def dispatch_tasks(
                 renderer.on_task_finished(i, result)
 
             completed_count += 1
+            if on_task_state:
+                on_task_state(i, result.verification.outcome)
             if on_task_complete:
                 on_task_complete(completed_count, total, result)
             return result
