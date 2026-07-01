@@ -94,15 +94,9 @@ class VivariumAgent(Agent):
         if "env" in info:
             self._env_configs = info["env"]
         else:
-            # No env key — use vivarium's built-in default spec (registered at server startup)
-            specs = await self._client.list_specs()
-            if not any(s.get("id") == "default" for s in specs):
-                raise RuntimeError(
-                    f"No 'env' key in info.json and no 'default' spec registered on "
-                    f"Vivarium at {self._client._url}. Either add an 'env' config to "
-                    f"the tasklist's info.json, or ensure Vivarium is running (the "
-                    f"default spec is registered automatically at server startup)."
-                )
+            # No env key — use vivarium's built-in default spec.
+            # Vivarium registers "default" at startup; if missing, the 404 at
+            # create_environment time is a clear enough error.
             self._env_configs = {"default": {}}
             self._spec_ids["default"] = "default"
 
@@ -260,6 +254,8 @@ class VivariumAgent(Agent):
     async def on_tasklist_end(self) -> None:
         """Cleanup specs and stop vivarium if auto-started."""
         for spec_id in self._spec_ids.values():
+            if spec_id == "default":
+                continue  # don't delete vivarium's built-in default spec
             await self._client.delete_spec(spec_id)
         self._spec_ids = {}
         if self._auto_started:
