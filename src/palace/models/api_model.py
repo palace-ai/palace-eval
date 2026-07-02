@@ -81,7 +81,7 @@ class APIModel(Model):
         """List available models from the OpenAI-compatible API server."""
         from openai import OpenAI, RateLimitError
         import time
-        client = OpenAI(api_key=token, base_url=url)
+        client = OpenAI(api_key=token or "no-key", base_url=url)
         for attempt in range(5):
             try:
                 models = client.models.list()
