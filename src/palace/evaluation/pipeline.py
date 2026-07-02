@@ -203,9 +203,11 @@ async def execute_task(
 
         # Handle attachment resolution error
         if prepared.error:
-            vr = TaskVerificationResult(is_correct=False, outcome="error", reason="unsupported_attachment")
-            entry = build_report(task, AgentResult(outcome="error", reason="unsupported_attachment"), vr, {}, detail)
-            return TaskResult(task.id, entry, vr)
+            vr = TaskVerificationResult(is_correct=False, outcome="error", reason=prepared.error)
+            entry = build_report(task, AgentResult(outcome="error", reason=prepared.error), vr, {}, detail)
+            result = TaskResult(task.id, entry, vr)
+            renderer.on_task_finished(i, result)
+            return result
 
         renderer.on_task_started(i, task, prepared.prompt)
 

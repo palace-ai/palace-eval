@@ -429,20 +429,23 @@ def download_tasklist(
             json.dump(info_data, f, ensure_ascii=False, indent=4)
 
     # Download and save task files (attachments) — skip inline (already written during streaming)
+    _att_col = column_names.get("attachments") or column_names.get("attachment")
     if (
         not inline_attachment
-        and column_names.get("attachment") is not None
+        and _att_col is not None
         and dataset_rows
-        and column_names["attachment"] in dataset_rows[0]
+        and _att_col in dataset_rows[0]
     ):
         attachments_dir = Path(tasklist_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
-        attachments_to_download = [
-            row[column_names["attachment"]]
-            for row in dataset_rows
-            if row.get(column_names["attachment"], "") != ""
-        ]
+        attachments_to_download = []
+        for row in dataset_rows:
+            val = row.get(_att_col, "")
+            if isinstance(val, list):
+                attachments_to_download.extend(v for v in val if v)
+            elif val:
+                attachments_to_download.append(val)
         total_files = len(attachments_to_download)
 
         if on_progress and total_files:
