@@ -113,7 +113,7 @@ class Evaluation:
         name: Run name used for the output JSONL filename.
         url: API endpoint URL.
         token: API authentication token.
-        endpoint_type: "openai" or "mcp".
+        endpoint_type: "openai", "azure", or "mcp".
         vivarium_url: Vivarium server URL for agentic execution.
         task_amount_limit: Maximum number of tasks to evaluate per tasklist.
         runs_per_configuration: Number of evaluation runs per model/tasklist pair.
@@ -147,7 +147,7 @@ class Evaluation:
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
         if concurrency is None:
-            concurrency = int(os.environ.get("PALACE_CONCURRENCY", "1"))
+            concurrency = int(os.environ.get("PALACE_CONCURRENCY", "25"))
         if concurrency < 1:
             raise ValueError("concurrency must be >= 1")
         self.name = name
@@ -189,8 +189,8 @@ class Evaluation:
         if self.endpoint_type == "mcp":
             from palace.agents.mcp_agent import MCPAgent
             return MCPAgent(url=self.url, token=self.token, name=model)
-        from palace.agents.openai_api_agent import OpenAIAPIAgent
-        return OpenAIAPIAgent(url=self.url, token=self.token, name=model)
+        from palace.agents.api_agent import APIAgent
+        return APIAgent(url=self.url, token=self.token, name=model, api_type=self.endpoint_type)
 
     def evaluate_all(self, models: list[str], tasklists: list[str]):
         """Run evaluations for all model/tasklist combinations. Prints and writes JSONL."""

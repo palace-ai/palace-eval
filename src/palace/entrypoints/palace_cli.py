@@ -76,6 +76,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         "Endpoint type:",
         choices=[
             questionary.Choice("OpenAI-compatible API", value="openai"),
+            questionary.Choice("Azure OpenAI", value="azure"),
             questionary.Choice("MCP server", value="mcp"),
         ],
     ).ask()
@@ -112,16 +113,23 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         token = questionary.password("API Token (Enter to use env var):").ask()
         if not token:
             token = _DEFAULT_TOKEN
-        available_models = APIModel.list_models(url=url, token=token)
-        if not available_models:
-            raise ValueError("No models found at the provided URL.")
-        selected = questionary.checkbox(
-            "Select models:",
-            choices=sorted(available_models),
-            validate=lambda c: True if c else "Select at least one",
-        ).ask()
-        if not selected:
-            return
+        try:
+            available_models = APIModel.list_models(url=url, token=token)
+        except Exception:
+            available_models = []
+        if available_models:
+            selected = questionary.checkbox(
+                "Select models:",
+                choices=sorted(available_models),
+                validate=lambda c: True if c else "Select at least one",
+            ).ask()
+            if not selected:
+                return
+        else:
+            model_name = questionary.text("Model name (could not list models from endpoint):").ask()
+            if not model_name:
+                return
+            selected = [model_name]
 
     # --- Tasklists ---
     available_tasklists = sorted(

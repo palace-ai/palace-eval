@@ -57,8 +57,8 @@ def run():
         "--endpoint-type",
         type=str,
         default="openai",
-        choices=["openai", "mcp"],
-        help="The type of endpoint (openai or mcp).",
+        choices=["openai", "azure", "mcp"],
+        help="The type of endpoint (openai, azure, or mcp).",
     )
     argparser.add_argument(
         "--report-detail",
@@ -78,7 +78,7 @@ def run():
         "--concurrency",
         type=int,
         default=None,
-        help="Number of tasks to run concurrently (default: PALACE_CONCURRENCY env var, or 1).",
+        help="Number of tasks to run concurrently (default: PALACE_CONCURRENCY env var, or 25).",
     )
     args = argparser.parse_args()
 

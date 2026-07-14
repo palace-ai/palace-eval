@@ -6,7 +6,7 @@ Agent base class and implementations for connecting to LLM endpoints.
     options:
       heading_level: 2
 
-::: palace.agents.openai_api_agent.OpenAIAPIAgent
+::: palace.agents.api_agent.APIAgent
     options:
       heading_level: 2
 

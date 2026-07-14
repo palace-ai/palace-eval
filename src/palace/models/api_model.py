@@ -3,6 +3,7 @@ import re
 from abc import abstractmethod
 
 from openai import APITimeoutError, AsyncOpenAI, RateLimitError, InternalServerError, APIConnectionError
+from openai import AsyncAzureOpenAI
 from anthropic import AsyncAnthropic, omit
 from anthropic import (
     RateLimitError as AnthropicRateLimitError,
@@ -57,7 +58,7 @@ def create_api_model(
         model_id: The model identifier to use.
         url: The URL of the API server.
         token: The API token for authentication.
-        api_type: "openai" or "anthropic". Auto-detected from model_id if not specified.
+        api_type: "openai", "anthropic", or "azure". Auto-detected from model_id if not specified.
         strip_thinking: Whether to strip <think>...</think> tags from output.
         quiet: Whether to suppress retry log messages on terminal.
     """
@@ -65,9 +66,11 @@ def create_api_model(
         api_type = "anthropic" if "claude" in model_id.lower() else "openai"
     if api_type == "anthropic":
         return AnthropicModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+    if api_type == "azure":
+        return AzureOpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
     if api_type == "openai":
         return OpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
-    raise ValueError(f"Unsupported api_type: {api_type!r}. Must be 'openai' or 'anthropic'.")
+    raise ValueError(f"Unsupported api_type: {api_type!r}. Must be 'openai', 'anthropic', or 'azure'.")
 
 
 class APIModel(Model):
@@ -172,7 +175,7 @@ class OpenAIModel(APIModel):
         stream = await self.client.chat.completions.create(
             model=self.model_id,
             messages=formatted,  # type: ignore
-            max_tokens=32768,
+            max_completion_tokens=32768,
             stream=True,
         )
         async for chunk in stream:
@@ -182,6 +185,53 @@ class OpenAIModel(APIModel):
             raise ValueError("Empty API response: no content returned")
         return "".join(collected)
 
+
+
+class AzureOpenAIModel(APIModel):
+    """Azure OpenAI API model using deployment-based routing and api-key auth."""
+
+    DEFAULT_API_VERSION = "2024-10-21"
+
+    def __init__(self, model_id: str, url: str, token: str | None = None, *, api_version: str | None = None, strip_thinking: bool = True, quiet: bool = True):
+        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+        self.api_version = api_version or self.DEFAULT_API_VERSION
+        self.client = AsyncAzureOpenAI(
+            azure_endpoint=url,
+            api_key=token or "no-key",
+            api_version=self.api_version,
+            timeout=3000,
+        )
+
+    @staticmethod
+    def _format_content(content):
+        """Convert agnostic content parts to OpenAI format."""
+        if not isinstance(content, list):
+            return content
+        parts = []
+        for part in content:
+            if part["type"] == "image":
+                parts.append({"type": "image_url", "image_url": {"url": f"data:{part['media_type']};base64,{part['data']}"}})
+            elif part["type"] == "audio":
+                parts.append({"type": "input_audio", "input_audio": {"data": part["data"], "format": part["format"]}})
+            else:
+                parts.append(part)
+        return parts
+
+    async def _call_api(self, messages: list[Message]) -> str:
+        formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
+        collected: list[str] = []
+        stream = await self.client.chat.completions.create(
+            model=self.model_id,
+            messages=formatted,  # type: ignore
+            max_completion_tokens=32768,
+            stream=True,
+        )
+        async for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                collected.append(chunk.choices[0].delta.content)
+        if not collected:
+            raise ValueError("Empty API response: no content returned")
+        return "".join(collected)
 
 class AnthropicModel(APIModel):
     """Anthropic API model."""
