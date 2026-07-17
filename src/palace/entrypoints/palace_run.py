@@ -1,9 +1,18 @@
 import argparse
+import json
 import os
 
 from palace.evaluation import Evaluation
 from palace.models.api_model import APIModel
 from palace.utils.printing import print
+
+
+def _parse_param_value(value: str):
+    """Parse a param value: try JSON literal (number, bool, object), fallback to string."""
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, ValueError):
+        return value
 
 
 def run():
@@ -80,6 +89,13 @@ def run():
         default=None,
         help="Number of tasks to run concurrently (default: PALACE_CONCURRENCY env var, or 25).",
     )
+    argparser.add_argument(
+        "--param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Extra model parameter (e.g., --param reasoning_effort=high --param temperature=0.5). Can be specified multiple times.",
+    )
     args = argparser.parse_args()
 
     # If no model specified, list available models and exit
@@ -101,6 +117,18 @@ def run():
         from pathlib import Path
         from palace.utils.paths import RESULTS_PATH
         output_path = Path(args.output_folder) if args.output_folder else RESULTS_PATH
+
+        # Parse --param flags into dict
+        model_extra_params = None
+        if args.param:
+            model_extra_params = {}
+            for item in args.param:
+                if "=" not in item:
+                    print(f"[red]Error: --param must be KEY=VALUE, got: {item}[/red]")
+                    exit(1)
+                key, value = item.split("=", 1)
+                model_extra_params[key] = _parse_param_value(value)
+
         evaluation = Evaluation(
             name=args.run_name,
             url=args.url,
@@ -112,6 +140,7 @@ def run():
             output_path=output_path,
             report_detail=args.report_detail,
             concurrency=args.concurrency,
+            model_extra_params=model_extra_params,
         )
         evaluation.evaluate_all([args.name], tasklists=args.tasklist)
     except FileNotFoundError as e:

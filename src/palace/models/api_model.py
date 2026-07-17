@@ -51,6 +51,7 @@ def create_api_model(
     api_type: str | None = None,
     strip_thinking: bool = True,
     quiet: bool = True,
+    extra_params: dict | None = None,
 ) -> "APIModel":
     """Create the appropriate API model based on provider type.
 
@@ -61,15 +62,16 @@ def create_api_model(
         api_type: "openai", "anthropic", or "azure". Auto-detected from model_id if not specified.
         strip_thinking: Whether to strip <think>...</think> tags from output.
         quiet: Whether to suppress retry log messages on terminal.
+        extra_params: Extra kwargs to merge into every API call for this model.
     """
     if api_type is None:
         api_type = "anthropic" if "claude" in model_id.lower() else "openai"
     if api_type == "anthropic":
-        return AnthropicModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+        return AnthropicModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
     if api_type == "azure":
-        return AzureOpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+        return AzureOpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
     if api_type == "openai":
-        return OpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+        return OpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
     raise ValueError(f"Unsupported api_type: {api_type!r}. Must be 'openai', 'anthropic', or 'azure'.")
 
 
@@ -94,12 +96,13 @@ class APIModel(Model):
                     raise
                 time.sleep(5 * (attempt + 1))
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True):
+    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
         self.model_id = model_id
         self.url = url
         self.token = token
         self.strip_thinking = strip_thinking
         self.quiet = quiet
+        self.extra_params = extra_params or {}
         self._retry_state = {"last_error": None, "count": 0}
 
     @property
@@ -150,8 +153,8 @@ class APIModel(Model):
 class OpenAIModel(APIModel):
     """OpenAI-compatible API model."""
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True):
-        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
         self.client = AsyncOpenAI(base_url=url, api_key=token or "no-key", timeout=3000)
 
     @staticmethod
@@ -172,12 +175,14 @@ class OpenAIModel(APIModel):
     async def _call_api(self, messages: list[Message]) -> str:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
         collected: list[str] = []
-        stream = await self.client.chat.completions.create(
-            model=self.model_id,
-            messages=formatted,  # type: ignore
-            max_completion_tokens=32768,
-            stream=True,
-        )
+        kwargs = {
+            "model": self.model_id,
+            "messages": formatted,
+            "max_completion_tokens": 32768,
+            "stream": True,
+        }
+        kwargs.update(self.extra_params)
+        stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 collected.append(chunk.choices[0].delta.content)
@@ -192,8 +197,8 @@ class AzureOpenAIModel(APIModel):
 
     DEFAULT_API_VERSION = "2024-10-21"
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, api_version: str | None = None, strip_thinking: bool = True, quiet: bool = True):
-        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+    def __init__(self, model_id: str, url: str, token: str | None = None, *, api_version: str | None = None, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
         self.api_version = api_version or self.DEFAULT_API_VERSION
         self.client = AsyncAzureOpenAI(
             azure_endpoint=url,
@@ -220,12 +225,14 @@ class AzureOpenAIModel(APIModel):
     async def _call_api(self, messages: list[Message]) -> str:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
         collected: list[str] = []
-        stream = await self.client.chat.completions.create(
-            model=self.model_id,
-            messages=formatted,  # type: ignore
-            max_completion_tokens=32768,
-            stream=True,
-        )
+        kwargs = {
+            "model": self.model_id,
+            "messages": formatted,
+            "max_completion_tokens": 32768,
+            "stream": True,
+        }
+        kwargs.update(self.extra_params)
+        stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 collected.append(chunk.choices[0].delta.content)
@@ -236,8 +243,8 @@ class AzureOpenAIModel(APIModel):
 class AnthropicModel(APIModel):
     """Anthropic API model."""
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True):
-        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet)
+    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
         self.client = AsyncAnthropic(
             base_url=url.removesuffix("/v1"),
             default_headers={"Authorization": f"Bearer {token}"},
@@ -268,12 +275,14 @@ class AnthropicModel(APIModel):
             msgs = msgs[1:]
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in msgs]
         collected: list[str] = []
-        async with self.client.messages.stream(
-            model=self.model_id,
-            messages=formatted,  # type: ignore
-            max_tokens=32768,
-            system=system_prompt if system_prompt is not None else omit,
-        ) as stream:
+        kwargs = {
+            "model": self.model_id,
+            "messages": formatted,
+            "max_tokens": 32768,
+            "system": system_prompt if system_prompt is not None else omit,
+        }
+        kwargs.update(self.extra_params)
+        async with self.client.messages.stream(**kwargs) as stream:  # type: ignore
             async for text in stream.text_stream:
                 collected.append(text)
         if not collected:

@@ -14,6 +14,9 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 IO_ADAPTERS_FILE = CONFIG_DIR / "io_adapters.yaml"
 BUNDLED_IO_ADAPTERS_FILE = PACKAGE_ROOT / "bundled_io_adapters.yaml"
 
+MODEL_EXTRA_PARAMS_FILE = CONFIG_DIR / "model_extra_params.yaml"
+BUNDLED_MODEL_EXTRA_PARAMS_FILE = PACKAGE_ROOT / "bundled_model_extra_params.yaml"
+
 TASKLISTS_PATH = USER_DIR / "tasklists"
 TASKLISTS_PATH.mkdir(parents=True, exist_ok=True)
 RESULTS_PATH = USER_DIR / "results"

@@ -18,7 +18,8 @@ from palace.evaluation.renderers import select_renderer
 from palace.task_types import Task
 from palace.utils.constants import JUDGE_MODEL
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
-from palace.utils.paths import BUNDLED_IO_ADAPTERS_FILE, LOGS_PATH, RESULTS_PATH, TASKLISTS_PATH
+from palace.utils.model_extra_params import get_model_extra_params, load_model_extra_params
+from palace.utils.paths import BUNDLED_IO_ADAPTERS_FILE, BUNDLED_MODEL_EXTRA_PARAMS_FILE, LOGS_PATH, RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import print
 
 
@@ -122,6 +123,7 @@ class Evaluation:
         on_task_state: Optional callback invoked on task state changes with (task_index, state_label).
         enable_citation_verifier: Enable the citation verifier analyzer.
         io_adapter: Optional model I/O adapter config dict.
+        model_extra_params: Optional extra params dict to merge into API calls.
         report_detail: Level of detail in per-task report.
         concurrency: Number of tasks to run concurrently.
     """
@@ -141,6 +143,7 @@ class Evaluation:
         on_task_state: Callable[[int, str], None] | None = None,
         enable_citation_verifier: bool | None = None,
         io_adapter: dict | None = None,
+        model_extra_params: dict | None = None,
         report_detail: str = "default",
         concurrency: int | None = None,
     ):
@@ -162,6 +165,7 @@ class Evaluation:
         self.on_task_complete = on_task_complete
         self.on_task_state = on_task_state
         self.io_adapter = io_adapter
+        self.model_extra_params = model_extra_params
         self.report_detail = report_detail
         self.concurrency = concurrency
 
@@ -172,7 +176,7 @@ class Evaluation:
         if enable_citation_verifier:
             self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
 
-    def _create_agent(self, model: str, tasklist_type: str) -> Agent:
+    def _create_agent(self, model: str, tasklist_type: str, extra_params: dict | None = None) -> Agent:
         """Construct the appropriate agent for a model.
 
         agentic="auto": use VivariumAgent only for Agentic tasklists
@@ -190,7 +194,7 @@ class Evaluation:
             from palace.agents.mcp_agent import MCPAgent
             return MCPAgent(url=self.url, token=self.token, name=model)
         from palace.agents.api_agent import APIAgent
-        return APIAgent(url=self.url, token=self.token, name=model, api_type=self.endpoint_type)
+        return APIAgent(url=self.url, token=self.token, name=model, api_type=self.endpoint_type, extra_params=extra_params)
 
     def evaluate_all(self, models: list[str], tasklists: list[str]):
         """Run evaluations for all model/tasklist combinations. Prints and writes JSONL."""
@@ -276,7 +280,16 @@ class Evaluation:
         task_cls = task_type_map.get(tasklist_info["task_type"], Task)
 
         # Create agent
-        agent = self._create_agent(model, tasklist_info["task_type"])
+        file_extra_params = load_model_extra_params()
+        bundled_extra_params = load_model_extra_params(BUNDLED_MODEL_EXTRA_PARAMS_FILE)
+        extra_params_result = get_model_extra_params(model, self.model_extra_params, file_extra_params, bundled_extra_params)
+        if extra_params_result is not None:
+            resolved_extra_params, extra_params_source = extra_params_result
+            print(f"[blue]:gear: Using extra params for {model} ({extra_params_source}): {resolved_extra_params}[/]")
+        else:
+            resolved_extra_params = None
+
+        agent = self._create_agent(model, tasklist_info["task_type"], extra_params=resolved_extra_params)
 
         # Pre-check: verify LLM endpoint is reachable
         _check_endpoint(self.url, self.token)
@@ -421,6 +434,7 @@ def evaluate(
     on_task_complete: Callable[[int, int], None] | None = None,
     endpoint_type: str = "openai",
     io_adapter: dict | None = None,
+    model_extra_params: dict | None = None,
     report_detail: str = "default",
     agentic: bool | None = None,
     concurrency: int | None = None,
@@ -433,7 +447,8 @@ def evaluate(
         agentic=agentic, vivarium_url=vivarium_url,
         task_amount_limit=limit, runs_per_configuration=runs_per_configuration,
         output_path=output_path, on_task_complete=on_task_complete,
-        io_adapter=io_adapter, report_detail=report_detail, concurrency=concurrency,
+        io_adapter=io_adapter, model_extra_params=model_extra_params,
+        report_detail=report_detail, concurrency=concurrency,
     )
     tasklist_list = [tasklist] if isinstance(tasklist, str) else tasklist
     return evaluation.evaluate_all([name], tasklist_list)

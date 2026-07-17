@@ -1,0 +1,29 @@
+# Bundled Model Extra Params for PALACE
+#
+# Pre-configured extra API parameters for specific models that ship with the
+# palace package. These are merged into the provider API call (e.g.,
+# client.chat.completions.create(**extra_params)).
+#
+# Priority: explicit (programmatic) > user file > bundled (this file) > none
+#
+# To override a bundled entry, add a matching glob pattern to your local
+# file at ~/.config/palace/model_extra_params.yaml.
+#
+# Format: YAML mapping of glob patterns to parameter dictionaries.
+# Parameters are provider-specific (OpenAI, Anthropic, Azure) and passed
+# as-is to the API call — no validation is performed.
+#
+# Example:
+#
+#   "o3*":
+#     reasoning_effort: high
+#
+#   "claude-*-sonnet*":
+#     max_tokens: 16384
+#
+#   "*deepseek*reasoning*":
+#     temperature: 0.6
+#     top_p: 0.95
+#
+# Glob matching uses fnmatch (*, ?, [seq]). First match wins.
+# Patterns with leading * must be quoted in YAML.

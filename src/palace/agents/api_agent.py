@@ -54,6 +54,7 @@ class APIAgent(Agent):
         url: str,
         token: str | None = None,
         api_type: str | None = None,
+        extra_params: dict | None = None,
     ):
         """Initialize an APIAgent.
 
@@ -63,6 +64,7 @@ class APIAgent(Agent):
             token: The API token for authentication. Defaults to None.
             api_type: The API type to use ("openai", "anthropic", or "azure").
                 Auto-detected from model name if not specified.
+            extra_params: Extra kwargs to merge into every API call for this model.
         """
         if api_type is not None and api_type not in ["openai", "anthropic", "azure"]:
             raise ValueError("api_type must be 'openai', 'anthropic', or 'azure'")
@@ -70,7 +72,7 @@ class APIAgent(Agent):
         self.url = url
         self.token = token
         self.api_type = api_type
-        self._model = create_api_model(model_id=name, url=url, token=token, api_type=api_type)
+        self._model = create_api_model(model_id=name, url=url, token=token, api_type=api_type, extra_params=extra_params)
 
     @property
     def name(self) -> str:

@@ -1,6 +1,7 @@
 """Palace utilities."""
 
 from palace.utils.io_adapters import IOAdapter, get_io_adapter, load_io_adapters
+from palace.utils.model_extra_params import get_model_extra_params, load_model_extra_params
 from palace.utils.multimodal import (
     build_multimodal_content,
     detect_modalities,
@@ -16,4 +17,6 @@ __all__ = [
     "IOAdapter",
     "load_io_adapters",
     "get_io_adapter",
+    "load_model_extra_params",
+    "get_model_extra_params",
 ]
