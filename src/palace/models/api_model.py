@@ -172,6 +172,25 @@ class OpenAIModel(APIModel):
                 parts.append(part)
         return parts
 
+    @staticmethod
+    def _extract_text_from_content(content) -> str | None:
+        """Extract text from delta.content, handling both string and structured list formats.
+
+        Mistral's API returns delta.content as a list of structured parts when reasoning
+        is enabled: [{'type': 'thinking', ...}, {'type': 'text', 'text': '...'}].
+        Other providers return a plain string. This method normalizes both to a string,
+        extracting only 'text' parts and skipping 'thinking' parts.
+        """
+        if isinstance(content, str):
+            return content if content else None
+        if isinstance(content, list):
+            texts = []
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
+                    texts.append(part["text"])
+            return "".join(texts) if texts else None
+        return None
+
     async def _call_api(self, messages: list[Message]) -> str:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
         collected: list[str] = []
@@ -185,7 +204,9 @@ class OpenAIModel(APIModel):
         stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
-                collected.append(chunk.choices[0].delta.content)
+                text = self._extract_text_from_content(chunk.choices[0].delta.content)
+                if text:
+                    collected.append(text)
         if not collected:
             raise ValueError("Empty API response: no content returned")
         return "".join(collected)
@@ -235,7 +256,9 @@ class AzureOpenAIModel(APIModel):
         stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
-                collected.append(chunk.choices[0].delta.content)
+                text = OpenAIModel._extract_text_from_content(chunk.choices[0].delta.content)
+                if text:
+                    collected.append(text)
         if not collected:
             raise ValueError("Empty API response: no content returned")
         return "".join(collected)
