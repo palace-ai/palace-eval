@@ -65,9 +65,9 @@ def run():
     argparser.add_argument(
         "--endpoint-type",
         type=str,
-        default="openai",
-        choices=["openai", "azure", "mcp"],
-        help="The type of endpoint (openai, azure, or mcp).",
+        default="auto",
+        choices=["auto", "openai", "anthropic", "azure", "mcp"],
+        help="The type of endpoint. Default 'auto' detects from model name.",
     )
     argparser.add_argument(
         "--report-detail",
@@ -129,11 +129,13 @@ def run():
                 key, value = item.split("=", 1)
                 model_extra_params[key] = _parse_param_value(value)
 
+        endpoint_type = args.endpoint_type if args.endpoint_type != "auto" else None
+
         evaluation = Evaluation(
             name=args.run_name,
             url=args.url,
             token=args.token,
-            endpoint_type=args.endpoint_type,
+            endpoint_type=endpoint_type,
             agentic=True if args.agentic else None,
             task_amount_limit=args.limit,
             runs_per_configuration=args.runs_per_configuration,

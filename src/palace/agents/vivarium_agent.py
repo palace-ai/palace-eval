@@ -11,6 +11,8 @@ import tarfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import httpx
+
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
 from palace.task_types.base import ExecutionEnvironment, Task
@@ -20,6 +22,23 @@ if TYPE_CHECKING:
     from palace.evaluation.types import Attachment
 
 _logger = logging.getLogger("palace.vivarium_agent")
+
+# Transient HTTP status codes that are safe to retry.
+_TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504, 529})
+
+# Network-level exceptions that indicate transient connectivity issues.
+_TRANSIENT_NETWORK_ERRORS = (
+    httpx.ConnectError, httpx.TimeoutException, httpx.ReadError, httpx.RemoteProtocolError,
+)
+
+
+def _is_transient_http(exc: Exception) -> bool:
+    """Return True if the exception represents a transient/retryable HTTP error."""
+    if isinstance(exc, _TRANSIENT_NETWORK_ERRORS):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _TRANSIENT_STATUS_CODES
+    return False
 
 
 class VivariumAgent(Agent):
@@ -154,8 +173,7 @@ class VivariumAgent(Agent):
         spec_id = self._spec_ids[env_name]
         task_files = self._package_task_files(task)
 
-        # Retry on 429 (vivarium at capacity) or transient errors until task timeout
-        import httpx
+        # Retry on transient errors (429, 5xx, connection issues) until task timeout
         while True:
             try:
                 env = await self._client.create_environment(
@@ -164,13 +182,13 @@ class VivariumAgent(Agent):
                     task_files=task_files,
                 )
                 break
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
+            except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException,
+                    httpx.ReadError, httpx.RemoteProtocolError) as e:
+                if _is_transient_http(e):
+                    _logger.debug(f"Transient error creating environment, retrying: {e}")
                     await asyncio.sleep(5)
                 else:
                     raise
-            except httpx.TimeoutException:
-                await asyncio.sleep(5)
 
         self._envs[task.id] = env
 
@@ -198,23 +216,48 @@ class VivariumAgent(Agent):
         if attachments:
             prompt, encoded_attachments = await self._prepare_attachments(env, prompt, attachments)
 
-        run = await self._client.run(
-            env,
-            objective=prompt,
-            model_url=self._url,
-            model_key=self._token or "",
-            model_name=self._name,
-            timeout_seconds=self._timeout,
-            max_steps=self._max_steps,
-            attachments=encoded_attachments,
-        )
+        # Submit run with retry on transient errors
+        for attempt in range(10):
+            try:
+                run = await self._client.run(
+                    env,
+                    objective=prompt,
+                    model_url=self._url,
+                    model_key=self._token or "",
+                    model_name=self._name,
+                    timeout_seconds=self._timeout,
+                    max_steps=self._max_steps,
+                    attachments=encoded_attachments,
+                )
+                break
+            except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException,
+                    httpx.ReadError, httpx.RemoteProtocolError) as e:
+                if _is_transient_http(e) and attempt < 9:
+                    _logger.warning(f"Transient error submitting run (attempt {attempt + 1}): {e}")
+                    await asyncio.sleep(5 * (attempt + 1))
+                else:
+                    raise
 
-        # Poll with live trace printing
+        # Poll with resilient error handling
         deadline = asyncio.get_event_loop().time() + self._timeout + 30
         prev_tc = 0
         data = None
+        consecutive_failures = 0
         while asyncio.get_event_loop().time() < deadline:
-            data = await self._client.get_run(run.id)
+            try:
+                data = await self._client.get_run(run.id)
+                consecutive_failures = 0
+            except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException,
+                    httpx.ReadError, httpx.RemoteProtocolError) as e:
+                if _is_transient_http(e):
+                    consecutive_failures += 1
+                    if consecutive_failures > 60:
+                        _logger.error(f"Vivarium unreachable for {consecutive_failures} consecutive polls")
+                        return AgentResult(outcome="error", reason="vivarium_unreachable")
+                    _logger.debug(f"Transient poll error ({consecutive_failures}): {e}")
+                    await asyncio.sleep(2)
+                    continue
+                raise
             if data.status != "running":
                 break
             if self.verbose:

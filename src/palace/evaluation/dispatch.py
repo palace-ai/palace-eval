@@ -27,7 +27,7 @@ async def dispatch_tasks(
     renderer: Renderer,
     on_task_complete: Callable[..., None] | None,
     on_task_state: Callable[[int, str], None] | None = None,
-    task_timeout: float = 3600,
+    task_timeout: float = 7800,
 ) -> list[TaskResult]:
     """Dispatch all tasks with bounded concurrency. Single path for all values."""
     await agent.on_tasklist_start(tasklist_path, tasklist_info)
