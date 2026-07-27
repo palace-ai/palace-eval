@@ -160,13 +160,18 @@ class VivariumAgent(Agent):
             env_path = spec_json.get("path", "environment")
             image = spec_json.get("image")
             _logger.info(f"Registering spec '{env_name}' (first use, image: {image})")
-            try:
-                spec_id = await self._client.register_spec(spec_json, self._archives.get(env_path))
-            except Exception as e:
-                raise RuntimeError(
-                    f"Cannot register spec '{env_name}' with Vivarium at {self._client._url}. "
-                    f"Check that the server is running.\n  Original error: {e}"
-                ) from e
+
+            # Retry on transient errors (503 disk pressure, 429, 5xx, connection issues)
+            while True:
+                try:
+                    spec_id = await self._client.register_spec(spec_json, self._archives.get(env_path))
+                    break
+                except (httpx.HTTPStatusError, *_TRANSIENT_NETWORK_ERRORS) as e:
+                    if _is_transient_http(e):
+                        _logger.warning(f"Transient error registering spec, retrying in 30s: {e}")
+                        await asyncio.sleep(30)
+                    else:
+                        raise
             self._spec_ids[env_name] = spec_id
             _logger.info(f"Spec '{env_name}' registered (image ready)")
 
