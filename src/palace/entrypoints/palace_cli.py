@@ -149,6 +149,10 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         key=lambda x: (x["category"], x["name"]),
     )
 
+    if not available_tasklists:
+        print("No tasklists found. Run `palace-download` first to download benchmarks.")
+        return
+
     custom_style = questionary.Style([("blue", "fg:blue"), ("bold", "bold")])
     tasklists = questionary.checkbox(
         "Select tasklists:",
