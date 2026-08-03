@@ -18,7 +18,8 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `version` | string | `"1.0.0"` | Semantic version |
+| `format_version` | string | `"1.0"` | PALACE format version (for forward compatibility) |
+| `version` | string | `"1.0.0"` | Benchmark/tasklist version (semantic versioning) |
 | `category` | string | `""` | Grouping category |
 | `original` | boolean | `false` | `true` for custom-built PALACE tasklists, `false` for auto-converted public benchmarks |
 | `task_type_fields` | object | `{}` | Task-type-specific configuration |
@@ -42,6 +43,7 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 {
     "name": "GuardBench-EN",
     "id": "jrc-ai/GuardBench-EN",
+    "format_version": "1.0",
     "version": "1.0.0",
     "original": true,
     "category": "Safety",
@@ -64,6 +66,16 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 ```
 
 ## Field Details
+
+### format_version
+
+The PALACE format version this tasklist uses. Allows future format changes while maintaining backward compatibility.
+
+```json
+{"format_version": "1.0"}
+```
+
+Current version is `"1.0"`. PALACE will read tasklists without this field as format version 1.0.
 
 ### name
 

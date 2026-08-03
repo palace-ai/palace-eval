@@ -21,10 +21,5 @@ load_dotenv()
 # Primary API endpoint (OpenAI-compatible)
 OPENAI_LIKE_API_BASE_URL = os.getenv("OPENAI_LIKE_API_BASE_URL")
 
-# Optional MCP server URLs (set in environment for MCP endpoint support)
-ALOHA_STAGING_URL = os.getenv("ALOHA_STAGING_URL")
-TS_STAGING_URL = os.getenv("TS_STAGING_URL")
-ABW_SERVE_STAGING_URL = os.getenv("ABW_SERVE_STAGING_URL")
-
 # Judge model (required - no default)
 JUDGE_MODEL = os.getenv("JUDGE_MODEL")
