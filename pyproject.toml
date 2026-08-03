@@ -59,11 +59,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/palace-ai/palace-eval"
+Homepage = "https://code.europa.eu/palace/palace-eval"
 Documentation = "https://palace.pages.code.europa.eu/palace-eval"
-Repository = "https://github.com/palace-ai/palace-eval"
+Repository = "https://code.europa.eu/palace/palace-eval"
 Issues = "https://github.com/palace-ai/palace-eval/issues"
-Changelog = "https://github.com/palace-ai/palace-eval/blob/main/CHANGELOG.md"
+Changelog = "https://code.europa.eu/palace/palace-eval/-/blob/main/CHANGELOG.md"
 
 [project.scripts]
 palace-cli = "palace.entrypoints.palace_cli:main"

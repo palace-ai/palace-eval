@@ -7,7 +7,7 @@
 
 A platform for evaluating LLM capabilities across diverse benchmarks, with native support for agentic evaluation.
 
-<img src="assets/readme_images/logo.png" width="300" alt="PALACE logo">
+<img src="https://code.europa.eu/palace/palace-eval/-/raw/main/assets/readme_images/logo.png" width="300" alt="PALACE logo">
 
 ## Overview
 
@@ -37,7 +37,7 @@ uv pip install palace-eval
 ### From source
 
 ```bash
-git clone https://github.com/palace-ai/palace-eval.git
+git clone https://code.europa.eu/palace/palace-eval.git
 cd palace-eval
 uv sync        # recommended
 # or: pip install -e .
@@ -178,12 +178,12 @@ If you use PALACE in your research, please cite:
   author = {Altieri, Massimiliano},
   year = {2025},
   institution = {European Commission Joint Research Centre},
-  url = {https://github.com/palace-ai/palace-eval},
+  url = {https://code.europa.eu/palace/palace-eval},
   license = {EUPL-1.2}
 }
 ```
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/palace-ai/palace-eval/issues)
+- **Issues**: [GitHub Issues](https://github.com/palace-ai/palace-eval/issues) (preferred) or [GitLab Issues](https://code.europa.eu/palace/palace-eval/-/issues)
 - **Email**: massimiliano.altieri@ec.europa.eu

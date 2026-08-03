@@ -31,4 +31,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agentic**: GAIA, AssistantBench
 - **Domain-Specific**: CURIE-protein
 
-[1.0.0]: https://github.com/palace-ai/palace-eval/releases/tag/v1.0.0
+[1.0.0]: https://code.europa.eu/palace/palace-eval/-/releases/v1.0.0

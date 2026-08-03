@@ -102,9 +102,8 @@ class VivariumAgent(Agent):
         except ImportError:
             raise RuntimeError(
                 "Agentic evaluation requires vivarium. "
-                "Install with:\n"
-                "  git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git\n"
-                "  uv pip install -e vivarium/"
+                "Install with: pip install vivarium-ai\n"
+                "See https://github.com/vivarium-ai/vivarium for details."
             )
 
         auto_start = self._vivarium_url is None

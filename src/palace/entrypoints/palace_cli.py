@@ -71,7 +71,7 @@ def main():
 """)
     print(
         """This is the main user interface for the [bold]Palace[/] evaluation framework.
-Documentation: [blue]https://github.com/palace-ai/palace-eval[/]
+Documentation: [blue]https://palace.pages.code.europa.eu/palace-eval[/]
 Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         box=True,
         box_title=":waving_hand: Welcome to Palace",
