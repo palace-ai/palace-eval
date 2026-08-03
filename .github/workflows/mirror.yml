@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  delete:
 
 jobs:
   mirror:
@@ -13,9 +14,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Push to GitLab
+      - name: Push mirror
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git HEAD:main
-          git push --tags https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git
+          git push --mirror https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git
