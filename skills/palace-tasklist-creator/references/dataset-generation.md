@@ -122,7 +122,7 @@ For benchmarks not on HuggingFace, or when you need custom processing logic.
 ### Location Convention
 
 ```
-palace-lib/src/palace/data_utils/{benchmark_name}_dataset/
+palace-eval/src/palace/data_utils/{benchmark_name}_dataset/
 ├── __init__.py           # Empty
 ├── create_dataset.py     # Generator script
 └── (source data files)   # Optional: local data
@@ -301,7 +301,7 @@ Set `"inline_attachment": true` in the download config. The content from the spe
 ## Running Your Generator
 
 ```bash
-cd palace-lib
+cd palace-eval
 python -m palace.data_utils.my_benchmark_dataset.create_dataset
 ```
 

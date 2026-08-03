@@ -107,7 +107,7 @@ List of input data types present in the tasklist's tasks. Auto-detected by `pala
 {"input_modalities": ["text", "image"]}
 ```
 
-Supported values: `"text"`, `"image"`, `"video"`, `"audio"`. PDF attachments count as `"text"` (auto-extracted by palace-lib). If `input_modalities` already exists in `info.json` (e.g., custom tasklists), `palace-download` preserves the existing value.
+Supported values: `"text"`, `"image"`, `"video"`, `"audio"`. PDF attachments count as `"text"` (auto-extracted by PALACE). If `input_modalities` already exists in `info.json` (e.g., custom tasklists), `palace-download` preserves the existing value.
 
 !!! note "Backward compatibility"
     The legacy `modalities` key is still read as `input_modalities` if the new key is absent.
