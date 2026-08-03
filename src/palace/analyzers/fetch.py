@@ -114,11 +114,7 @@ def aloha_web_fetch(url: str) -> Optional[str]:
     try:
 
         async def _fetch():
-            headers = (
-                {"Authorization": f"Bearer {ALOHA_WEB_TOKEN}"}
-                if ALOHA_WEB_TOKEN
-                else None
-            )
+            headers = {"Authorization": f"Bearer {ALOHA_WEB_TOKEN}"} if ALOHA_WEB_TOKEN else None
             async with streamablehttp_client(ALOHA_WEB_URL, headers=headers) as (
                 read,
                 write,
@@ -148,11 +144,7 @@ def aloha_literature_fetch(doi: str) -> Optional[str]:
     try:
 
         async def _fetch():
-            headers = (
-                {"Authorization": f"Bearer {ALOHA_LITERATURE_TOKEN}"}
-                if ALOHA_LITERATURE_TOKEN
-                else None
-            )
+            headers = {"Authorization": f"Bearer {ALOHA_LITERATURE_TOKEN}"} if ALOHA_LITERATURE_TOKEN else None
             async with streamablehttp_client(ALOHA_LITERATURE_URL, headers=headers) as (
                 read,
                 write,

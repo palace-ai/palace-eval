@@ -86,13 +86,17 @@ class APIAgent(Agent):
         self.url = url
         self.token = token
         self.api_type = api_type
-        self._model = create_api_model(model_id=name, url=url, token=token, api_type=api_type, extra_params=extra_params)
+        self._model = create_api_model(
+            model_id=name, url=url, token=token, api_type=api_type, extra_params=extra_params
+        )
 
     @property
     def name(self) -> str:
         return self._name
 
-    async def run(self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None) -> AgentResult:
+    async def run(
+        self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None
+    ) -> AgentResult:
         self._model.quiet = not self.verbose
         # Inline text attachments into prompt (non-agentic presentation)
         if attachments:
@@ -118,4 +122,3 @@ class APIAgent(Agent):
             if text:
                 prompt = f"Start of text attachment >>>\n{text}\n<<< End of text attachment\n\n{prompt}"
         return prompt
-

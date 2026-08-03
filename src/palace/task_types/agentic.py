@@ -49,13 +49,9 @@ class AgenticTask(Task):
 
     async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
         if env is None:
-            return TaskVerificationResult(
-                is_correct=False, outcome="error", reason="no_execution_environment"
-            )
+            return TaskVerificationResult(is_correct=False, outcome="error", reason="no_execution_environment")
         if not self._verify_fn:
-            return TaskVerificationResult(
-                is_correct=False, outcome="error", reason="no_verify_function"
-            )
+            return TaskVerificationResult(is_correct=False, outcome="error", reason="no_verify_function")
 
         # Copy verify_files if present in tasklist
         await self._inject_verify_files(env)
@@ -65,9 +61,7 @@ class AgenticTask(Task):
             if inspect.isawaitable(result):
                 result = await result
         except Exception as e:
-            return TaskVerificationResult(
-                is_correct=False, reasoning=f"Verify failed: {e}"
-            )
+            return TaskVerificationResult(is_correct=False, reasoning=f"Verify failed: {e}")
 
         return _normalize_verify_result(result)
 
@@ -108,9 +102,7 @@ def _normalize_verify_result(result) -> TaskVerificationResult:
     if isinstance(result, bool):
         return TaskVerificationResult(is_correct=result, reasoning="")
     if isinstance(result, (int, float)):
-        return TaskVerificationResult(
-            is_correct=float(result) >= 1.0, metrics={"score": float(result)}
-        )
+        return TaskVerificationResult(is_correct=float(result) >= 1.0, metrics={"score": float(result)})
     if isinstance(result, dict):
         return TaskVerificationResult(
             is_correct=result.get("is_correct", False),

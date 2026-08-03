@@ -42,7 +42,10 @@ _TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504, 529})
 
 # Network-level exceptions that indicate transient connectivity issues.
 _TRANSIENT_NETWORK_ERRORS = (
-    httpx.ConnectError, httpx.TimeoutException, httpx.ReadError, httpx.RemoteProtocolError,
+    httpx.ConnectError,
+    httpx.TimeoutException,
+    httpx.ReadError,
+    httpx.RemoteProtocolError,
 )
 
 
@@ -201,8 +204,13 @@ class VivariumAgent(Agent):
                     task_files=task_files,
                 )
                 break
-            except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException,
-                    httpx.ReadError, httpx.RemoteProtocolError) as e:
+            except (
+                httpx.HTTPStatusError,
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.ReadError,
+                httpx.RemoteProtocolError,
+            ) as e:
                 if _is_transient_http(e):
                     _logger.debug(f"Transient error creating environment, retrying: {e}")
                     await asyncio.sleep(5)
@@ -249,8 +257,13 @@ class VivariumAgent(Agent):
                     attachments=encoded_attachments,
                 )
                 break
-            except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException,
-                    httpx.ReadError, httpx.RemoteProtocolError) as e:
+            except (
+                httpx.HTTPStatusError,
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.ReadError,
+                httpx.RemoteProtocolError,
+            ) as e:
                 if _is_transient_http(e) and attempt < 9:
                     _logger.warning(f"Transient error submitting run (attempt {attempt + 1}): {e}")
                     await asyncio.sleep(5 * (attempt + 1))
@@ -266,8 +279,13 @@ class VivariumAgent(Agent):
             try:
                 data = await self._client.get_run(run.id)
                 consecutive_failures = 0
-            except (httpx.HTTPStatusError, httpx.ConnectError, httpx.TimeoutException,
-                    httpx.ReadError, httpx.RemoteProtocolError) as e:
+            except (
+                httpx.HTTPStatusError,
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.ReadError,
+                httpx.RemoteProtocolError,
+            ) as e:
                 if _is_transient_http(e):
                     consecutive_failures += 1
                     if consecutive_failures > 60:
@@ -322,6 +340,7 @@ class VivariumAgent(Agent):
         self._spec_ids = {}
         if self._auto_started:
             from vivarium import stop
+
             stop()
             self._auto_started = False
         await self._client.aclose()
@@ -343,11 +362,13 @@ class VivariumAgent(Agent):
             await env.write(f"/workspace/attachments/{att.filename}", raw)
             filenames.append(att.filename)
             if att.mime_type.startswith(("image/", "audio/")):
-                encoded.append({
-                    "filename": att.filename,
-                    "mime_type": att.mime_type,
-                    "data": base64.b64encode(raw).decode("utf-8"),
-                })
+                encoded.append(
+                    {
+                        "filename": att.filename,
+                        "mime_type": att.mime_type,
+                        "data": base64.b64encode(raw).decode("utf-8"),
+                    }
+                )
         note = "\n\n[Attached files: " + ", ".join(f"attachments/{f}" for f in filenames) + "]"
         return prompt + note, encoded or None
 

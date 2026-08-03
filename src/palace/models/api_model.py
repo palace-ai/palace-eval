@@ -16,14 +16,26 @@ import logging
 import re
 from abc import abstractmethod
 
-from openai import APITimeoutError, AsyncOpenAI, RateLimitError, InternalServerError, APIConnectionError
-from openai import AsyncAzureOpenAI
+from anthropic import (
+    APIConnectionError as AnthropicConnectionError,
+)
+from anthropic import (
+    APITimeoutError as AnthropicTimeoutError,
+)
 from anthropic import AsyncAnthropic, omit
 from anthropic import (
-    RateLimitError as AnthropicRateLimitError,
     InternalServerError as AnthropicInternalServerError,
-    APITimeoutError as AnthropicTimeoutError,
-    APIConnectionError as AnthropicConnectionError,
+)
+from anthropic import (
+    RateLimitError as AnthropicRateLimitError,
+)
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AsyncAzureOpenAI,
+    AsyncOpenAI,
+    InternalServerError,
+    RateLimitError,
 )
 from tenacity import (
     retry,
@@ -35,14 +47,20 @@ from palace.models.base_model import Message, Model
 from palace.utils.exceptions import TimeoutException
 from palace.utils.printing import print
 
-_THINKING_TAG_RE = re.compile(r'<think>.*?</think>', re.DOTALL | re.IGNORECASE)
+_THINKING_TAG_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 _logger = logging.getLogger("palace.api_model")
 
 _MAX_IDENTICAL_500_RETRIES = 3
 _RETRYABLE_EXCEPTIONS = (
-    RateLimitError, InternalServerError, APITimeoutError, APIConnectionError,
+    RateLimitError,
+    InternalServerError,
+    APITimeoutError,
+    APIConnectionError,
     TimeoutException,
-    AnthropicRateLimitError, AnthropicInternalServerError, AnthropicTimeoutError, AnthropicConnectionError,
+    AnthropicRateLimitError,
+    AnthropicInternalServerError,
+    AnthropicTimeoutError,
+    AnthropicConnectionError,
 )
 
 
@@ -81,9 +99,13 @@ def create_api_model(
     if api_type is None:
         api_type = "anthropic" if "claude" in model_id.lower() else "openai"
     if api_type == "anthropic":
-        return AnthropicModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
+        return AnthropicModel(
+            model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params
+        )
     if api_type == "azure":
-        return AzureOpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
+        return AzureOpenAIModel(
+            model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params
+        )
     if api_type == "openai":
         return OpenAIModel(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
     raise ValueError(f"Unsupported api_type: {api_type!r}. Must be 'openai', 'anthropic', or 'azure'.")
@@ -98,8 +120,10 @@ class APIModel(Model):
     @classmethod
     def list_models(cls, url: str, token: str | None = None) -> list[str]:
         """List available models from the OpenAI-compatible API server."""
-        from openai import OpenAI, RateLimitError
         import time
+
+        from openai import OpenAI, RateLimitError
+
         client = OpenAI(api_key=token or "no-key", base_url=url)
         for attempt in range(5):
             try:
@@ -110,7 +134,16 @@ class APIModel(Model):
                     raise
                 time.sleep(5 * (attempt + 1))
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+    def __init__(
+        self,
+        model_id: str,
+        url: str,
+        token: str | None = None,
+        *,
+        strip_thinking: bool = True,
+        quiet: bool = True,
+        extra_params: dict | None = None,
+    ):
         self.model_id = model_id
         self.url = url
         self.token = token
@@ -139,7 +172,7 @@ class APIModel(Model):
 
     def _strip_thinking_tags(self, text: str) -> str:
         if self.strip_thinking and text:
-            cleaned = _THINKING_TAG_RE.sub('', text).strip()
+            cleaned = _THINKING_TAG_RE.sub("", text).strip()
             if cleaned:
                 return cleaned
         return text
@@ -155,7 +188,9 @@ class APIModel(Model):
 
     @retry(
         stop=stop_after_delay(86400),
-        wait=lambda retry_state: APIModel._WAIT_SEQUENCE[min(retry_state.attempt_number - 1, len(APIModel._WAIT_SEQUENCE) - 1)],
+        wait=lambda retry_state: APIModel._WAIT_SEQUENCE[
+            min(retry_state.attempt_number - 1, len(APIModel._WAIT_SEQUENCE) - 1)
+        ],
         retry=retry_if_exception_type(_RETRYABLE_EXCEPTIONS),
         before_sleep=lambda retry_state: _log_retry(retry_state),
     )
@@ -167,7 +202,16 @@ class APIModel(Model):
 class OpenAIModel(APIModel):
     """OpenAI-compatible API model."""
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+    def __init__(
+        self,
+        model_id: str,
+        url: str,
+        token: str | None = None,
+        *,
+        strip_thinking: bool = True,
+        quiet: bool = True,
+        extra_params: dict | None = None,
+    ):
         super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
         self.client = AsyncOpenAI(base_url=url, api_key=token or "no-key", timeout=3000)
 
@@ -179,7 +223,9 @@ class OpenAIModel(APIModel):
         parts = []
         for part in content:
             if part["type"] == "image":
-                parts.append({"type": "image_url", "image_url": {"url": f"data:{part['media_type']};base64,{part['data']}"}})
+                parts.append(
+                    {"type": "image_url", "image_url": {"url": f"data:{part['media_type']};base64,{part['data']}"}}
+                )
             elif part["type"] == "audio":
                 parts.append({"type": "input_audio", "input_audio": {"data": part["data"], "format": part["format"]}})
             else:
@@ -226,13 +272,22 @@ class OpenAIModel(APIModel):
         return "".join(collected)
 
 
-
 class AzureOpenAIModel(APIModel):
     """Azure OpenAI API model using deployment-based routing and api-key auth."""
 
     DEFAULT_API_VERSION = "2024-10-21"
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, api_version: str | None = None, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+    def __init__(
+        self,
+        model_id: str,
+        url: str,
+        token: str | None = None,
+        *,
+        api_version: str | None = None,
+        strip_thinking: bool = True,
+        quiet: bool = True,
+        extra_params: dict | None = None,
+    ):
         super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
         self.api_version = api_version or self.DEFAULT_API_VERSION
         self.client = AsyncAzureOpenAI(
@@ -250,7 +305,9 @@ class AzureOpenAIModel(APIModel):
         parts = []
         for part in content:
             if part["type"] == "image":
-                parts.append({"type": "image_url", "image_url": {"url": f"data:{part['media_type']};base64,{part['data']}"}})
+                parts.append(
+                    {"type": "image_url", "image_url": {"url": f"data:{part['media_type']};base64,{part['data']}"}}
+                )
             elif part["type"] == "audio":
                 parts.append({"type": "input_audio", "input_audio": {"data": part["data"], "format": part["format"]}})
             else:
@@ -277,10 +334,20 @@ class AzureOpenAIModel(APIModel):
             raise ValueError("Empty API response: no content returned")
         return "".join(collected)
 
+
 class AnthropicModel(APIModel):
     """Anthropic API model."""
 
-    def __init__(self, model_id: str, url: str, token: str | None = None, *, strip_thinking: bool = True, quiet: bool = True, extra_params: dict | None = None):
+    def __init__(
+        self,
+        model_id: str,
+        url: str,
+        token: str | None = None,
+        *,
+        strip_thinking: bool = True,
+        quiet: bool = True,
+        extra_params: dict | None = None,
+    ):
         super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
         self.client = AsyncAnthropic(
             base_url=url.removesuffix("/v1"),
@@ -296,7 +363,12 @@ class AnthropicModel(APIModel):
         parts = []
         for part in content:
             if part["type"] == "image":
-                parts.append({"type": "image", "source": {"type": "base64", "media_type": part["media_type"], "data": part["data"]}})
+                parts.append(
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": part["media_type"], "data": part["data"]},
+                    }
+                )
             elif part["type"] == "audio":
                 # Anthropic doesn't support audio; pass as text fallback
                 parts.append({"type": "text", "text": "[audio attachment not supported]"})

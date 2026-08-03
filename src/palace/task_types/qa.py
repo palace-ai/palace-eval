@@ -133,7 +133,9 @@ Either Correct or Incorrect. No other text can be here.
         correct_fields = references.get("correct", ["expected"])
         has_correct = any(self._get_reference_value(f) for f in correct_fields)
         if not has_correct:
-            raise ValueError(f"Cannot verify QA task without at least one correct reference. Fields checked: {correct_fields}")
+            raise ValueError(
+                f"Cannot verify QA task without at least one correct reference. Fields checked: {correct_fields}"
+            )
 
         incorrect_fields = references.get("incorrect", [])
         has_incorrect = bool(incorrect_fields) and any(self._get_reference_value(f) for f in incorrect_fields)

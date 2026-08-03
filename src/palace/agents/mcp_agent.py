@@ -20,7 +20,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from palace.agents import Agent
 from palace.evaluation.types import AgentResult
-from palace.mcp_utils.mcp_client import list_tools, _call_tool
+from palace.mcp_utils.mcp_client import _call_tool, list_tools
 
 
 class MCPAgent(Agent):
@@ -71,14 +71,10 @@ class MCPAgent(Agent):
         else:
             try:
                 self._input_parameter = list(
-                    [a for a in available_agents if a.name == self._name][0]
-                    .inputSchema["properties"]
-                    .keys()
+                    [a for a in available_agents if a.name == self._name][0].inputSchema["properties"].keys()
                 )[0]
             except Exception as e:
-                raise ValueError(
-                    f"Can't find the input parameter for the agent {self._name} at {url}."
-                ) from e
+                raise ValueError(f"Can't find the input parameter for the agent {self._name} at {url}.") from e
 
     @property
     def name(self) -> str:
@@ -100,14 +96,10 @@ class MCPAgent(Agent):
             answer = self.output_processor(output)
         else:
             if not isinstance(output.content[0], TextContent):
-                raise ValueError(
-                    f"MCPAgent expected TextContent, got: {type(output.content[0])}"
-                )
+                raise ValueError(f"MCPAgent expected TextContent, got: {type(output.content[0])}")
             answer = output.content[0].text
             if not isinstance(answer, str) or answer.strip() == "":
-                raise ValueError(
-                    f"MCPAgent answer not found in output content. Got: {output.content}"
-                )
+                raise ValueError(f"MCPAgent answer not found in output content. Got: {output.content}")
 
         try:
             assert isinstance(output.content[1], TextContent)
@@ -118,7 +110,9 @@ class MCPAgent(Agent):
 
         return AgentResult(answer=answer, metrics=metrics)
 
-    async def run(self, prompt: str, attachments: "list[Any] | None" = None, *, task_id: str | None = None) -> AgentResult:
+    async def run(
+        self, prompt: str, attachments: "list[Any] | None" = None, *, task_id: str | None = None
+    ) -> AgentResult:
         if attachments:
             # TODO: pass image attachments as ImageContent when MCP SDK supports it in tool calls
             return AgentResult(outcome="error", reason="unsupported_attachment")

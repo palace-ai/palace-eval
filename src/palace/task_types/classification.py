@@ -141,9 +141,7 @@ Your goal is to associate a class to the label(s), matching this format exactly:
         labels = self.custom_fields.get("task_type_fields", {}).get("labels", [])
         per_label = {}
         for label in labels:
-            matches = re.findall(
-                f"<{label['name']}>((?:.|\n)*?)</{label['name']}>", answer
-            )
+            matches = re.findall(f"<{label['name']}>((?:.|\n)*?)</{label['name']}>", answer)
             pred = matches[0].strip() if matches and len(matches) == 1 else None
             expected = self.custom_fields.get("labels", {}).get(label["name"])
             per_label[label["name"]] = {
@@ -156,6 +154,6 @@ Your goal is to associate a class to the label(s), matching this format exactly:
         is_correct = all(v["correct"] for v in per_label.values())
         return TaskVerificationResult(
             is_correct=is_correct,
-            reasoning=f"Label-wise correctness\n{'\n'.join([f'{':check_mark_button:' if v['correct'] else ':cross_mark:'} {k}' for k, v in per_label.items()])}",
+            reasoning=f"Label-wise correctness\n{'\n'.join([f'{":check_mark_button:" if v["correct"] else ":cross_mark:"} {k}' for k, v in per_label.items()])}",
             metrics={"per_label": per_label},
         )

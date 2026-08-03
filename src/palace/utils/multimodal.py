@@ -31,12 +31,21 @@ MODALITY_EXTENSIONS: dict[str, set[str]] = {
 
 MIME_MAP: dict[str, str] = {
     # Image
-    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".gif": "image/gif", ".webp": "image/webp",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
     # Audio
-    ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".flac": "audio/flac",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
     # Video
-    ".mp4": "video/mp4", ".webm": "video/webm", ".avi": "video/x-msvideo", ".mov": "video/quicktime",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".avi": "video/x-msvideo",
+    ".mov": "video/quicktime",
     # Document
     ".pdf": "application/pdf",
 }
@@ -61,6 +70,7 @@ def detect_modalities(tasks: list[dict]) -> list[str]:
                     modalities.add(modality)
     return sorted(modalities)
 
+
 # Max dimension for images (OpenAI recommends 2048 max, we use 1024 for safety)
 MAX_IMAGE_DIMENSION = 1024
 
@@ -74,9 +84,7 @@ def is_image_attachment(path: str) -> bool:
     return Path(path).suffix.lower() in IMAGE_EXTENSIONS
 
 
-def build_multimodal_content(
-    prompt: str, attachments: "list[Any] | None" = None
-) -> str | list[dict[str, Any]]:
+def build_multimodal_content(prompt: str, attachments: "list[Any] | None" = None) -> str | list[dict[str, Any]]:
     """Build message content for OpenAI API, with optional typed attachments.
 
     Args:
@@ -123,8 +131,10 @@ def _build_audio_part(att: Any) -> dict[str, Any]:
 def _detect_mime_from_format(img_format: str | None) -> str:
     """Map PIL image format to MIME type based on actual content, not extension."""
     FORMAT_TO_MIME = {
-        "JPEG": "image/jpeg", "PNG": "image/png",
-        "GIF": "image/gif", "WEBP": "image/webp",
+        "JPEG": "image/jpeg",
+        "PNG": "image/png",
+        "GIF": "image/gif",
+        "WEBP": "image/webp",
     }
     return FORMAT_TO_MIME.get(img_format or "", "image/png")
 

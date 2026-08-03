@@ -150,9 +150,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
                 "name": t.name,
                 **(info := json.loads((t / "info.json").read_text())),
                 "category": info["category"],
-                "input_modalities": info.get(
-                    "input_modalities", info.get("modalities", ["text"])
-                ),
+                "input_modalities": info.get("input_modalities", info.get("modalities", ["text"])),
                 "output_modalities": info.get("output_modalities", ["text"]),
             }
             for t in TASKLISTS_PATH.iterdir()
@@ -198,9 +196,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         return
     task_limit = int(task_limit) if task_limit != "Unlimited" else sys.maxsize
 
-    runs = questionary.select(
-        "Runs per configuration:", choices=["1", "3", "5", "10"], default="1"
-    ).ask()
+    runs = questionary.select("Runs per configuration:", choices=["1", "3", "5", "10"], default="1").ask()
     if not runs:
         return
     runs = int(runs)
@@ -210,9 +206,13 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
 
     # --- Execute ---
     evaluation = Evaluation(
-        name=name, url=url, token=token, endpoint_type=endpoint_type,
+        name=name,
+        url=url,
+        token=token,
+        endpoint_type=endpoint_type,
         agentic=True if agentic else None,
-        task_amount_limit=task_limit, runs_per_configuration=runs,
+        task_amount_limit=task_limit,
+        runs_per_configuration=runs,
     )
     try:
         evaluation.evaluate_all(selected, tasklists=tasklists)

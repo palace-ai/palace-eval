@@ -17,7 +17,7 @@
 from palace.task_types.agentic import AgenticTask
 from palace.task_types.base import Task, TaskVerificationResult
 from palace.task_types.classification import ClassificationTask
-from palace.task_types.criteria_evaluation import CriteriaEvaluationTask, DEFAULT_CRITERIA
+from palace.task_types.criteria_evaluation import DEFAULT_CRITERIA, CriteriaEvaluationTask
 from palace.task_types.instruction_following import InstructionFollowingTask
 from palace.task_types.qa import QATask
 

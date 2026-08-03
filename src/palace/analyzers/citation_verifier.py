@@ -256,9 +256,7 @@ class CitationVerifier(Analyzer):
             print(f"[bold red]Citation verification failed: {e}[/]")
             raise
 
-    async def _extract_citations(
-        self, article: str, model: APIModel
-    ) -> tuple[list[dict], bool]:
+    async def _extract_citations(self, article: str, model: APIModel) -> tuple[list[dict], bool]:
         """Extract (fact, ref_idx, url) triplets from the article using LLM.
 
         Returns:
@@ -281,16 +279,12 @@ class CitationVerifier(Analyzer):
                             c["fact"] = _remove_urls_from_text(c.get("fact", ""))
                         return citations, False
             except Exception as e:
-                print(
-                    f"[bold yellow]Extract parse attempt {attempt + 1} failed: {e}[/]"
-                )
+                print(f"[bold yellow]Extract parse attempt {attempt + 1} failed: {e}[/]")
                 continue
 
         return [], True
 
-    async def _deduplicate_citations(
-        self, citations: list[dict], model: APIModel
-    ) -> dict[str, dict]:
+    async def _deduplicate_citations(self, citations: list[dict], model: APIModel) -> dict[str, dict]:
         """Group citations by URL and deduplicate facts within each group."""
         if not citations:
             return {}
@@ -324,15 +318,11 @@ class CitationVerifier(Analyzer):
 
             # Fallback: keep all
             if not kept_indices or 0 in kept_indices or len(kept_indices) > len(group):
-                print(
-                    f"[bold yellow]Deduplication failed for {url}, keeping all {len(group)} citations[/]"
-                )
+                print(f"[bold yellow]Deduplication failed for {url}, keeping all {len(group)} citations[/]")
                 kept_indices = list(range(1, len(group) + 1))
 
             deduped[url] = {
-                "facts": [
-                    group[i - 1]["fact"] for i in kept_indices if 1 <= i <= len(group)
-                ],
+                "facts": [group[i - 1]["fact"] for i in kept_indices if 1 <= i <= len(group)],
                 "url_content": None,
             }
 
@@ -350,9 +340,7 @@ class CitationVerifier(Analyzer):
                     deduped[url]["scrape_failed"] = True
         return deduped
 
-    async def _validate_citations(
-        self, deduped: dict[str, dict], model: APIModel
-    ) -> dict[str, dict]:
+    async def _validate_citations(self, deduped: dict[str, dict], model: APIModel) -> dict[str, dict]:
         """For each URL group, ask LLM whether each fact is supported."""
         for url, group in deduped.items():
             # Skip if scrape failed
@@ -387,9 +375,7 @@ class CitationVerifier(Analyzer):
                             break
                 except Exception as e:
                     error = str(e)
-                    print(
-                        f"[bold yellow]Validate attempt {attempt + 1} for {url}: {e}[/]"
-                    )
+                    print(f"[bold yellow]Validate attempt {attempt + 1} for {url}: {e}[/]")
                     time.sleep(2)
             else:
                 group["validate_res"] = []
@@ -397,9 +383,7 @@ class CitationVerifier(Analyzer):
 
         return deduped
 
-    def _compute_stats(
-        self, deduped: dict[str, dict], total_extracted: int
-    ) -> dict[str, Any]:
+    def _compute_stats(self, deduped: dict[str, dict], total_extracted: int) -> dict[str, Any]:
         """Compute claim verification stats."""
         supported = 0
         unsupported = 0
@@ -416,9 +400,7 @@ class CitationVerifier(Analyzer):
             urls_fetched.append(url)
             for i, v in enumerate(group.get("validate_res", [])):
                 result = v.get("result", "unknown")
-                fact = (
-                    group.get("facts", [])[i] if i < len(group.get("facts", [])) else ""
-                )
+                fact = group.get("facts", [])[i] if i < len(group.get("facts", [])) else ""
                 details.append({"url": url, "claim": fact[:200], "result": result})
                 if result == "supported":
                     supported += 1

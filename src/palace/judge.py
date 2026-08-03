@@ -31,7 +31,7 @@ Flat tags (simple):
 
 Nested tags (for complex structured output):
     judge = Judge(
-        judge_model="minimax-m2", 
+        judge_model="minimax-m2",
         judge_prompt="...",
         output_keywords={
             "clarity": ["discussion", "best", "gap"],
@@ -106,10 +106,8 @@ class Judge:
     ) -> None:
         self.judge_prompt = judge_prompt
         self.output_keywords = output_keywords
-        
-        assert OPENAI_LIKE_API_BASE_URL is not None, (
-            "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
-        )
+
+        assert OPENAI_LIKE_API_BASE_URL is not None, "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
         self.judge_model = create_api_model(
             judge_model,
             OPENAI_LIKE_API_BASE_URL,
@@ -132,7 +130,7 @@ class Judge:
             for tag in spec:
                 result[tag] = self._parse_tag(content, tag)
             return result
-        
+
         result = {}
         for tag, children in spec.items():
             tag_content = self._parse_tag(content, tag)
@@ -182,6 +180,4 @@ class Judge:
             except ValueError as e:
                 print(f"[bold yellow]{e}. Retrying ({attempt}/{max_attempts})...")
 
-        raise ValueError(
-            f"[bold red]Max attempts ({max_attempts}) exceeded. Could not parse judge output."
-        )
+        raise ValueError(f"[bold red]Max attempts ({max_attempts}) exceeded. Could not parse judge output.")

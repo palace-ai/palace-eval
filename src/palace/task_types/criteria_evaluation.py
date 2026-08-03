@@ -184,10 +184,7 @@ class CriteriaEvaluationTask(Task):
 
     def _build_judge_prompt(self, criteria: list[dict]) -> str:
         """Generate judge prompt dynamically from criteria list."""
-        criteria_list = "\n".join(
-            f"{i + 1}. *{c['name']}*: {c['description']}"
-            for i, c in enumerate(criteria)
-        )
+        criteria_list = "\n".join(f"{i + 1}. *{c['name']}*: {c['description']}" for i, c in enumerate(criteria))
 
         output_template = "\n\n".join(
             f"""<{c["name"]}>
@@ -222,9 +219,7 @@ Structure your output exactly as follows:
 Be fair and objective in your evaluation. Do not be biased towards either report A or B.
 The length of a report is not necessarily an indicator of quality - focus on the substance and how well it meets the user's needs."""
 
-    async def _judge_batch(
-        self, batch: list[dict], prompt_AB: str, prompt_BA: str
-    ) -> tuple[dict, dict]:
+    async def _judge_batch(self, batch: list[dict], prompt_AB: str, prompt_BA: str) -> tuple[dict, dict]:
         """Run judge on a batch of criteria, return keyword values for AB and BA."""
         judge_prompt = self._build_judge_prompt(batch)
         # Nested format: {criterion_name: [inner_tags]}
@@ -257,14 +252,16 @@ The length of a report is not necessarily an indicator of quality - focus on the
             if not criteria:
                 criteria = self.custom_fields.get("criteria", [])
             if not criteria:
-                return TaskVerificationResult(is_correct=False, reasoning="No criteria defined", metrics={"normalized_score": 0.0})
+                return TaskVerificationResult(
+                    is_correct=False, reasoning="No criteria defined", metrics={"normalized_score": 0.0}
+                )
 
             task_type_fields = self.custom_fields.get("task_type_fields", {})
             max_per_batch = task_type_fields.get("max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH)
 
             # Evaluate criteria in batches
             all_results: dict[str, bool] = {}
-            batches = [criteria[i:i + max_per_batch] for i in range(0, len(criteria), max_per_batch)]
+            batches = [criteria[i : i + max_per_batch] for i in range(0, len(criteria), max_per_batch)]
             for i, batch in enumerate(batches):
                 if len(batches) > 1:
                     print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
@@ -303,7 +300,11 @@ The length of a report is not necessarily an indicator of quality - focus on the
             reasoning += f"\n\nScore: {earned:.1f}/{max_positive:.1f} = {score:.2f}"
 
             # Build metrics with dimension grouping
-            metrics: dict[str, Any] = {"normalized_score": round(score, 4), "earned_points": earned, "max_points": max_positive}
+            metrics: dict[str, Any] = {
+                "normalized_score": round(score, 4),
+                "earned_points": earned,
+                "max_points": max_positive,
+            }
             dimension_scores: dict[str, list[float]] = {}
             for c in criteria:
                 dim = c.get("dimension")
@@ -327,12 +328,8 @@ The length of a report is not necessarily an indicator of quality - focus on the
 
     async def _judge_absolute_batch(self, batch: list[dict], answer: str) -> dict[str, bool]:
         """Judge a batch of criteria in absolute mode. Returns {name: met}."""
-        criteria_list = "\n".join(
-            f"{i+1}. *{c['name']}*: {c['description']}" for i, c in enumerate(batch)
-        )
-        output_template = "\n\n".join(
-            f"<{c['name']}>\n<met>YES or NO</met>\n</{c['name']}>" for c in batch
-        )
+        criteria_list = "\n".join(f"{i + 1}. *{c['name']}*: {c['description']}" for i, c in enumerate(batch))
+        output_template = "\n\n".join(f"<{c['name']}>\n<met>YES or NO</met>\n</{c['name']}>" for c in batch)
 
         judge_prompt = f"""You are an expert evaluator. Given a response to a question, evaluate whether each criterion is satisfied.
 
@@ -362,9 +359,7 @@ Structure your output exactly as follows:
         try:
             criteria, dimension_map = self._get_criteria()
             task_type_fields = self.custom_fields.get("task_type_fields", {})
-            max_per_batch = task_type_fields.get(
-                "max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH
-            )
+            max_per_batch = task_type_fields.get("max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH)
 
             prompt_AB = f"""
     QUESTION
@@ -393,9 +388,7 @@ Structure your output exactly as follows:
             keyword_values_BA = {}
             for i, batch in enumerate(batches):
                 if len(batches) > 1:
-                    print(
-                        f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)..."
-                    )
+                    print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
                 ab, ba = await self._judge_batch(batch, prompt_AB, prompt_BA)
                 keyword_values_AB.update(ab)
                 keyword_values_BA.update(ba)
@@ -435,9 +428,7 @@ Structure your output exactly as follows:
                 # Per-criterion score for metrics
                 coef_AB = 1 if ab_best == "B" else -1
                 coef_BA = 1 if ba_best == "A" else -1
-                criteria_scores[name] = coef_AB * int(ab["gap"]) + coef_BA * int(
-                    ba["gap"]
-                )
+                criteria_scores[name] = coef_AB * int(ab["gap"]) + coef_BA * int(ba["gap"])
 
             # Build reasoning string with per-criterion sections
             def replace_report_names(text: str, provided_is_a: bool) -> str:
@@ -457,37 +448,25 @@ Structure your output exactly as follows:
                 sign = "+" if score > 0 else ""
 
                 # Combine discussions from both comparisons
-                disc_ab = replace_report_names(
-                    keyword_values_AB[name]["discussion"], provided_is_a=False
-                )
-                disc_ba = replace_report_names(
-                    keyword_values_BA[name]["discussion"], provided_is_a=True
-                )
+                disc_ab = replace_report_names(keyword_values_AB[name]["discussion"], provided_is_a=False)
+                disc_ba = replace_report_names(keyword_values_BA[name]["discussion"], provided_is_a=True)
 
-                reasoning_parts.append(
-                    f"## {name} ({sign}{score})\n{disc_ab}\n\n{disc_ba}"
-                )
+                reasoning_parts.append(f"## {name} ({sign}{score})\n{disc_ab}\n\n{disc_ba}")
 
             reasoning = "\n\n".join(reasoning_parts)
 
             # Summary section
             overall_gap = score_provided - score_expected
             max_score = sum(c.get("weight", 1.0) for c in criteria) * 10
-            normalized_score = (
-                (overall_gap + max_score) / (2 * max_score) if max_score > 0 else 0.5
-            )
+            normalized_score = (overall_gap + max_score) / (2 * max_score) if max_score > 0 else 0.5
 
             reasoning += "\n\n## Summary\n"
-            reasoning += (
-                "Scores per criterion (positive = provided better, range -10 to +10):\n"
-            )
+            reasoning += "Scores per criterion (positive = provided better, range -10 to +10):\n"
             for name, score in criteria_scores.items():
                 sign = "+" if score > 0 else ""
                 reasoning += f"  {name}: {sign}{score}\n"
             reasoning += f"\nOverall: {overall_gap:+.1f} (range {-max_score:.0f} to +{max_score:.0f})"
-            reasoning += (
-                f"\nNormalized: {normalized_score:.2f} (0=worst, 0.5=tie, 1=best)"
-            )
+            reasoning += f"\nNormalized: {normalized_score:.2f} (0=worst, 0.5=tie, 1=best)"
 
             # Build metrics
             metrics: dict = {
@@ -507,9 +486,7 @@ Structure your output exactly as follows:
                         dimension_scores[dim_name] = sum(dim_vals) / len(dim_vals)
                 metrics["dimension_scores"] = dimension_scores
                 metrics["criteria_scores"] = {
-                    dim: {cn: criteria_scores[cn] for cn in cns}
-                    for dim, cns in dimension_map.items()
-                    if cns
+                    dim: {cn: criteria_scores[cn] for cn in cns} for dim, cns in dimension_map.items() if cns
                 }
 
             return TaskVerificationResult(

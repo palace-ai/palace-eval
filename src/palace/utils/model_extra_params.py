@@ -54,9 +54,7 @@ def load_model_extra_params(file_path: Path | None = None) -> dict[str, dict]:
         if config is None:
             config = {}
         if not isinstance(config, dict):
-            raise ValueError(
-                f"Invalid extra params for '{pattern}': expected a mapping, got {type(config).__name__}"
-            )
+            raise ValueError(f"Invalid extra params for '{pattern}': expected a mapping, got {type(config).__name__}")
         params[str(pattern)] = config
 
     return params

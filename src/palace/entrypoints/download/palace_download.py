@@ -25,8 +25,10 @@ from typing import Callable
 
 import filetype
 from datasets import load_dataset
-from huggingface_hub import dataset_info as hf_dataset_info, get_collection, hf_hub_download, list_repo_tree, login
+from huggingface_hub import dataset_info as hf_dataset_info
+from huggingface_hub import get_collection, hf_hub_download, list_repo_tree, login
 from huggingface_hub.utils.tqdm import disable_progress_bars
+
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
 from palace.utils.secrets import HUGGINGFACE_TOKEN
@@ -40,6 +42,7 @@ disable_progress_bars()
 @dataclass
 class DownloadEvent:
     """Progress event emitted during download_all()."""
+
     status: str  # "downloading" | "processing" | "files" | "done" | "skipped" | "error"
     name: str
     current: int  # dataset index (1-based)
@@ -112,8 +115,9 @@ def download_tasklist(
         def _multi_config_split_stream():
             for cfg in config:
                 for s in split:
-                    ds = load_dataset(path=id, name=cfg, split=s, streaming=True,
-                                      storage_options={"client_kwargs": {"timeout": 120}})
+                    ds = load_dataset(
+                        path=id, name=cfg, split=s, streaming=True, storage_options={"client_kwargs": {"timeout": 120}}
+                    )
                     for row in ds:
                         row = dict(row)
                         if group_from == "config":
@@ -125,10 +129,12 @@ def download_tasklist(
         dataset = _multi_config_split_stream()
         split_info = None
     elif isinstance(split, list):
+
         def _multi_split_stream():
             for s in split:
-                ds = load_dataset(path=id, name=config, split=s, streaming=True,
-                                  storage_options={"client_kwargs": {"timeout": 120}})
+                ds = load_dataset(
+                    path=id, name=config, split=s, streaming=True, storage_options={"client_kwargs": {"timeout": 120}}
+                )
                 for row in ds:
                     if group_from == "split":
                         row = dict(row)
@@ -138,10 +144,12 @@ def download_tasklist(
         dataset = _multi_split_stream()
         split_info = None
     elif isinstance(config, list):
+
         def _multi_config_stream():
             for cfg in config:
-                ds = load_dataset(path=id, name=cfg, split=split, streaming=True,
-                                  storage_options={"client_kwargs": {"timeout": 120}})
+                ds = load_dataset(
+                    path=id, name=cfg, split=split, streaming=True, storage_options={"client_kwargs": {"timeout": 120}}
+                )
                 for row in ds:
                     if group_from == "config":
                         row = dict(row)
@@ -152,8 +160,9 @@ def download_tasklist(
         split_info = None
     else:
         # Use streaming to get row-level progress (timeout detects stalled connections)
-        dataset = load_dataset(path=id, name=config, split=split, streaming=True,
-                               storage_options={"client_kwargs": {"timeout": 120}})
+        dataset = load_dataset(
+            path=id, name=config, split=split, streaming=True, storage_options={"client_kwargs": {"timeout": 120}}
+        )
         split_info = dataset.info.splits.get(split) if dataset.info.splits else None
 
     total_rows = split_info.num_examples if split_info else 0
@@ -161,15 +170,22 @@ def download_tasklist(
 
     ctx_current, ctx_total = _progress_ctx or (0, 0)
     if on_progress:
-        on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, total_rows=total_rows, total_bytes=total_bytes))
+        on_progress(
+            DownloadEvent(
+                status="downloading",
+                name=name,
+                current=ctx_current,
+                total=ctx_total,
+                total_rows=total_rows,
+                total_bytes=total_bytes,
+            )
+        )
 
     # Prepare attachments dir early for inline writes during streaming
     tasklist_path = TASKLISTS_PATH / name
     os.makedirs(tasklist_path, exist_ok=True)
     _att_cols_raw = column_names.get("attachments") or column_names.get("attachment")
-    _attachment_cols: list[str] | None = (
-        [_att_cols_raw] if isinstance(_att_cols_raw, str) else _att_cols_raw
-    )
+    _attachment_cols: list[str] | None = [_att_cols_raw] if isinstance(_att_cols_raw, str) else _att_cols_raw
     if inline_attachment and _attachment_cols:
         (tasklist_path / "task_files").mkdir(parents=True, exist_ok=True)
 
@@ -208,8 +224,10 @@ def download_tasklist(
                 if raw:
                     # Handle PIL Image objects (HuggingFace Image feature)
                     from PIL import Image as PILImage
+
                     if isinstance(raw, PILImage.Image):
                         import io
+
                         buf = io.BytesIO()
                         fmt = raw.format or "PNG"
                         raw.save(buf, format=fmt)
@@ -220,9 +238,11 @@ def download_tasklist(
                             f.write(img_bytes)
                     elif isinstance(raw, dict) and "array" in raw and "sampling_rate" in raw:
                         # HuggingFace Audio feature: {"path": ..., "array": ndarray, "sampling_rate": int}
-                        import numpy as np
-                        import wave as _wave
                         import io as _io
+                        import wave as _wave
+
+                        import numpy as np
+
                         arr = np.asarray(raw["array"])
                         # Normalize float to int16
                         if arr.dtype.kind == "f":
@@ -272,10 +292,30 @@ def download_tasklist(
             row = {k: v for k, v in row.items() if k in _needed_cols}
         dataset_rows.append(row)
         if on_progress and i % 100 == 0:
-            on_progress(DownloadEvent(status="downloading", name=name, current=ctx_current, total=ctx_total, rows_done=i + 1, total_rows=total_rows, total_bytes=total_bytes))
+            on_progress(
+                DownloadEvent(
+                    status="downloading",
+                    name=name,
+                    current=ctx_current,
+                    total=ctx_total,
+                    rows_done=i + 1,
+                    total_rows=total_rows,
+                    total_bytes=total_bytes,
+                )
+            )
 
     if on_progress:
-        on_progress(DownloadEvent(status="processing", name=name, current=ctx_current, total=ctx_total, rows_done=len(dataset_rows), total_rows=total_rows, total_bytes=total_bytes))
+        on_progress(
+            DownloadEvent(
+                status="processing",
+                name=name,
+                current=ctx_current,
+                total=ctx_total,
+                rows_done=len(dataset_rows),
+                total_rows=total_rows,
+                total_bytes=total_bytes,
+            )
+        )
 
     tasks = []
     seen_ids = set()
@@ -299,8 +339,7 @@ def download_tasklist(
             "custom_verificator": custom_verificator
             if custom_verificator is not None and custom_verificator != ""
             else row[column_names["custom_verificator"]]
-            if "custom_verificator" in column_names
-            and column_names["custom_verificator"] in row
+            if "custom_verificator" in column_names and column_names["custom_verificator"] in row
             else "",
         }
 
@@ -336,6 +375,7 @@ def download_tasklist(
                 correct_idx = task_type_fields["labels"][label_idx].get("classes_from", {}).get("correct_index")
                 if correct_idx is not None:
                     import random
+
                     rng = random.Random(task["id"])  # deterministic per task
                     indices = list(range(len(options)))
                     rng.shuffle(indices)
@@ -393,9 +433,7 @@ def download_tasklist(
     # Write metadata (info.json) — tasklist_path already created above
     # Download tasklist metadata if available, otherwise create it
     try:
-        metadata = hf_hub_download(
-            repo_id=id, filename="info.json", repo_type="dataset"
-        )
+        metadata = hf_hub_download(repo_id=id, filename="info.json", repo_type="dataset")
         with open(metadata) as f:
             metadata = json.load(f)
         with open(tasklist_path / "info.json", "w", encoding="utf-8") as f:
@@ -444,12 +482,7 @@ def download_tasklist(
 
     # Download and save task files (attachments) — skip inline (already written during streaming)
     _att_col = column_names.get("attachments") or column_names.get("attachment")
-    if (
-        not inline_attachment
-        and _att_col is not None
-        and dataset_rows
-        and _att_col in dataset_rows[0]
-    ):
+    if not inline_attachment and _att_col is not None and dataset_rows and _att_col in dataset_rows[0]:
         attachments_dir = Path(tasklist_path / "task_files")
         attachments_dir.mkdir(parents=True, exist_ok=True)
 
@@ -463,7 +496,16 @@ def download_tasklist(
         total_files = len(attachments_to_download)
 
         if on_progress and total_files:
-            on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=total_files))
+            on_progress(
+                DownloadEvent(
+                    status="files",
+                    name=name,
+                    current=ctx_current,
+                    total=ctx_total,
+                    files_done=0,
+                    total_files=total_files,
+                )
+            )
 
         temp_dir = tasklist_path / ".dl_tmp"
         for file_idx, attachment in enumerate(attachments_to_download):
@@ -473,7 +515,16 @@ def download_tasklist(
             # Skip files already downloaded (e.g., from interrupted previous run)
             if dest.exists():
                 if on_progress:
-                    on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
+                    on_progress(
+                        DownloadEvent(
+                            status="files",
+                            name=name,
+                            current=ctx_current,
+                            total=ctx_total,
+                            files_done=file_idx + 1,
+                            total_files=total_files,
+                        )
+                    )
                 continue
 
             try:
@@ -488,7 +539,16 @@ def download_tasklist(
                 print(f"Error downloading {attachment}: {e}")
 
             if on_progress:
-                on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=total_files))
+                on_progress(
+                    DownloadEvent(
+                        status="files",
+                        name=name,
+                        current=ctx_current,
+                        total=ctx_total,
+                        files_done=file_idx + 1,
+                        total_files=total_files,
+                    )
+                )
 
         # Clean up temp directory once after all files
         try:
@@ -515,14 +575,21 @@ def download_tasklist(
 
     def _list_repo_path(path: str) -> list[str]:
         try:
-            return [f.rfilename for f in list_repo_tree(id, path_in_repo=path, repo_type="dataset", recursive=True) if hasattr(f, "rfilename")]
+            return [
+                f.rfilename
+                for f in list_repo_tree(id, path_in_repo=path, repo_type="dataset", recursive=True)
+                if hasattr(f, "rfilename")
+            ]
         except Exception:
             return []
 
     # List full repo tree once (for glob matching)
     from fnmatch import fnmatch
+
     try:
-        _all_repo_files = [f.rfilename for f in list_repo_tree(id, repo_type="dataset", recursive=True) if hasattr(f, "rfilename")]
+        _all_repo_files = [
+            f.rfilename for f in list_repo_tree(id, repo_type="dataset", recursive=True) if hasattr(f, "rfilename")
+        ]
     except Exception:
         _all_repo_files = []
 
@@ -544,15 +611,25 @@ def download_tasklist(
     # Download task_files
     task_files_path = _info.get("task_files_path", "task_files")
     if _glob_has_wildcards(task_files_path):
-        tf_files = [f for f in _all_repo_files if any(
-            fnmatch("/".join(f.split("/")[:i]), task_files_path)
-            for i in range(1, len(f.split("/")))
-        )]
+        tf_files = [
+            f
+            for f in _all_repo_files
+            if any(fnmatch("/".join(f.split("/")[:i]), task_files_path) for i in range(1, len(f.split("/"))))
+        ]
     else:
         tf_files = _list_repo_path(task_files_path)
     if tf_files:
         if on_progress:
-            on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=0, total_files=len(tf_files)))
+            on_progress(
+                DownloadEvent(
+                    status="files",
+                    name=name,
+                    current=ctx_current,
+                    total=ctx_total,
+                    files_done=0,
+                    total_files=len(tf_files),
+                )
+            )
         for file_idx, filename in enumerate(tf_files):
             dest = tasklist_path / filename
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -563,7 +640,16 @@ def download_tasklist(
                 except Exception as e:
                     print(f"  Warning: failed to download {filename}: {e}")
             if on_progress:
-                on_progress(DownloadEvent(status="files", name=name, current=ctx_current, total=ctx_total, files_done=file_idx + 1, total_files=len(tf_files)))
+                on_progress(
+                    DownloadEvent(
+                        status="files",
+                        name=name,
+                        current=ctx_current,
+                        total=ctx_total,
+                        files_done=file_idx + 1,
+                        total_files=len(tf_files),
+                    )
+                )
 
     # Download task files matching tasks_path; write compiled fallback if none found in repo
     _tasks_path_pattern = _info.get("tasks_path", "tasks.json")
@@ -574,6 +660,7 @@ def download_tasklist(
         # Interleave tasks by group (round-robin) if requested
         if interleave_groups and tasks and tasks[0].get("group"):
             from itertools import zip_longest
+
             group_buckets: dict[str, list] = {}
             for t in tasks:
                 group_buckets.setdefault(t.get("group", ""), []).append(t)
@@ -613,9 +700,7 @@ def _string_type(s):
         return "binary"  # Invalid UTF-8 → raw binary
 
     try:
-        if re.fullmatch(
-            r"^data:[a-z]+/[a-z]+;base64,[A-Za-z0-9+/=]+$", s
-        ):  # Looks like Base64
+        if re.fullmatch(r"^data:[a-z]+/[a-z]+;base64,[A-Za-z0-9+/=]+$", s):  # Looks like Base64
             s = _extract_base64_payload(s)
             decoded = base64.b64decode(s + "==", validate=False)  # era validate=True
             reencoded = base64.b64encode(decoded).decode("utf-8")
@@ -726,7 +811,10 @@ def list_downloads(skip_existing: bool = False, tasklists: list[str] | None = No
     Returns:
         List of dicts with 'name' and 'category' keys.
     """
-    return [{"name": item["name"], "category": item.get("category")} for item in _build_download_list(skip_existing, tasklists)]
+    return [
+        {"name": item["name"], "category": item.get("category")}
+        for item in _build_download_list(skip_existing, tasklists)
+    ]
 
 
 def download_all(
@@ -769,9 +857,13 @@ def download_all(
                     with open(metadata) as f:
                         metadata = json.load(f)
                     download_tasklist(
-                        name=name, id=item["id"], split="test",
-                        keep_custom_columns=True, task_type=metadata.get("task_type", ""),
-                        on_progress=on_progress, _progress_ctx=(idx, total),
+                        name=name,
+                        id=item["id"],
+                        split="test",
+                        keep_custom_columns=True,
+                        task_type=metadata.get("task_type", ""),
+                        on_progress=on_progress,
+                        _progress_ctx=(idx, total),
                     )
                 else:
                     dl_args = {k: v for k, v in item.items() if k != "_private"}
@@ -788,9 +880,7 @@ def download_all(
 
 
 def main():
-    argparser = argparse.ArgumentParser(
-        description="Download PALACE datasets from Hugging Face."
-    )
+    argparser = argparse.ArgumentParser(description="Download PALACE datasets from Hugging Face.")
     argparser.add_argument(
         "-t",
         "--tasklists",

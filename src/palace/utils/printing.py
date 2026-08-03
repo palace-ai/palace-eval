@@ -36,9 +36,7 @@ except ImportError:
 
 def _write_to_file(path: Path, *values: object, sep: str = " ", end: str = "\n"):
     # strip styling
-    unstyled_values = [
-        re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", str(v)) for v in values
-    ]
+    unstyled_values = [re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", str(v)) for v in values]
 
     with open(path, "a", encoding="utf-8") as f:
         f.write(sep.join([str(v) for v in unstyled_values]))
@@ -163,9 +161,7 @@ def print(
                     codes = [color_map[p] for p in parts]
                     active_styles.extend(codes)
                     seen = set()
-                    active_styles = [
-                        c for c in active_styles if not (c in seen or seen.add(c))
-                    ]
+                    active_styles = [c for c in active_styles if not (c in seen or seen.add(c))]
                     out.append(f"\033[{';'.join(codes)}m")
                     any_sgr = True
                     continue
@@ -236,9 +232,7 @@ def print(
             chunks = _split_visible_chunks(line, wrap_width)
             wrapped_lines.extend(chunks if chunks else [""])
 
-        max_length = (
-            max(_real_len(line) for line in wrapped_lines) if wrapped_lines != [] else 0
-        )
+        max_length = max(_real_len(line) for line in wrapped_lines) if wrapped_lines != [] else 0
 
         if box_title:
             title_text = emoji.emojize(box_title, language="alias")
@@ -249,17 +243,12 @@ def print(
             box_title = f" {styled_title} "
         else:
             box_title = ""
-        box_width = max(
-            max_length, _real_len(box_title) - 2
-        )
+        box_width = max(max_length, _real_len(box_title) - 2)
 
         horizontal_line = "─" * (box_width + 4)
 
         visible_title_width = _real_len(box_title)
-        top_border = (
-            f"\033[0m╭─\033[1m{box_title}\033[0m"
-            f"{horizontal_line[visible_title_width + 1 :]}╮"
-        )
+        top_border = f"\033[0m╭─\033[1m{box_title}\033[0m{horizontal_line[visible_title_width + 1 :]}╮"
         bottom_border = f"\033[0m╰{horizontal_line}╯"
         empty_line = f"\033[0m│  {' ' * box_width}  │"
 
@@ -269,9 +258,7 @@ def print(
 
         for wrapped_line in wrapped_lines:
             padding = box_width - _real_len(wrapped_line)
-            boxed_output.append(
-                f"\033[0m│  {prefix}{wrapped_line}\033[0m{' ' * padding}  │"
-            )
+            boxed_output.append(f"\033[0m│  {prefix}{wrapped_line}\033[0m{' ' * padding}  │")
 
         boxed_output.append(empty_line)
         boxed_output.append(bottom_border)

@@ -25,9 +25,9 @@ from palace.task_types.base import TaskVerificationResult
 class Attachment:
     """A resolved file attachment for model evaluation."""
 
-    path: str        # absolute filesystem path to the file
-    mime_type: str   # e.g. "image/png", "audio/wav", "text/plain"
-    filename: str    # original filename (for display/reference)
+    path: str  # absolute filesystem path to the file
+    mime_type: str  # e.g. "image/png", "audio/wav", "text/plain"
+    filename: str  # original filename (for display/reference)
 
     def read_bytes(self) -> bytes:
         """Read raw file content."""

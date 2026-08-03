@@ -62,6 +62,7 @@ class InstructionFollowingTask(Task):
 
 # --- Constraint checkers ---
 
+
 def _compare(value: float, target: float, relation: str) -> bool:
     """Compare value against target using the specified relation."""
     if relation == "at least":
@@ -81,6 +82,7 @@ def _check_constraint(ctype: str, answer: str, params: dict, prompt: str = "") -
     checker = _CHECKERS.get(ctype)
     if checker is None:
         import logging
+
         logging.getLogger("palace.instruction_following").warning(f"Unknown constraint type: {ctype}")
         return False
     try:
@@ -99,7 +101,7 @@ def _check_number_words(answer: str, params: dict, prompt: str) -> bool:
 
 
 def _check_number_sentences(answer: str, params: dict, prompt: str) -> bool:
-    count = len([s for s in re.split(r'[.!?]+', answer) if s.strip()])
+    count = len([s for s in re.split(r"[.!?]+", answer) if s.strip()])
     return _compare(count, params.get("num_sentences", 0), params.get("relation", "at least"))
 
 
@@ -224,8 +226,9 @@ def _check_end_checker(answer: str, params: dict, prompt: str) -> bool:
 
 def _check_quotation(answer: str, params: dict, prompt: str) -> bool:
     stripped = answer.strip()
-    return (stripped.startswith('"') and stripped.endswith('"')) or \
-           (stripped.startswith("'") and stripped.endswith("'"))
+    return (stripped.startswith('"') and stripped.endswith('"')) or (
+        stripped.startswith("'") and stripped.endswith("'")
+    )
 
 
 def _check_repeat_prompt(answer: str, params: dict, prompt: str) -> bool:

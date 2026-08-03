@@ -150,8 +150,7 @@ def parse_io_adapter_config(config: dict) -> IOAdapter:
                 unknown = template_refs - group_names
                 if unknown:
                     raise ValueError(
-                        f"Adapter output.template references unknown groups: {unknown}. "
-                        f"Available groups: {group_names}"
+                        f"Adapter output.template references unknown groups: {unknown}. Available groups: {group_names}"
                     )
 
         output_mapping = output_cfg.get("mapping", {})

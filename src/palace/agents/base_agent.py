@@ -33,7 +33,9 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    async def run(self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None) -> "AgentResult":
+    async def run(
+        self, prompt: str, attachments: "list[Attachment] | None" = None, *, task_id: str | None = None
+    ) -> "AgentResult":
         """Run the agent on the given prompt and return a result.
 
         Args:

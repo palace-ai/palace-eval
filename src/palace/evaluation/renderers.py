@@ -14,8 +14,8 @@
 
 """Renderer protocol and implementations for evaluation output."""
 
-import atexit
 import asyncio
+import atexit
 import os
 import sys
 import time
@@ -62,6 +62,7 @@ class _LogMixin:
             atexit.register(self._close_log)
             # Also route palace.* loggers (e.g. retry warnings) to same file
             import logging
+
             logger = logging.getLogger("palace")
             logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.FileHandler)]
             handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
@@ -116,11 +117,13 @@ class VerboseRenderer(_LogMixin):
             pct = i / self.total
             filled = int(pct * 20)
             bar = "█" * filled + "░" * (20 - filled)
-            self._status.update(f"{bar} {i}/{self.total} | ✓ {self._correct} ✗ {failed} ⏭ {self._skipped} | ETA: {eta_str}")
+            self._status.update(
+                f"{bar} {i}/{self.total} | ✓ {self._correct} ✗ {failed} ⏭ {self._skipped} | ETA: {eta_str}"
+            )
         else:
             self._status.update(f"{'░' * 20} 0/{self.total}")
 
-        self._log_line(f"[{i+1}/{self.total}] START task={task.id}")
+        self._log_line(f"[{i + 1}/{self.total}] START task={task.id}")
         print()
         print(prompt, box=True, box_title=f":memo: Task {i + 1}/{self.total}")
         if task.expected_display() is not None:
@@ -136,9 +139,9 @@ class VerboseRenderer(_LogMixin):
             self._loading_ctx.__exit__(None, None, None)
             self._loading_ctx = None
         if result.is_skipped:
-            self._log_line(f"[{i+1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
+            self._log_line(f"[{i + 1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
         else:
-            self._log_line(f"[{i+1}/{self.total}] AGENT_OK len={len(result.answer or '')}")
+            self._log_line(f"[{i + 1}/{self.total}] AGENT_OK len={len(result.answer or '')}")
         if result.answer is not None:
             print(result.answer, box=True, box_title=":left_speech_bubble: Agent Answer")
 
@@ -152,16 +155,16 @@ class VerboseRenderer(_LogMixin):
             self._loading_ctx.__exit__(None, None, None)
             self._loading_ctx = None
         if vr.outcome == "unsupported":
-            self._log_line(f"[{i+1}/{self.total}] VERIFY unsupported={vr.reason}")
+            self._log_line(f"[{i + 1}/{self.total}] VERIFY unsupported={vr.reason}")
             print(f"[bold magenta]:prohibited: Unsupported: {vr.reason}[/]")
         elif vr.outcome == "error":
-            self._log_line(f"[{i+1}/{self.total}] VERIFY error={vr.reason}")
+            self._log_line(f"[{i + 1}/{self.total}] VERIFY error={vr.reason}")
             print(f"[bold yellow]:warning: Error: {vr.reason}[/]")
         elif vr.is_correct:
-            self._log_line(f"[{i+1}/{self.total}] VERIFY correct=True")
+            self._log_line(f"[{i + 1}/{self.total}] VERIFY correct=True")
             print("[bold green]:white_check_mark: Correct[/]")
         else:
-            self._log_line(f"[{i+1}/{self.total}] VERIFY correct=False")
+            self._log_line(f"[{i + 1}/{self.total}] VERIFY correct=False")
             print("[bold red]:cross_mark: Incorrect[/]")
         if vr.reasoning is not None:
             print(vr.reasoning, box=True, box_title=":judge: Reasoning")
@@ -175,9 +178,11 @@ class VerboseRenderer(_LogMixin):
         elapsed = result.report_entry.get("elapsed_time", 0)
         if result.verification.is_skipped:
             reason = result.verification.reason or "unknown"
-            self._log_line(f"[{i+1}/{self.total}] {result.verification.outcome.upper()} task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+            self._log_line(
+                f"[{i + 1}/{self.total}] {result.verification.outcome.upper()} task={result.task_id} reason={reason} elapsed={elapsed:.1f}s"
+            )
         else:
-            self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
+            self._log_line(f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
 
     def on_all_finished(self) -> None:
         if self._loading_ctx is not None:
@@ -207,7 +212,9 @@ class CompactRenderer(_LogMixin):
 
     def on_dispatch_start(self):
         """Print legend and placeholder lines. Called after agent banner."""
-        print(f"\n[dim]:high_voltage: Running {self.concurrency} tasks concurrently. Use --concurrency 1 for detailed output.[/dim]")
+        print(
+            f"\n[dim]:high_voltage: Running {self.concurrency} tasks concurrently. Use --concurrency 1 for detailed output.[/dim]"
+        )
         print("○ queued  ⊙ waiting  ● running  ◆ verifying  ✓ correct  ✗ incorrect  ⏭ skipped")
         print("")
 
@@ -216,7 +223,7 @@ class CompactRenderer(_LogMixin):
         self._render()
 
     def on_task_started(self, i: int, task: "Task", prompt: str) -> None:
-        self._log_line(f"[{i+1}/{self.total}] START task={task.id}")
+        self._log_line(f"[{i + 1}/{self.total}] START task={task.id}")
 
     def on_agent_started(self, i: int) -> None:
         self.states[i] = "●"
@@ -225,9 +232,9 @@ class CompactRenderer(_LogMixin):
 
     def on_agent_finished(self, i: int, result: "AgentResult") -> None:
         if result.is_skipped:
-            self._log_line(f"[{i+1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
+            self._log_line(f"[{i + 1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
         else:
-            self._log_line(f"[{i+1}/{self.total}] AGENT_OK len={len(result.answer or '')}")
+            self._log_line(f"[{i + 1}/{self.total}] AGENT_OK len={len(result.answer or '')}")
 
     def on_verify_started(self, i: int) -> None:
         self.states[i] = "◆"
@@ -235,9 +242,9 @@ class CompactRenderer(_LogMixin):
 
     def on_verify_finished(self, i: int, vr: TaskVerificationResult) -> None:
         if vr.is_skipped:
-            self._log_line(f"[{i+1}/{self.total}] VERIFY skipped={vr.skip_reason}")
+            self._log_line(f"[{i + 1}/{self.total}] VERIFY skipped={vr.skip_reason}")
         else:
-            self._log_line(f"[{i+1}/{self.total}] VERIFY correct={vr.is_correct}")
+            self._log_line(f"[{i + 1}/{self.total}] VERIFY correct={vr.is_correct}")
 
     def on_task_finished(self, i: int, result: "TaskResult") -> None:
         elapsed = time.monotonic() - self._task_starts.pop(i, self._start)
@@ -254,9 +261,9 @@ class CompactRenderer(_LogMixin):
             self.failed += 1
         if vr.is_skipped:
             reason = vr.skip_reason or "unknown"
-            self._log_line(f"[{i+1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+            self._log_line(f"[{i + 1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
         else:
-            self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
+            self._log_line(f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
         self._render()
 
     def on_all_finished(self) -> None:
@@ -287,7 +294,9 @@ class CompactRenderer(_LogMixin):
             line1 = f"{bar}{suffix}"
         else:
             c = Counter(self.states)
-            line1 = f"○{c['○']} ⊙{c['⊙']} ●{c['●']} ◆{c['◆']} ✓{c['✓']} ✗{c['✗']} ⏭{c['⏭']} | {self.completed}/{self.total}"
+            line1 = (
+                f"○{c['○']} ⊙{c['⊙']} ●{c['●']} ◆{c['◆']} ✓{c['✓']} ✗{c['✗']} ⏭{c['⏭']} | {self.completed}/{self.total}"
+            )
 
         elapsed = time.monotonic() - self._start
         if self._task_times:
@@ -320,14 +329,14 @@ class PlainRenderer(_LogMixin):
         return None
 
     def on_task_started(self, i: int, task: "Task", prompt: str) -> None:
-        self._log_line(f"[{i+1}/{self.total}] START task={task.id}")
+        self._log_line(f"[{i + 1}/{self.total}] START task={task.id}")
 
     def on_agent_started(self, i: int) -> None:
         pass
 
     def on_agent_finished(self, i: int, result: "AgentResult") -> None:
         if result.is_skipped:
-            self._log_line(f"[{i+1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
+            self._log_line(f"[{i + 1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
 
     def on_verify_started(self, i: int) -> None:
         pass
@@ -347,15 +356,19 @@ class PlainRenderer(_LogMixin):
         print(f"[{i + 1}/{self.total}] {result.task_id}: {status} ({elapsed:.1f}s)", builtin=True)
         if vr.is_skipped:
             reason = vr.skip_reason or "unknown"
-            self._log_line(f"[{i+1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
+            self._log_line(f"[{i + 1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
         else:
-            self._log_line(f"[{i+1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={vr.is_correct}")
+            self._log_line(
+                f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={vr.is_correct}"
+            )
 
     def on_all_finished(self) -> None:
         self._close_log()
 
 
-def select_renderer(total: int, concurrency: int, log_path: Path | None = None) -> "VerboseRenderer | CompactRenderer | PlainRenderer":
+def select_renderer(
+    total: int, concurrency: int, log_path: Path | None = None
+) -> "VerboseRenderer | CompactRenderer | PlainRenderer":
     """Select appropriate renderer based on concurrency and terminal."""
     if not sys.stdout.isatty():
         return PlainRenderer(total, log_path=log_path)

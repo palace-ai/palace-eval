@@ -12,11 +12,14 @@
 # You should have received a copy of the European Union Public Licence
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
+
 def __getattr__(name):
     if name == "Evaluation":
         from .evaluation.orchestrator import Evaluation
+
         return Evaluation
     if name == "evaluate":
         from .evaluation.orchestrator import evaluate
+
         return evaluate
     raise AttributeError(f"module 'palace' has no attribute {name!r}")

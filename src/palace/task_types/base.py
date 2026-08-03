@@ -85,7 +85,9 @@ class Task:
         """Build the task prompt. Subclasses must override."""
         raise NotImplementedError("Subclasses must implement adapt_prompt().")
 
-    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> tuple[bool, str | None] | TaskVerificationResult:
+    async def verify(
+        self, answer: str, env: ExecutionEnvironment | None = None
+    ) -> tuple[bool, str | None] | TaskVerificationResult:
         """Verify the answer. Subclasses must override.
 
         Args:
@@ -211,11 +213,11 @@ class Task:
         task.difficulty = data.get("difficulty")
         task.group = data.get("group")
         task.document = data.get("document")
-        task.attachments = data.get("attachments") or ([data["attachment"]] if data.get("attachment") else [])  # "attachment" is deprecated shorthand for "attachments": [x]
+        task.attachments = data.get("attachments") or (
+            [data["attachment"]] if data.get("attachment") else []
+        )  # "attachment" is deprecated shorthand for "attachments": [x]
         task.custom_verificator = data.get("custom_verificator")
-        task.custom_fields = {
-            k: v for k, v in data.items() if k not in required_fields + optional_fields
-        }
+        task.custom_fields = {k: v for k, v in data.items() if k not in required_fields + optional_fields}
 
         return task
 

@@ -33,7 +33,13 @@ from palace.task_types import Task
 from palace.utils.constants import JUDGE_MODEL
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.model_extra_params import get_model_extra_params, load_model_extra_params
-from palace.utils.paths import BUNDLED_IO_ADAPTERS_FILE, BUNDLED_MODEL_EXTRA_PARAMS_FILE, LOGS_PATH, RESULTS_PATH, TASKLISTS_PATH
+from palace.utils.paths import (
+    BUNDLED_IO_ADAPTERS_FILE,
+    BUNDLED_MODEL_EXTRA_PARAMS_FILE,
+    LOGS_PATH,
+    RESULTS_PATH,
+    TASKLISTS_PATH,
+)
 from palace.utils.printing import print
 
 
@@ -108,6 +114,7 @@ def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
 def _check_endpoint(url: str, token: str | None) -> None:
     """Verify LLM endpoint is reachable. Raises RuntimeError if not."""
     import httpx
+
     try:
         httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
     except httpx.ConnectError as e:
@@ -197,18 +204,20 @@ class Evaluation:
         agentic=True: always use VivariumAgent
         agentic=False: never use VivariumAgent
         """
-        use_vivarium = (
-            self.agentic is True
-            or (self.agentic is None and tasklist_type == "Agentic")
-        )
+        use_vivarium = self.agentic is True or (self.agentic is None and tasklist_type == "Agentic")
         if use_vivarium:
             from palace.agents.vivarium_agent import VivariumAgent
+
             return VivariumAgent(name=model, url=self.url, token=self.token, vivarium_url=self.vivarium_url)
         if self.endpoint_type == "mcp":
             from palace.agents.mcp_agent import MCPAgent
+
             return MCPAgent(url=self.url, token=self.token, name=model)
         from palace.agents.api_agent import APIAgent
-        return APIAgent(url=self.url, token=self.token, name=model, api_type=self.endpoint_type, extra_params=extra_params)
+
+        return APIAgent(
+            url=self.url, token=self.token, name=model, api_type=self.endpoint_type, extra_params=extra_params
+        )
 
     def evaluate_all(self, models: list[str], tasklists: list[str]):
         """Run evaluations for all model/tasklist combinations. Prints and writes JSONL."""
@@ -235,7 +244,11 @@ class Evaluation:
                     f"[blue]:robot: {model}[/]:\n"
                     + f"on :scroll: [blue]{tasklist}[/]\n\n"
                     + f"[blue]{metrics['correct_count']}[/] / [blue]{metrics['evaluated_count']}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
-                    + (f" [yellow]({metrics['error_count']} errors, {metrics['unsupported_count']} unsupported)[/]" if metrics.get('skipped_count') else "")
+                    + (
+                        f" [yellow]({metrics['error_count']} errors, {metrics['unsupported_count']} unsupported)[/]"
+                        if metrics.get("skipped_count")
+                        else ""
+                    )
                     + f"\nTotal time: [blue]{metrics['total_time']}[/]",
                     box=True,
                     box_title="Evaluation Report",
@@ -296,7 +309,9 @@ class Evaluation:
         # Create agent
         file_extra_params = load_model_extra_params()
         bundled_extra_params = load_model_extra_params(BUNDLED_MODEL_EXTRA_PARAMS_FILE)
-        extra_params_result = get_model_extra_params(model, self.model_extra_params, file_extra_params, bundled_extra_params)
+        extra_params_result = get_model_extra_params(
+            model, self.model_extra_params, file_extra_params, bundled_extra_params
+        )
         if extra_params_result is not None:
             resolved_extra_params, extra_params_source = extra_params_result
             print(f"[blue]:gear: Using extra params for {model} ({extra_params_source}): {resolved_extra_params}[/]")
@@ -322,7 +337,8 @@ class Evaluation:
                 json_tasks.append(data)
         tasks: list[Task] = [
             Task.from_dict(
-                task | {
+                task
+                | {
                     "task_type": tasklist_info["task_type"],
                     "task_type_fields": tasklist_info.get("task_type_fields", {}) | task.get("task_type_fields", {}),
                 }
@@ -416,8 +432,7 @@ class Evaluation:
                 groups.setdefault(group, []).append(result.verification)
         if groups:
             metrics["per_group"] = {
-                g: task_cls.aggregate(vrs, penalize_unsupported=penalize_unsupported)
-                for g, vrs in groups.items()
+                g: task_cls.aggregate(vrs, penalize_unsupported=penalize_unsupported) for g, vrs in groups.items()
             }
 
         return accuracy, metrics, report
@@ -457,12 +472,20 @@ def evaluate(
     """Evaluate a model on tasklists. Convenience function wrapping Evaluation class."""
     output_path = Path(output_folder) if output_folder else RESULTS_PATH
     evaluation = Evaluation(
-        name=run_name, url=url, token=token, endpoint_type=endpoint_type,
-        agentic=agentic, vivarium_url=vivarium_url,
-        task_amount_limit=limit, runs_per_configuration=runs_per_configuration,
-        output_path=output_path, on_task_complete=on_task_complete,
-        io_adapter=io_adapter, model_extra_params=model_extra_params,
-        report_detail=report_detail, concurrency=concurrency,
+        name=run_name,
+        url=url,
+        token=token,
+        endpoint_type=endpoint_type,
+        agentic=agentic,
+        vivarium_url=vivarium_url,
+        task_amount_limit=limit,
+        runs_per_configuration=runs_per_configuration,
+        output_path=output_path,
+        on_task_complete=on_task_complete,
+        io_adapter=io_adapter,
+        model_extra_params=model_extra_params,
+        report_detail=report_detail,
+        concurrency=concurrency,
     )
     tasklist_list = [tasklist] if isinstance(tasklist, str) else tasklist
     return evaluation.evaluate_all([name], tasklist_list)

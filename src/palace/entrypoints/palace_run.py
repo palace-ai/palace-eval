@@ -30,21 +30,15 @@ def _parse_param_value(value: str):
 
 
 def run():
-    argparser = argparse.ArgumentParser(
-        description="Run evaluation of a model/agent on PALACE tasklists."
-    )
-    argparser.add_argument(
-        "--run-name", type=str, default="eval", help="The name of the run."
-    )
+    argparser = argparse.ArgumentParser(description="Run evaluation of a model/agent on PALACE tasklists.")
+    argparser.add_argument("--run-name", type=str, default="eval", help="The name of the run.")
     argparser.add_argument(
         "--output-folder",
         type=str,
         default=None,
         help="The path to the output folder (default: ~/.cache/palace/results/).",
     )
-    argparser.add_argument(
-        "-u", "--url", type=str, required=True, help="The URL of the OpenAI API."
-    )
+    argparser.add_argument("-u", "--url", type=str, required=True, help="The URL of the OpenAI API.")
     argparser.add_argument(
         "-k",
         "--token",
@@ -129,7 +123,9 @@ def run():
 
     try:
         from pathlib import Path
+
         from palace.utils.paths import RESULTS_PATH
+
         output_path = Path(args.output_folder) if args.output_folder else RESULTS_PATH
 
         # Parse --param flags into dict

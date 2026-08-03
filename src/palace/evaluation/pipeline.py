@@ -32,13 +32,39 @@ from palace.utils.printing import loading, print
 _logger = logging.getLogger("palace.pipeline")
 
 TEXT_EXTENSIONS = {
-    ".txt", ".md", ".json", ".csv", ".xml", ".html", ".yaml", ".yml",
-    ".log", ".py", ".js", ".ts", ".tsx", ".jsx", ".java", ".c", ".cpp",
-    ".h", ".go", ".rs", ".sh", ".bash", ".sql", ".r", ".toml", ".ini", ".cfg",
+    ".txt",
+    ".md",
+    ".json",
+    ".csv",
+    ".xml",
+    ".html",
+    ".yaml",
+    ".yml",
+    ".log",
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
+    ".go",
+    ".rs",
+    ".sh",
+    ".bash",
+    ".sql",
+    ".r",
+    ".toml",
+    ".ini",
+    ".cfg",
 }
 
 
-def prepare_prompt(task: Task, adapter: "IOAdapter | None", tasklist_path: Path, task_files_dirs: "list[Path] | None" = None) -> PreparedTask:
+def prepare_prompt(
+    task: Task, adapter: "IOAdapter | None", tasklist_path: Path, task_files_dirs: "list[Path] | None" = None
+) -> PreparedTask:
     """Resolve attachments and build prompt. Presentation is the agent's responsibility."""
     _dirs = task_files_dirs or [tasklist_path / "task_files"]
 
@@ -125,7 +151,9 @@ async def verify_answer(
             return TaskVerificationResult(is_correct=is_correct, reasoning=None)
         except Exception as e:
             _logger.warning(f"Custom verificator error on task {task.id}: {e}")
-            return TaskVerificationResult(is_correct=False, outcome="error", reason=f"custom_verificator_error: {e}", reasoning=str(e))
+            return TaskVerificationResult(
+                is_correct=False, outcome="error", reason=f"custom_verificator_error: {e}", reasoning=str(e)
+            )
 
     # Standard verification via task type
     vr = await task.verify(answer, env=env)
@@ -237,15 +265,13 @@ async def execute_task(
             renderer.on_verify_finished(i, vr)
         else:
             vr = TaskVerificationResult(
-                is_correct=False, outcome=agent_result.outcome,
-                reason=agent_result.reason or "no_response"
+                is_correct=False, outcome=agent_result.outcome, reason=agent_result.reason or "no_response"
             )
 
         # Analyze
         analyzer_metrics: dict[str, Any] = {}
         if agent_result.answer and not vr.is_skipped:
-            analyzer_metrics = await run_analyzers(task, agent_result.answer, vr, analyzers,
-                                                   verbose=renderer.verbose)
+            analyzer_metrics = await run_analyzers(task, agent_result.answer, vr, analyzers, verbose=renderer.verbose)
 
         # Report
         report_entry = build_report(task, agent_result, vr, analyzer_metrics, detail)

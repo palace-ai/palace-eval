@@ -50,9 +50,7 @@ class AsyncThread:
 
             # Run final iteration to complete cancellations
             if pending:
-                self.loop.run_until_complete(
-                    asyncio.gather(*pending, return_exceptions=True)
-                )
+                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
             self.loop.close()
             self._started = False
@@ -83,9 +81,7 @@ class AsyncThread:
         self._started = False
 
     def run_async(self, coro: Coroutine) -> Any:
-        async def wrap_with_timeout(
-            coro: Coroutine, timeout: int
-        ) -> Optional[Coroutine]:
+        async def wrap_with_timeout(coro: Coroutine, timeout: int) -> Optional[Coroutine]:
             try:
                 return await asyncio.wait_for(coro, timeout)
             except asyncio.TimeoutError:
@@ -99,9 +95,7 @@ class AsyncThread:
         if self.loop.is_closed():
             raise RuntimeError("Event loop is closed")
 
-        return asyncio.run_coroutine_threadsafe(
-            wrap_with_timeout(coro, timeout=600), self.loop
-        ).result()
+        return asyncio.run_coroutine_threadsafe(wrap_with_timeout(coro, timeout=600), self.loop).result()
 
     def start_main_task(self, coro: Coroutine):
         if self.loop.is_closed():
@@ -152,6 +146,4 @@ class AsyncThread:
         process = psutil.Process(os.getpid())
         fd_count = process.num_fds()
         if fd_count > 1000:  # Adjust threshold as needed
-            print(
-                f"[bold on_yellow][WARN][/] High file descriptor usage detected: {fd_count}."
-            )
+            print(f"[bold on_yellow][WARN][/] High file descriptor usage detected: {fd_count}.")

@@ -12,6 +12,7 @@
 # You should have received a copy of the European Union Public Licence
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
+
 class ToolHallucinationException(Exception):
     pass
 
