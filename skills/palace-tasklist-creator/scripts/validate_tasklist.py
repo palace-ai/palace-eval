@@ -236,7 +236,7 @@ def validate(tasklist_path: Path) -> bool:
     # 5. Classification label checks
     if task_type == "Classification":
         info_labels = info.get("task_type_fields", {}).get("labels", [])
-        info_label_names = {l["name"] for l in info_labels}
+        info_label_names = {label["name"] for label in info_labels}
 
         tasks_with_labels = [t for t in tasks if "labels" in t]
         if not tasks_with_labels:
@@ -249,7 +249,7 @@ def validate(tasklist_path: Path) -> bool:
                 # Labels from task override or info level
                 task_ttf_labels = task.get("task_type_fields", {}).get("labels", [])
                 if task_ttf_labels:
-                    expected_names = {l["name"] for l in task_ttf_labels}
+                    expected_names = {label["name"] for label in task_ttf_labels}
                 elif info_label_names:
                     expected_names = info_label_names
                 else:

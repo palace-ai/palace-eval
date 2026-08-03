@@ -158,7 +158,6 @@ class Task:
         from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
         from palace.task_types.instruction_following import InstructionFollowingTask
         from palace.task_types.qa import QATask
-        from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
         from palace.utils.printing import print
 
         required_fields = ["id", "objective", "task_type"]

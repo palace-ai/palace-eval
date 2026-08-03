@@ -109,7 +109,7 @@ def _check_endpoint(url: str, token: str | None) -> None:
     """Verify LLM endpoint is reachable. Raises RuntimeError if not."""
     import httpx
     try:
-        r = httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
+        httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
     except httpx.ConnectError as e:
         raise RuntimeError(f"Cannot reach LLM endpoint: {url}\n  {e}") from e
     except httpx.TimeoutException as e:

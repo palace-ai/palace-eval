@@ -308,7 +308,6 @@ The length of a report is not necessarily an indicator of quality - focus on the
             for c in criteria:
                 dim = c.get("dimension")
                 if dim:
-                    pts = c.get("points", 1.0)
                     met = all_results.get(c["name"], False)
                     dimension_scores.setdefault(dim, []).append(1.0 if met else 0.0)
             if dimension_scores:

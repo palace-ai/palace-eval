@@ -120,7 +120,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
                     if tf_path.exists():
                         task_files_bytes = _tar_gz(tf_path) if tf_path.is_dir() else None
 
-                print(f"    Creating environment...", end=" ", flush=True)
+                print("    Creating environment...", end=" ", flush=True)
                 env = await client.create_environment(spec_id, task_id, task_files_bytes)
                 print(f"✓ ({env.id[:8]})")
             except Exception as e:
@@ -131,7 +131,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
             # Run seed
             if seed_fn:
                 try:
-                    print(f"    Running seed...", end=" ", flush=True)
+                    print("    Running seed...", end=" ", flush=True)
                     await seed_fn(task.get("seed_args", {}), env)
                     print("✓")
                 except Exception as e:
@@ -143,7 +143,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
             # Attempt verify (expected to partially fail — no agent acted)
             if verify_fn:
                 try:
-                    print(f"    Running verify (dry)...", end=" ", flush=True)
+                    print("    Running verify (dry)...", end=" ", flush=True)
                     result = await verify_fn(task.get("expected_outcome", {}), "", env)
                     # If verify runs without crashing, that's a pass for smoke testing
                     is_correct = result.get("is_correct", False) if isinstance(result, dict) else False
@@ -204,8 +204,8 @@ def main():
         sys.exit(1)
     except Exception as e:
         if "connection" in str(e).lower() or "refused" in str(e).lower():
-            print(f"Error: Cannot connect to vivarium. Is Docker running?")
-            print(f"  Start with: vivarium start")
+            print("Error: Cannot connect to vivarium. Is Docker running?")
+            print("  Start with: vivarium start")
         else:
             print(f"Error: {e}")
         sys.exit(1)

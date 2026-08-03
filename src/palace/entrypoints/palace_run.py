@@ -120,7 +120,7 @@ def run():
                 print("[cyan]Available models at this endpoint:[/cyan]")
                 for model in models:
                     print(f"  - {model}")
-                print(f"\n[yellow]Run again with: -m <model_name>[/yellow]")
+                print("\n[yellow]Run again with: -m <model_name>[/yellow]")
             else:
                 print("[yellow]No models found at this endpoint.[/yellow]")
         except Exception as e:

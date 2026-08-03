@@ -106,8 +106,6 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         return
 
     # --- Configure endpoint and select models/agents ---
-    agents = []
-
     if endpoint_type == "mcp":
         url, token, mcp_server = _select_mcp_server()
         available_mcp_agents = [tool.name for tool in list_tools(url, token).tools]

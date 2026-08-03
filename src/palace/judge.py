@@ -64,7 +64,7 @@ Deep nesting (arbitrary depth):
 import re
 from typing import Any
 
-from palace.models.api_model import APIModel, create_api_model
+from palace.models.api_model import create_api_model
 from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.printing import print
 from palace.utils.secrets import OPENAI_LIKE_API_KEY

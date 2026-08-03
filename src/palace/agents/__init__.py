@@ -13,7 +13,7 @@
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
 # ruff: noqa: I001
-from palace.agents.base_agent import Agent
-from palace.agents.mcp_agent import MCPAgent
-from palace.agents.api_agent import APIAgent
-from palace.agents.vivarium_agent import VivariumAgent
+from palace.agents.base_agent import Agent as Agent
+from palace.agents.mcp_agent import MCPAgent as MCPAgent
+from palace.agents.api_agent import APIAgent as APIAgent
+from palace.agents.vivarium_agent import VivariumAgent as VivariumAgent

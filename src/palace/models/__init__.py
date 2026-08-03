@@ -13,5 +13,6 @@
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
 # ruff: noqa: I001
-from palace.models.base_model import Model
-from palace.models.api_model import APIModel, create_api_model
+from palace.models.base_model import Model as Model
+from palace.models.api_model import APIModel as APIModel
+from palace.models.api_model import create_api_model as create_api_model

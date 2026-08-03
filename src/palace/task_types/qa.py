@@ -104,7 +104,7 @@ Either Correct or Incorrect. No other text can be here.
             if value:
                 correct_parts.append(f"{field}: {value}")
         if correct_parts:
-            parts.append(f"CORRECT REFERENCE(S)\n" + "\n".join(correct_parts))
+            parts.append("CORRECT REFERENCE(S)\n" + "\n".join(correct_parts))
 
         incorrect_fields = references.get("incorrect", [])
         if incorrect_fields:
@@ -114,7 +114,7 @@ Either Correct or Incorrect. No other text can be here.
                 if value:
                     incorrect_parts.append(f"{field}: {value}")
             if incorrect_parts:
-                parts.append(f"INCORRECT REFERENCE(S)\n" + "\n".join(incorrect_parts))
+                parts.append("INCORRECT REFERENCE(S)\n" + "\n".join(incorrect_parts))
 
         parts.append(f"PROVIDED ANSWER\n{answer}")
         return "\n\n".join(parts)
