@@ -18,4 +18,5 @@ jobs:
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git push --mirror https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git
+          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git refs/heads/main:refs/heads/main
+          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git refs/tags/*:refs/tags/*
