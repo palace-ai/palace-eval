@@ -5,6 +5,7 @@ pages:
     - shared-docker
   script:
     - pip install zensical mkdocstrings mkdocstrings-python
+    - pip install -e .
     - zensical build
     - mv site public
   artifacts:
