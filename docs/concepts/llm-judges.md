@@ -91,7 +91,7 @@ The judge evaluates each criterion by comparing the two reports and deciding whi
 
 ### Default Judge
 
-By default, PALACE uses the same API endpoint for judging as for the model being evaluated, but with a separate model (`minimax-m2` by default). The judge model can be changed via the `JUDGE_MODEL` environment variable.
+PALACE uses the same API endpoint for judging as for the model being evaluated, but with a separate model specified via `JUDGE_MODEL`. The judge model must be set explicitly — there is no default.
 
 ### Judge Configuration
 
@@ -102,11 +102,11 @@ The judge uses the API endpoint configured via environment variables:
 export OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
 export OPENAI_LIKE_API_KEY=your-api-key
 
-# Optional: specify which model to use for judging
-export JUDGE_MODEL=gpt-4o  # default: minimax-m2
+# Required: specify which model to use for judging
+export JUDGE_MODEL=gpt-4o
 ```
 
-The `JUDGE_MODEL` environment variable controls which model is used for judging in both QA and Criteria Evaluation tasks. If not set, it defaults to `minimax-m2`.
+The `JUDGE_MODEL` environment variable controls which model is used for judging in both QA and Criteria Evaluation tasks. This variable is required — PALACE will raise an error if it's not set.
 
 ### Why Configure JUDGE_MODEL?
 

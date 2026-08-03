@@ -170,6 +170,11 @@ class Evaluation:
     ):
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
+        if not JUDGE_MODEL:
+            raise ValueError(
+                "JUDGE_MODEL environment variable is required but not set. "
+                "Set it to a model identifier (e.g., 'gpt-4o', 'claude-3-5-sonnet-latest')."
+            )
         if concurrency is None:
             concurrency = int(os.environ.get("PALACE_CONCURRENCY", "25"))
         if concurrency < 1:

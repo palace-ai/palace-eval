@@ -63,7 +63,7 @@ palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint
 | `--output-folder` | Output directory for results | `~/.cache/palace/results/` |
 | `--run-name` | Name for this evaluation run | `eval` |
 | `--runs-per-configuration` | Number of runs to perform | 1 |
-| `--endpoint-type` | `openai` or `mcp` | `openai` |
+| `--endpoint-type` | `auto`, `openai`, `anthropic`, `azure`, or `mcp` | `auto` |
 | `--agentic` | Run in sandboxed environment via Vivarium | `False` |
 
 **Best for**: Scripted evaluations, CI/CD pipelines, batch processing.
@@ -143,7 +143,7 @@ See [Model Adapters](model-adapters.md) for the full adapter reference.
 | `tasklist` | str | Name of the tasklist | Required |
 | `limit` | int | Maximum tasks to run | None (all) |
 | `runs_per_configuration` | int | Number of runs | 1 |
-| `endpoint_type` | str | `"openai"` or `"mcp"` | `"openai"` |
+| `endpoint_type` | str | `"auto"`, `"openai"`, `"anthropic"`, `"azure"`, or `"mcp"` | `"auto"` |
 | `io_adapter` | dict | I/O adapter config (see [Model Adapters](model-adapters.md)) | None |
 | `on_task_complete` | callable | Callback invoked after each task with `(current, total)` for progress tracking | None |
 

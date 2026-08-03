@@ -51,7 +51,7 @@ Configuration
 -------------
 Environment variables:
 - ENABLE_CITATION_VERIFIER: Set to "true" to enable (default: disabled)
-- JUDGE_MODEL: Model for extraction/validation (default: "minimax-m2")
+- JUDGE_MODEL: Model for extraction/validation (required, no default)
 - USE_ALOHA: Set to "true" to use ALOHA MCP for URL fetching (for DMZ clusters)
 
 Output Metrics

@@ -22,7 +22,7 @@ Usage Examples
 
 Flat tags (simple):
     judge = Judge(
-        judge_model="minimax-m2",
+        judge_model="gpt-4o",
         judge_prompt="Evaluate and respond with <reasoning>...</reasoning><judgement>...</judgement>",
         output_keywords=["reasoning", "judgement"]
     )
@@ -31,7 +31,7 @@ Flat tags (simple):
 
 Nested tags (for complex structured output):
     judge = Judge(
-        judge_model="minimax-m2",
+        judge_model="gpt-4o",
         judge_prompt="...",
         output_keywords={
             "clarity": ["discussion", "best", "gap"],
@@ -77,7 +77,7 @@ class Judge:
     a specified tag structure. It automatically retries on parse failures.
 
     Args:
-        judge_model: Model identifier (e.g., "minimax-m2", "openai/gpt-oss-120b").
+        judge_model: Model identifier (e.g., "gpt-4o", "claude-3-5-sonnet-latest").
         judge_prompt: System prompt instructing the LLM how to format its response.
             Must specify the XML tag structure matching output_keywords.
         output_keywords: Specifies which XML tags to extract.
@@ -87,12 +87,12 @@ class Judge:
             Returns nested dict mirroring the input structure.
 
     Examples:
-        >>> judge = Judge("minimax-m2", prompt, ["reasoning", "judgement"])
+        >>> judge = Judge("gpt-4o", prompt, ["reasoning", "judgement"])
         >>> result = judge.judge("Evaluate this answer")
         >>> result["judgement"]
         'Correct'
 
-        >>> judge = Judge("minimax-m2", prompt, {"quality": ["score", "explanation"]})
+        >>> judge = Judge("gpt-4o", prompt, {"quality": ["score", "explanation"]})
         >>> result = judge.judge("Rate this text")
         >>> result["quality"]["score"]
         '8'

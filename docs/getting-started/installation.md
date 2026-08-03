@@ -12,42 +12,21 @@ PALACE requires:
 
 ## Installation
 
-### Step 1: Clone the Repository
+### Quick Install (Recommended)
 
 ```bash
-git clone <repository-url> palace
-cd palace
+pip install palace-eval
 ```
 
-### Step 2: Create a Virtual Environment
+### Development Install
 
-We recommend using a dedicated environment to avoid dependency conflicts.
-
-=== "conda"
-
-    ```bash
-    conda create -n palace python=3.13
-    conda activate palace
-    ```
-
-=== "venv"
-
-    ```bash
-    python3.13 -m venv .venv
-    source .venv/bin/activate  # Linux/macOS
-    # or
-    .venv\Scripts\activate     # Windows
-    ```
-
-### Step 3: Install PALACE
+If you want to modify PALACE or contribute changes:
 
 ```bash
+git clone https://code.europa.eu/palace/palace-eval.git
+cd palace-eval
 pip install -e .
 ```
-
-The `-e` flag installs in "editable" mode, useful if you plan to modify PALACE or contribute changes.
-
-### Step 4: Verify Installation
 
 ```bash
 palace-cli
@@ -68,7 +47,7 @@ Create a `.env` file in your working directory or set these environment variable
 OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
 OPENAI_LIKE_API_KEY=your-api-key
 
-# Optional: Model to use for judging (defaults to minimax-m2)
+# Required: Model to use for judging
 JUDGE_MODEL=gpt-4o
 ```
 
@@ -85,7 +64,7 @@ cp .env.example .env
 |----------|----------|-------------|
 | `OPENAI_LIKE_API_BASE_URL` | For QA / Criteria Evaluation | Base URL for the LLM judge API endpoint |
 | `OPENAI_LIKE_API_KEY` | For QA / Criteria Evaluation | API key for the judge endpoint |
-| `JUDGE_MODEL` | No | Model to use for LLM judging (default: minimax-m2) |
+| `JUDGE_MODEL` | For QA / Criteria Evaluation | Model to use for LLM judging |
 
 ## Download Tasklists
 

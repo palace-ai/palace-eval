@@ -57,12 +57,14 @@ palace-run -u <url> -t <tasklist> [-m <model-name>] [options]
 | `-m`, `--name` | None | Model name to evaluate. If omitted, lists available models at the endpoint. |
 | `-k`, `--token` | `$OPENAI_LIKE_API_KEY` | API authentication token. Falls back to `OPENAI_LIKE_API_KEY` environment variable. |
 | `-l`, `--limit` | All tasks | Maximum number of tasks to run |
+| `-c`, `--concurrency` | 25 | Number of tasks to run concurrently. Also configurable via `PALACE_CONCURRENCY` env var. |
 | `--output-folder` | `~/.cache/palace/results/` | Output directory |
 | `--run-name` | `eval` | Name for this evaluation run |
 | `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
-| `--endpoint-type` | `openai` | Endpoint type: `openai` or `mcp` |
+| `--endpoint-type` | `auto` | Endpoint type: `auto`, `openai`, `anthropic`, `azure`, or `mcp` |
 | `--agentic` | False | Force agentic execution via Vivarium for all tasklists (sandboxed environment with tools). Requires Docker + Vivarium SDK ([setup](../getting-started/installation.md#agentic-evaluation-optional)). |
 | `--report-detail` | `default` | Per-task report detail: `none`, `default`, or `full` |
+| `--param` | None | Extra model parameter (e.g., `--param temperature=0.5`). Can be specified multiple times. |
 
 ### Examples
 
@@ -151,7 +153,7 @@ PALACE uses the following environment variables:
 |----------|-------------|---------|
 | `OPENAI_LIKE_API_BASE_URL` | API endpoint for the judge model | Required for QA and Criteria Evaluation |
 | `OPENAI_LIKE_API_KEY` | API key for the judge endpoint (also used as `-k` fallback for `palace-run`) | Required for QA and Criteria Evaluation |
-| `JUDGE_MODEL` | Model used for LLM-based judging (QA and Criteria Evaluation) | `minimax-m2` |
+| `JUDGE_MODEL` | Model used for LLM-based judging (QA and Criteria Evaluation) | `gpt-4o` |
 | `ENABLE_CITATION_VERIFIER` | Enable the citation verifier analyzer (`true`/`false`) | `false` |
 | `HUGGINGFACE_TOKEN` | HuggingFace token for downloading gated/private datasets | Optional |
 

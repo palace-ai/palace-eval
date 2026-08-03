@@ -21,35 +21,13 @@ import questionary
 from palace.evaluation import Evaluation
 from palace.mcp_utils.mcp_client import list_tools
 from palace.models import APIModel
-from palace.utils.constants import (
-    ABW_SERVE_STAGING_URL,
-    ALOHA_STAGING_URL,
-    OPENAI_LIKE_API_BASE_URL,
-    TS_STAGING_URL,
-)
+from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
-from palace.utils.secrets import (
-    ALOHA_STAGING_TOKEN,
-    OPENAI_LIKE_API_KEY,
-    TS_STAGING_TOKEN,
-)
+from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 _DEFAULT_MCP_SERVERS = [
-    {"name": "Default local Palace", "url": "http://localhost:8080/mcp/"},
-    {"name": "Default local agentpoc", "url": "http://localhost:8000/mcp/"},
-    {"name": "Default local abw-serve", "url": "http://localhost:8090/mcp/sse"},
-    {"name": "ABW-serve Staging", "url": ABW_SERVE_STAGING_URL},
-    {"name": "ALOHA Staging", "url": ALOHA_STAGING_URL, "token": ALOHA_STAGING_TOKEN},
-    {
-        "name": "ThematicSpaces Staging",
-        "url": TS_STAGING_URL,
-        "token": TS_STAGING_TOKEN,
-        "params": {
-            "main": "query",
-            "custom": {"thematic_space": "cb305107-63f4-479d-962c-27496e35aa99"},
-        },
-    },
+    {"name": "Local MCP server", "url": "http://localhost:8080/mcp/"},
 ]
 _DEFAULT_URL = OPENAI_LIKE_API_BASE_URL or ""
 _DEFAULT_TOKEN = OPENAI_LIKE_API_KEY

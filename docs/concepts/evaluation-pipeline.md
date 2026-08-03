@@ -299,7 +299,7 @@ The judge uses the same API endpoint configured via environment variables:
 
 - API endpoint: `OPENAI_LIKE_API_BASE_URL`
 - Authentication: `OPENAI_LIKE_API_KEY`
-- Model: `JUDGE_MODEL` (default: minimax-m2)
+- Model: `JUDGE_MODEL` (required, no default)
 
 ## Error Handling
 
