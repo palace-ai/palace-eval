@@ -1,0 +1,143 @@
+NOTICE
+
+PALACE - Platform for Automated LLMs Agentic Capabilities Evaluation
+Copyright (C) 2025 European Union
+
+Licensed under the European Union Public Licence (EUPL) v. 1.2
+https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+
+This project is developed and maintained by the Joint Research Centre (JRC)
+of the European Commission.
+
+================================================================================
+                           THIRD-PARTY DEPENDENCIES
+================================================================================
+
+This software includes the following third-party dependencies. Each dependency
+is subject to its own license terms as indicated below.
+
+--------------------------------------------------------------------------------
+                              DIRECT DEPENDENCIES
+--------------------------------------------------------------------------------
+
+anthropic (MIT License)
+  Anthropic's Python SDK for Claude
+  Copyright (c) Anthropic, PBC
+  https://github.com/anthropics/anthropic-sdk-python
+
+beautifulsoup4 (MIT License)
+  HTML/XML parsing library
+  Copyright (c) Leonard Richardson
+  https://www.crummy.com/software/BeautifulSoup/
+
+datasets (Apache License 2.0)
+  HuggingFace Datasets library
+  Copyright (c) HuggingFace Inc.
+  https://github.com/huggingface/datasets
+
+emoji (BSD 3-Clause License)
+  Emoji for Python
+  Copyright (c) Taehoon Kim, Kevin Wurster
+  https://github.com/carpedm20/emoji
+
+filetype (MIT License)
+  File type identification library
+  Copyright (c) Tomas Aparicio
+  https://github.com/h2non/filetype.py
+
+huggingface_hub (Apache License 2.0)
+  HuggingFace Hub client library
+  Copyright (c) HuggingFace Inc.
+  https://github.com/huggingface/huggingface_hub
+
+ipython (BSD 3-Clause License)
+  Interactive Python shell
+  Copyright (c) IPython Development Team
+  https://github.com/ipython/ipython
+
+mcp (MIT License)
+  Model Context Protocol SDK
+  Copyright (c) Anthropic, PBC
+  https://github.com/modelcontextprotocol/python-sdk
+
+openai (Apache License 2.0)
+  OpenAI Python SDK
+  Copyright (c) OpenAI
+  https://github.com/openai/openai-python
+
+pandas (BSD 3-Clause License)
+  Data analysis library
+  Copyright (c) pandas Development Team
+  https://github.com/pandas-dev/pandas
+
+Pillow (HPND License)
+  Python Imaging Library (Fork)
+  Copyright (c) Jeffrey A. Clark and contributors
+  https://github.com/python-pillow/Pillow
+
+platformdirs (MIT License)
+  Platform-specific directories
+  Copyright (c) platformdirs developers
+  https://github.com/platformdirs/platformdirs
+
+psutil (BSD 3-Clause License)
+  Process and system utilities
+  Copyright (c) Giampaolo Rodola
+  https://github.com/giampaolo/psutil
+
+PyYAML (MIT License)
+  YAML parser and emitter
+  Copyright (c) Kirill Simonov
+  https://github.com/yaml/pyyaml
+
+python-dotenv (BSD 3-Clause License)
+  Read .env files
+  Copyright (c) Saurabh Kumar
+  https://github.com/theskumar/python-dotenv
+
+questionary (MIT License)
+  Interactive CLI prompts
+  Copyright (c) Tom Bocklisch
+  https://github.com/tmbo/questionary
+
+Requests (Apache License 2.0)
+  HTTP library
+  Copyright (c) Kenneth Reitz
+  https://github.com/psf/requests
+
+tenacity (Apache License 2.0)
+  Retry library
+  Copyright (c) Julien Danjou
+  https://github.com/jd/tenacity
+
+wcwidth (MIT License)
+  Terminal width calculation
+  Copyright (c) Jeff Quast
+  https://github.com/jquast/wcwidth
+
+--------------------------------------------------------------------------------
+                    TRANSITIVE DEPENDENCIES (MPL-2.0)
+--------------------------------------------------------------------------------
+
+The following transitive dependencies are licensed under the Mozilla Public
+License 2.0 (MPL-2.0). Per the MPL-2.0 requirements, these components remain
+under their original license terms. Source code for these components is
+available at the URLs listed below.
+
+certifi (MPL-2.0)
+  Root certificate bundle
+  Copyright (c) Kenneth Reitz
+  https://github.com/certifi/python-certifi
+
+tqdm (MPL-2.0 / MIT dual-licensed)
+  Progress bar library
+  Copyright (c) tqdm developers
+  https://github.com/tqdm/tqdm
+
+--------------------------------------------------------------------------------
+                              LICENSE TEXTS
+--------------------------------------------------------------------------------
+
+Full license texts for all dependencies can be found in their respective
+repositories linked above. The EUPL-1.2 is compatible with MPL-2.0 per the
+EUPL compatibility clause (Article 5).

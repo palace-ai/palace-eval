@@ -194,7 +194,7 @@ If `palace-download` fails:
 
 ## Agentic Evaluation (Optional)
 
-Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium), a managed agent runtime.
+Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://github.com/vivarium-ai/vivarium), a managed agent runtime.
 
 ### Additional Requirements
 
@@ -204,7 +204,7 @@ Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs
 ### Install Vivarium
 
 ```bash
-git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git
+git clone https://github.com/vivarium-ai/vivarium.git
 uv pip install -e vivarium/
 ```
 

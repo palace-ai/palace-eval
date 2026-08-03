@@ -1,320 +1,189 @@
 # PALACE
 
-![img](https://img.shields.io/badge/python-3.13+-orange)
+[![License: EUPL-1.2](https://img.shields.io/badge/License-EUPL--1.2-blue.svg)](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-orange.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://img.shields.io/pypi/v/palace-eval.svg)](https://pypi.org/project/palace-eval/)
+[![CI](https://github.com/palace-ai/palace-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/palace-ai/palace-eval/actions/workflows/ci.yml)
 
-A framework to evaluate the capabilities of LLMs across diverse benchmarks.
+A platform for evaluating LLM capabilities across diverse benchmarks, with native support for agentic evaluation.
 
-<img src="assets/readme_images/logo.png" width="300" alt="logo.png">
+<img src="assets/readme_images/logo.png" width="300" alt="PALACE logo">
 
-## Description
+## Overview
 
-**PALACE** is a **P**latform for **A**utomated **L**LMs **A**gentic **C**apabilities **E**valuation.
-It can quantitatively assess the performance of AI models and agents across several different benchmarks covering reasoning, knowledge, safety, multilingual, multimodal, and instruction-following capabilities.
+**PALACE** (**P**latform for **A**utomated **L**LMs **A**gentic **C**apabilities **E**valuation) is an open-source evaluation framework developed by the [European Commission Joint Research Centre](https://joint-research-centre.ec.europa.eu/).
 
-The framework supports evaluation of any model accessible via an OpenAI-compatible API endpoint. Benchmark tasklists can be easily downloaded from HuggingFace or created custom.
+Key features:
 
-The output of an evaluation run is a JSONL file containing per-task results, metrics, and judge assessments. This information can be used to build user-friendly results visualizations.
+- **27+ vetted benchmarks** covering reasoning, knowledge, safety, multilingual, multimodal, and agentic capabilities
+- **Standardized format** - portable JSON-based tasklist format, distributed via HuggingFace
+- **Agentic-native** — first-class support for tool-using agents via [Vivarium](https://github.com/vivarium-ai/vivarium) runtime
+- **Any OpenAI-compatible endpoint** - evaluate models from OpenAI, Anthropic, Mistral, local deployments, or any compatible API
 
 ## Installation
 
-**PALACE** is provided as a Python package. It requires Python 3.13+.
+### From PyPI (recommended)
 
-1. **Install uv** (if not already installed):
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
+```bash
+pip install palace-eval
+```
 
-2. **Clone the project:**
-   ```bash
-   git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib.git
-   cd palace-lib
-   ```
+Or with [uv](https://github.com/astral-sh/uv) (faster):
 
-3. **Install dependencies** (uv will automatically create a virtual environment):
-   ```bash
-   uv sync
-   ```
+```bash
+uv pip install palace-eval
+```
 
-4. **Configure environment variables:**
+### From source
 
-   4.1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+git clone https://github.com/palace-ai/palace-eval.git
+cd palace-eval
+uv sync        # recommended
+# or: pip install -e .
+```
 
-   4.2. Open `.env` and set the **required** variables (at minimum `OPENAI_LIKE_API_BASE_URL` and `OPENAI_LIKE_API_KEY`). The file is organized into sections — see the comments for guidance.
+### Requirements
 
-That's it! You are ready to use PALACE.
+- Python 3.13+
+- An OpenAI-compatible API endpoint and key
 
 ### Agentic evaluation (optional)
 
-To run agentic benchmarks (tasks requiring sandboxed tool execution), you also need:
+For agentic benchmarks (GAIA, AssistantBench, etc.), you also need:
 
-- Docker 24+ (running)
-- The vivarium SDK:
+- Docker 24+
+- The [Vivarium](https://github.com/vivarium-ai/vivarium) SDK
+
+> **Note**: Vivarium is currently pending open-source release (expected within weeks). The GitHub link above is not yet active. If you need agentic evaluation now, please contact massimiliano.altieri@ec.europa.eu for early access.
+
+Install Vivarium:
 
 ```bash
-git clone https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/research/vivarium.git
-uv pip install -e vivarium/
+pip install vivarium-ai
 ```
 
-Vivarium (the agent runtime) will start automatically when you select an agentic tasklist — no manual setup required.
+Vivarium starts automatically when you run an agentic tasklist.
 
 ## Quick Start
 
-Here's a complete example to evaluate a model on the SimpleQA benchmark:
-
 ```bash
-# 1. Download the SimpleQA tasklist (no HuggingFace token required for public datasets)
-uv run -- palace-download -t SimpleQA
+# 1. Download a benchmark tasklist
+palace-download -t SimpleQA
 
-# 2. Run the evaluation against an OpenAI-compatible endpoint
-uv run -- palace-run -u https://api.openai.com/v1 -k $OPENAI_LIKE_API_KEY -m gpt-4o -t SimpleQA -l 20
+# 2. Run evaluation
+palace-run -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o -t SimpleQA -l 20
 ```
 
-This will evaluate `gpt-4o` on 20 tasks from SimpleQA and save results to `~/.cache/palace/results/`.
-
-## Downloading Tasklists
-
-Before running evaluations, you need to download the benchmark tasklists using `palace-download`.
-
-### Download all tasklists
-
-To download all available tasklists (requires a HuggingFace token for gated datasets):
-
-```bash
-uv run -- palace-download
-```
-
-### Download specific tasklists
-
-To download only specific tasklists:
-
-```bash
-uv run -- palace-download -t SimpleQA HotpotQA
-```
-
-Most datasets can be downloaded without a HuggingFace token. Gated datasets (GAIA, GPQA Diamond, SuperGPQA) require one.
-
-### Skip existing tasklists
-
-To skip tasklists that are already downloaded:
-
-```bash
-uv run -- palace-download --skip-existing
-```
-
-### HuggingFace token
-
-For gated datasets, set the `HUGGINGFACE_TOKEN` environment variable in your `.env` file. You can get a token from [HuggingFace Settings](https://huggingface.co/settings/tokens).
-
-Tasklists are downloaded to the user data directory:
-- Linux: `~/.cache/palace/tasklists/`
-- macOS: `~/Library/Caches/palace/tasklists/`
-- Windows: `C:\Users\<user>\AppData\Local\palace\Cache\tasklists\`
+Results are saved to `~/.cache/palace/results/`.
 
 ## Usage
 
-There are **3** supported ways to use PALACE: (1) via the **interactive CLI**, (2) via the **direct command**, or (3) **programmatically**.
-
-### CLI
-
-The easiest way to start using PALACE is the interactive CLI:
+### Interactive CLI
 
 ```bash
-uv run -- palace-cli
+palace-cli
 ```
 
-This opens an interactive menu where you configure your evaluation run step by step:
-<img src="assets/readme_images/cli.png" width="600" alt="cli.png">
+Guides you through selecting endpoint, model, benchmarks, and run configuration.
 
-Use the arrow keys to navigate, Space to select options, and Enter to confirm. The CLI will guide you through selecting:
-
-- The API endpoint and model to evaluate,
-- The benchmark tasklists to use,
-- Number of tasks per tasklist (useful for quick tests),
-- Number of runs (to reduce variance),
-- The evaluation run name.
-
-After configuration, the evaluation starts:
-<img src="assets/readme_images/cli2.png" width="600" alt="cli2.png">
-
-Results are saved to `~/.cache/palace/results/<run_name>.jsonl`.
-
-### Direct Command
-
-For scripted or batch evaluations, use `palace-run`:
+### Direct command
 
 ```bash
-uv run -- palace-run --help
-```
-
-The `-k/--token` parameter can be omitted if `OPENAI_LIKE_API_KEY` is set in your `.env`.
-
-**Example:**
-
-```bash
-uv run -- palace-run \
-   --run-name=MyEval \
-   -u https://api.mistral.ai/v1 \
-   -k abc123def456 \
-   -m mistral-medium-latest \
+palace-run \
+   -u https://api.openai.com/v1 \
+   -k $OPENAI_API_KEY \
+   -m gpt-4o \
    -t SimpleQA \
    -l 50
 ```
 
-**Full options:**
-
-| Flag | Description |
-|------|-------------|
-| `-u, --url` | API endpoint URL (required) |
-| `-k, --token` | API key (or set `OPENAI_LIKE_API_KEY`) |
-| `-m, --name` | Model name (omit to list available models) |
-| `-t, --tasklist` | Tasklist(s) to evaluate on (repeatable: `-t T1 -t T2`) |
-| `-l, --limit` | Max tasks per tasklist |
-| `-c, --concurrency` | Parallel tasks (default: `PALACE_CONCURRENCY` env, or 25) |
-| `--endpoint-type` | `openai` (default), `azure`, or `mcp` |
-| `--report-detail` | Output detail: `none`, `default`, or `full` |
-| `--agentic` | Force agentic execution via Vivarium |
-| `--param KEY=VALUE` | Extra model params (repeatable, e.g., `--param temperature=0.5`) |
-| `--run-name` | Name for the evaluation run |
-| `--output-folder` | Output path (default: `~/.cache/palace/results/`) |
-| `--runs-per-configuration` | Number of repeated runs (default: 1) |
+See `palace-run --help` for all options.
 
 ### Programmatic API
-
-Integrate PALACE into your Python code:
 
 ```python
 from palace import evaluate
 
 evaluate(
-   run_name="My Evaluation",         # evaluation run name
-   url="https://api.mistral.ai/v1",  # your API URL
-   token="abc123def456",             # your API token
-   name="mistral-medium-latest",     # model name
-   tasklist="SimpleQA",              # PALACE tasklist to use
-   limit=100,                        # optional: max tasks per tasklist
-   runs_per_configuration=1,         # optional: repeated runs
-   concurrency=25,                   # optional: parallel tasks
-   endpoint_type="openai",           # optional: "openai", "azure", or "mcp"
-   report_detail="default",          # optional: "none", "default", or "full"
+    run_name="my-evaluation",
+    url="https://api.openai.com/v1",
+    token="sk-...",
+    name="gpt-4o",
+    tasklist="SimpleQA",
+    limit=100,
 )
 ```
 
-Additional optional parameters:
-- `output_folder` — where to save results (default: `~/.cache/palace/results/`)
-- `io_adapter` — I/O adapter config dict for specialized models
-- `model_extra_params` — extra inference parameters (e.g., `{"temperature": 0.5}`)
-- `agentic` — force agentic execution via Vivarium
-- `vivarium_url` — custom Vivarium service URL
+## Supported Benchmarks
 
-Results are saved to `<output_folder>/<run_name>.jsonl`.
+PALACE includes 27+ benchmarks across multiple categories:
 
-## Tasklists
 
-Benchmark datasets in PALACE have a standard format.
-A dataset is internally called _tasklist_, and it mainly consists of a JSON file `tasks.json` containing the actual _tasks_.
-Additionally, a tasklist may have a `task_files` folder containing files referenced in the tasks.
-The directory structure is the following:
+| Category                  | Benchmarks                                                   |
+| --------------------------- | -------------------------------------------------------------- |
+| **Knowledge & Reasoning** | SimpleQA, HotpotQA, Humanity's Last Exam, GPQA Diamond, MUSR |
+| **Academic & Math**       | MMLU, MMLU-Pro, MATH-500, AIME 2025, BBH, HellaSwag          |
+| **Multilingual**          | MMMLU (14 languages), MGSM, Belebele (122 languages)         |
+| **Long Context**          | BABILong (4k-128k), LongBench v2                             |
+| **Multimodal**            | MMMU, MMMU Pro, VLSBench                                     |
+| **Instruction Following** | IFEval                                                       |
+| **Agentic**               | GAIA, AssistantBench                                         |
 
-```
-<tasklist_name>
-├─ task_files/
-│  ├─ file_1
-│  ├─ ...
-│  └─ file_n
-├─ tasks.json
-└─ info.json
+Download benchmarks with:
+
+```bash
+palace-download                    # all benchmarks
+palace-download -t SimpleQA MMLU   # specific benchmarks
 ```
 
-A task is a JSON object containing the following fields (fields with an asterisk are mandatory):
+Some benchmarks (marked with a lock icon in the docs) require a [HuggingFace token](https://huggingface.co/settings/tokens) for gated datasets.
 
-- **(\*) id**: Unique identifier for the task.
-- **(\*) objective**: The main goal or prompt for the task.
-- **expected**: The expected answer or outcome.
-- **references**: Supporting references or information.
-- **difficulty**: Difficulty level of the task.
-- **document**: Related document.
-- **attachment**: Filename or path to an attachment (text, image, audio).
-- **custom_verificator**: Custom verification logic or script.
-- Any task-type-specific fields as defined in `task_type_fields` in `info.json`.
+## Tasklist Format
 
-The `info.json` file contains metadata: `name`, `id`, `config`, `split`, `category`, `task_type`, `task_type_fields`, `input_modalities`, `output_modalities`.
+PALACE uses a standardized, portable JSON format for benchmarks:
 
-### Supported tasklists
+```
+<tasklist_name>/
++-- info.json      # metadata: task type, category, modalities
++-- tasks.json     # list of evaluation tasks
++-- task_files/    # optional: attachments (images, documents)
+```
 
-PALACE includes 27 vetted tasklists covering multiple evaluation categories:
+Create custom benchmarks by adding folders to `~/.cache/palace/tasklists/`.
 
-**General Knowledge & Reasoning**
-- **SimpleQA**: straightforward factual questions *(basicv8vc/SimpleQA)*
-- **SimpleQA-Verified**: curated subset with verified answers *(google/simpleqa-verified)*
-- **HotpotQA**: multi-hop question answering *(hotpotqa/hotpot_qa)*
-- **Humanity's Last Exam**: graduate-level questions across diverse fields *(cais/hle)*
-- **SuperGPQA**: graduate-level professional QA *(m-a-p/SuperGPQA)* 🔒
-- **GPQA Diamond**: expert-level science questions *(Idavidrein/gpqa)* 🔒
-- **MUSR**: multi-step reasoning *(edinburgh-dawg/labelchaos)*
+## Documentation
 
-**Academic & Math**
-- **MMLU**: massive multitask language understanding *(cais/mmlu)*
-- **MMLU-Pro**: harder MMLU variant with 10 choices *(TIGER-Lab/MMLU-Pro)*
-- **MATH-500**: competition-level math problems *(HuggingFaceH4/MATH-500)*
-- **AIME 2025**: American Invitational Mathematics Examination *(AI-MO/aimo-validation-aime)*
-- **BBH**: Big Bench Hard — 27 challenging subtasks *(lukaemon/bbh)*
-- **HellaSwag**: commonsense reasoning via sentence completion *(Rowan/hellaswag)*
+Full documentation: [https://palace.pages.code.europa.eu/palace-eval](https://palace.pages.code.europa.eu/palace-eval)
 
-**Multilingual**
-- **MMMLU**: multilingual MMLU across 14 languages *(openai/MMMLU)*
-- **MGSM**: multilingual grade-school math *(juletxara/mgsm)*
-- **Belebele**: multilingual reading comprehension, 122 languages *(facebook/belebele)*
+## Contributing
 
-**Long Context**
-- **BABILong-32k**: long-context reasoning over 32k tokens *(RMT-team/babilong)*
-- **BABILong-128k**: long-context reasoning over 128k tokens *(RMT-team/babilong)*
-- **BABILong**: unified long-context benchmark (4k–128k) *(RMT-team/babilong)*
-- **LongBench v2**: diverse long-context tasks *(zai-org/LongBench-v2)*
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-**Multimodal**
-- **VLSBench**: vision-language safety benchmark *(Foreshhh/vlsbench)*
-- **MMMU**: multimodal understanding across disciplines *(MMMU/MMMU)*
-- **MMMU Pro**: harder multimodal variant *(MMMU/MMMU_Pro)*
+## License
 
-**Instruction Following**
-- **IFEval**: instruction following with verifiable constraints *(google/IFEval)*
+Copyright (C) 2025 European Union
 
-**Agentic** (require Vivarium)
-- **GAIA**: real-world tasks requiring web access and tools *(gaia-benchmark/GAIA)* 🔒
-- **AssistantBench**: real-world web-based tasks *(AssistantBench/AssistantBench)*
+Licensed under the [European Union Public Licence (EUPL) v. 1.2](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12).
 
-**Domain-Specific**
-- **CURIE-protein**: protein sequence reconstruction *(nhop/curie)*
+See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
 
-🔒 = Gated dataset (requires `HUGGINGFACE_TOKEN`)
+## Citation
 
-### Adding a custom tasklist
+If you use PALACE in your research, please cite:
 
-To add a custom tasklist, create files in the user data directory (e.g., `~/.cache/palace/tasklists/` on Linux):
-
-- `<tasklist_name>/tasks.json` — list of tasks in the format described above
-- `<tasklist_name>/info.json` — tasklist metadata
-- optionally, `<tasklist_name>/task_files/` — folder containing referenced files
-
-Your custom tasklist will be automatically available for evaluation.
-
-## FAQ
-
-- **"I want to evaluate my model that is deployed on a private endpoint."**
-
-   Clone PALACE, install it, set your endpoint URL and API key in `.env`, and run `palace-run` or `palace-cli` pointing to your endpoint.
-
-- **"I want the online PALACE instance (Gradin) to evaluate my model."**
-
-   Your model needs to be accessible via an OpenAI-compatible API endpoint. Contact the team and we'll configure Gradin to evaluate it.
-
-- **"How do I save scores to Palace Vault?"**
-
-   Run evaluations locally with PALACE. Scores can be imported into Vault via CSV or pushed directly from Gradin.
+```bibtex
+@software{palace2025,
+  title = {PALACE: Platform for Automated LLMs Agentic Capabilities Evaluation},
+  author = {Altieri, Massimiliano},
+  year = {2025},
+  institution = {European Commission Joint Research Centre},
+  url = {https://github.com/palace-ai/palace-eval},
+  license = {EUPL-1.2}
+}
+```
 
 ## Support
 
-If you have any issues, you can open an issue on the [GitLab repository](https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib), or you can contact me at massimiliano.altieri@ec.europa.eu.
+- **Issues**: [GitHub Issues](https://github.com/palace-ai/palace-eval/issues)
+- **Email**: massimiliano.altieri@ec.europa.eu

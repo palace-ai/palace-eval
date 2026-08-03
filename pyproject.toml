@@ -4,19 +4,37 @@ requires = ["setuptools>=64.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "palace"
-version = "0.9"
+name = "palace-eval"
+version = "1.0.0"
 description = "A Platform for Automated LLMs Agentic Capabilities Evaluation."
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
     { name = "Massimiliano ALTIERI", email = "massimiliano.altieri@ec.europa.eu" },
 ]
+maintainers = [
+    { name = "European Commission Joint Research Centre" },
+]
 license = { text = "EUPL-1.2" }
+keywords = [
+    "llm",
+    "evaluation",
+    "benchmark",
+    "ai",
+    "machine-learning",
+    "agents",
+    "agentic",
+]
 classifiers = [
-    "Programming Language :: Python :: 3.13",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Testing",
 ]
 dependencies = [
     "anthropic==0.83.0",
@@ -41,8 +59,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
-Documentation = "https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib"
+Homepage = "https://github.com/palace-ai/palace-eval"
+Documentation = "https://palace.pages.code.europa.eu/palace-eval"
+Repository = "https://github.com/palace-ai/palace-eval"
+Issues = "https://github.com/palace-ai/palace-eval/issues"
+Changelog = "https://github.com/palace-ai/palace-eval/blob/main/CHANGELOG.md"
 
 [project.scripts]
 palace-cli = "palace.entrypoints.palace_cli:main"

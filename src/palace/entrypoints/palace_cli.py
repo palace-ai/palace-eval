@@ -1,3 +1,17 @@
+# Copyright (C) 2025 European Union
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the European Union Public Licence (EUPL) v. 1.2
+# as published by the European Union.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# European Union Public Licence for more details.
+#
+# You should have received a copy of the European Union Public Licence
+# along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
+
 import json
 import sys
 
@@ -57,7 +71,7 @@ def main():
 """)
     print(
         """This is the main user interface for the [bold]Palace[/] evaluation framework.
-Documentation: [blue]https://gitlab.jrc.ec.europa.eu/jrc-projects/jrc-gpt/evaluation/palace-lib[/]
+Documentation: [blue]https://github.com/palace-ai/palace-eval[/]
 Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         box=True,
         box_title=":waving_hand: Welcome to Palace",

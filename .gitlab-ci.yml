@@ -1,0 +1,12 @@
+pages:
+  stage: deploy
+  image: python:3.13
+  script:
+    - pip install zensical
+    - zensical build
+    - mv site public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
