@@ -1,6 +1,8 @@
 pages:
   stage: deploy
   image: python:3.13
+  tags:
+    - shared-docker
   script:
     - pip install zensical
     - zensical build
