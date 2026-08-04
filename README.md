@@ -154,7 +154,7 @@ palace-download -t SimpleQA MMLU GPQA-Diamond
 
 ## Agentic evaluation
 
-For benchmarks where the model uses tools (GAIA, AssistantBench, etc.), you need [Vivarium](https://github.com/vivarium-ai/vivarium), a sandboxed Docker runtime for agents.
+For benchmarks where the model uses tools (GAIA, AssistantBench, etc.), you need [Vivarium](https://code.europa.eu/palace/vivarium), a sandboxed Docker runtime for agents.
 
 ```bash
 pip install vivarium-ai

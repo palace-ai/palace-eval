@@ -4,9 +4,9 @@ Welcome to PALACE — the Platform for Automated LLM Agentic Capabilities Evalua
 
 ## What is PALACE?
 
-PALACE is a framework for evaluating LLM capabilities through structured benchmarks. You define what to test (a "tasklist"), PALACE runs the evaluation, and you get detailed results showing how well the model performed.
+PALACE is an open benchmark format for LLM evaluation. Benchmarks are self-contained JSON files (`info.json` + `tasks.json`) that travel without framework lock-in. `palace-eval` is the reference implementation — you define what to test, palace-eval runs the evaluation, and you get detailed results.
 
-PALACE supports five types of evaluation:
+PALACE supports five task types:
 
 - **QA** — Test factual knowledge with semantic verification
 - **Classification** — Test categorical outputs with exact matching

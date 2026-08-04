@@ -1,6 +1,6 @@
 # PALACE Documentation
 
-**PALACE** (Platform for Automated LLMs Agentic Capabilities Evaluation) is a framework for evaluating LLM capabilities through configurable benchmarks.
+**PALACE** (Platform for Automated LLMs Agentic Capabilities Evaluation) is an open benchmark format for LLM evaluation, with native support for agentic tasks. `palace-eval` is the reference implementation.
 
 ## Quick Links
 
@@ -18,7 +18,7 @@
 
     ---
 
-    Learn about QA, Classification, and Criteria Evaluation task types.
+    Learn about the five task types: QA, Classification, Criteria Evaluation, Instruction Following, and Agentic.
 
     [:octicons-arrow-right-24: Explore task types](task-types/index.md)
 
