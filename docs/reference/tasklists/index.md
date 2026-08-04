@@ -6,7 +6,7 @@ Most official tasklists are available on HuggingFace under the `jrc-ai` organiza
 
 ## Overview
 
-The official PALACE tasklists span three task types and cover a diverse range of evaluation scenarios:
+The official PALACE tasklists span multiple task types and cover a diverse range of evaluation scenarios:
 
 | Tasklist | Task Type | Category | Tasks | Description |
 |----------|-----------|----------|------:|-------------|

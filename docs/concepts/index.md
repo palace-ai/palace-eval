@@ -26,13 +26,15 @@ How PALACE uses language models to evaluate responses. Covers judge prompts, con
 
 ### Task Types
 
-PALACE supports three task types, each with different verification:
+PALACE supports five task types, each with different verification:
 
 | Task Type | Verification | Use Case |
 |-----------|--------------|----------|
 | QA | LLM judge | Factual questions, semantic matching |
 | Classification | Exact match | Categorical outputs, safety filters |
-| Criteria Evaluation | Pairwise comparison | Long-form content, multi-criteria |
+| Criteria Evaluation | LLM judge (pairwise/absolute) | Long-form content, multi-criteria |
+| Instruction Following | Deterministic checkers | Format/structure constraints |
+| Agentic | External verifier | Tool-using agents, coding benchmarks |
 
 ### Tasklists
 

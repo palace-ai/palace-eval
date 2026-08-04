@@ -6,11 +6,13 @@ Welcome to PALACE — the Platform for Automated LLM Agentic Capabilities Evalua
 
 PALACE is a framework for evaluating LLM capabilities through structured benchmarks. You define what to test (a "tasklist"), PALACE runs the evaluation, and you get detailed results showing how well the model performed.
 
-PALACE supports three types of evaluation:
+PALACE supports five types of evaluation:
 
 - **QA** — Test factual knowledge with semantic verification
 - **Classification** — Test categorical outputs with exact matching
 - **Criteria Evaluation** — Test long-form content with multi-criteria scoring
+- **Instruction Following** — Test format/structure compliance with deterministic verification
+- **Agentic** — Test tool-using agents in sandboxed environments
 
 ## Learning Path
 

@@ -40,6 +40,7 @@ nav:
     - Classification: task-types/classification.md
     - Criteria Evaluation: task-types/criteria-evaluation.md
     - Instruction Following: task-types/instruction-following.md
+    - Agentic: task-types/agentic.md
   - How-To Guides:
     - howto/index.md
     - Run Evaluations: howto/run-evaluations.md

@@ -173,18 +173,17 @@ If `palace-download` fails:
 
 ## Agentic Evaluation (Optional)
 
-Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://github.com/vivarium-ai/vivarium), a managed agent runtime.
+Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://code.europa.eu/palace/vivarium), a managed agent runtime.
 
 ### Additional Requirements
 
 - **Docker 24+** — installed and running
-- **Vivarium SDK** — installed as an editable package
+- **Vivarium SDK** — `pip install vivarium-ai`
 
 ### Install Vivarium
 
 ```bash
-git clone https://github.com/vivarium-ai/vivarium.git
-uv pip install -e vivarium/
+pip install vivarium-ai
 ```
 
 ### Verify

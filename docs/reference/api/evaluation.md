@@ -2,7 +2,7 @@
 
 Core evaluation engine that runs benchmarks on agents.
 
-::: palace.evaluation.Evaluation
+::: palace.evaluation.orchestrator.Evaluation
     options:
       heading_level: 2
       members:

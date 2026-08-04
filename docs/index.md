@@ -44,17 +44,21 @@
 
 PALACE evaluates LLM agents across configurable benchmarks. It supports:
 
-- **QA tasks** - Verify factual correctness with LLM judges
-- **Classification tasks** - Exact-match categorical outputs
-- **Criteria Evaluation tasks** - Pairwise comparison of long-form content
+- **QA tasks** — Verify factual correctness with LLM judges
+- **Classification tasks** — Exact-match categorical outputs
+- **Criteria Evaluation tasks** — Pairwise comparison of long-form content
+- **Instruction Following tasks** — Verify structured output constraints
+- **Agentic tasks** — Tool-using agents in sandboxed environments
 
-## Three Task Types
+## Five Task Types
 
 | Task Type | Use Case | Verification |
 |-----------|----------|--------------|
 | [QA](task-types/qa.md) | Factual questions, open-ended answers | LLM judge with configurable criteria |
 | [Classification](task-types/classification.md) | Categorical outputs, labels | Exact match against expected labels |
 | [Criteria Evaluation](task-types/criteria-evaluation.md) | Long-form documents, reports | Pairwise comparison with weighted criteria |
+| [Instruction Following](task-types/instruction-following.md) | Structured output formats | Constraint verification (length, format, keywords) |
+| [Agentic](task-types/agentic.md) | Tool-using agents, coding, web tasks | External verifier in sandboxed environment |
 
 ## Getting Help
 

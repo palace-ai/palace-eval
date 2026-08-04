@@ -1,0 +1,378 @@
+\documentclass[10pt,landscape]{article}
+\usepackage{cheatsheets}
+
+\begin{document}
+
+\doctitle{PALACE Tasklist Format}{--- Reference Sheet \textbar\ Compatible with palace-eval 1.0.x}
+
+\begin{multicols}{3}
+
+\sectionheader{WHAT IS A TASKLIST?}
+
+A \textbf{tasklist} is a benchmark that palace-eval runs against LLM models or agents. It is a folder containing two JSON files: \mono{info.json} (metadata and configuration) and \mono{tasks.json} (the actual evaluation tasks). Optionally, you can include supporting files like images, documents, or agent environment scripts.
+
+\begin{lstlisting}
+~/.cache/palace/tasklists/{Name}/
++-- info.json         metadata + type config
++-- tasks.json        array of task objects
++-- task_files/       attachments (optional)
+|   +-- img_001.png   images, docs, code...
+|   +-- context.txt   text prepended to prompt
++-- environment/      Agentic only:
+    +-- seed.py       prepare container state
+    +-- verify.py     check agent's work
+    +-- tools/        custom tools (1 file each)
+    +-- Dockerfile    custom image (optional)
+\end{lstlisting}
+
+\sectionheader{CHOOSING A TASK TYPE}
+
+The \mono{task\_type} field in \mono{info.json} determines how the model's output is evaluated. Choose based on what you want to measure:
+
+\tasktype{QA} --- You have questions with known answers. An LLM judge decides if the model's response is semantically equivalent to the expected answer. Best for factual Q\&A, trivia, reading comprehension.
+
+\tasktype{Classification} --- You want the model to assign labels from a fixed set of classes. Verification is exact match. Best for safety classification, topic tagging, sentiment analysis, multiple-choice.
+
+\tasktype{Criteria Evaluation} --- You want the model to generate a long-form report or essay, scored on multiple quality dimensions. An LLM judge rates each criterion 1--5. Best for research reports, creative writing, summarization quality.
+
+\tasktype{Instruction Following} --- You want to test if the model follows format constraints (word count, forbidden words, required endings). Verification is fully programmatic --- no LLM judge. Best for format compliance testing.
+
+\tasktype{Agentic} --- An LLM agent acts inside a sandboxed Docker container using tools (bash, file I/O, web). A custom \mono{verify.py} script checks the final state. Best for coding tasks, CTF challenges, tool-use benchmarks, multi-step problems.
+
+\note{These strings are case-sensitive. Use exactly: ``QA'', ``Classification'', ``Criteria Evaluation'', ``Instruction Following'', ``Agentic''}
+
+\sectionheader{INFO.JSON --- REQUIRED FIELDS}
+
+Every tasklist's \mono{info.json} must have at minimum:
+
+\begin{lstlisting}
+{
+  "name": "My-Benchmark",
+  "task_type": "QA",
+  "category": "Safety",
+  "subcategory": "Text Safety",
+  "input_modalities": ["text"],
+  "output_modalities": ["text"]
+}
+\end{lstlisting}
+
+\mono{name} --- display name shown in the UI and reports.
+
+\mono{task\_type} --- one of the 5 types above (case-sensitive).
+
+\mono{category} / \mono{subcategory} --- for organizing benchmarks in the UI (e.g. ``Safety'' $\rightarrow$ ``Text Safety'').
+
+\mono{input\_modalities} --- what the model receives: \mono{["text"]}, \mono{["text","image"]}, or \mono{["text","audio"]}.
+
+\mono{output\_modalities} --- what the model produces. Almost always \mono{["text"]}.
+
+\note{If sourced from HuggingFace, also add: id (dataset ID e.g. ``org/name''), config, split, version, original (bool)}
+
+\sectionheader{TASKS.JSON --- REQUIRED FIELDS}
+
+A JSON array of task objects. Every task must have:
+
+\begin{lstlisting}
+[{
+  "id": "task_001",
+  "objective": "What is the capital of France?",
+  "expected": "Paris",
+  "difficulty": "easy",
+  "attachments": ["context.txt", "img.png"]
+}]
+\end{lstlisting}
+
+\mono{id} --- unique string identifier for the task (no duplicates in the file).
+
+\mono{objective} --- the prompt/question sent to the model. This is what it sees.
+
+\mono{expected} --- the correct answer (QA) or reference report (Criteria Eval). Used by the judge.
+
+\mono{difficulty} --- optional free-text field for reporting only (not used in scoring).
+
+\mono{attachments} --- array of filenames relative to \mono{task\_files/} (e.g. \mono{"context.txt"} means \mono{task\_files/context.txt}). Text files are prepended to the prompt. Images are sent as multimodal content.
+
+\mono{task\_type\_fields} --- per-task config override (see each type below). Merges with and overrides tasklist-level.
+
+\important{Key rule:} \mono{task\_type} is \emph{never} in \mono{tasks.json} --- it's injected from \mono{info.json} automatically.
+
+\sectionheader{QA --- EXAMPLE}
+
+No additional configuration needed. Just provide questions and answers:
+
+\begin{lstlisting}
+// info.json: {"task_type": "QA", ...}
+// tasks.json:
+[{"id":"q1","objective":"Who wrote Hamlet?",
+  "expected":"William Shakespeare"},
+ {"id":"q2","objective":"What is 7x8?",
+  "expected":"56"}]
+\end{lstlisting}
+
+The judge is lenient: ``56'', ``It's 56'', ``The answer is fifty-six'' all match. For strict matching, add a \mono{custom\_verificator}:
+
+\begin{lstlisting}
+"custom_verificator": "def verify(pred, truth):\n
+    return pred.strip().lower() == truth.strip().lower()"
+\end{lstlisting}
+
+\sectionheader{CLASSIFICATION --- EXAMPLE}
+
+Define the \textbf{label schema} in \mono{info.json} --- what labels exist and what classes each label can take. Then assign ground-truth class values in each task.
+
+\begin{lstlisting}
+// info.json -- label definition:
+"task_type_fields": {"labels": [{
+  "name": "Unsafe",
+  "description": "Whether the content is harmful",
+  "classes": [
+    {"name":"Yes","condition":"if unsafe/harmful"},
+    {"name":"No","condition":"if safe/benign"}
+]}]}
+\end{lstlisting}
+
+\mono{labels} --- array of label definitions. Each label has: \mono{name} --- label identifier (used as key in task's \mono{labels} dict). \mono{description} --- what this label measures (shown to model). \mono{classes} --- array of possible values, each with \mono{name} (the value) and \mono{condition} (when to assign it).
+
+\begin{lstlisting}
+// tasks.json -- ground truth as {label: class}:
+[{"id":"c1","objective":"How to pick a lock?",
+  "labels":{"Unsafe":"Yes"}},
+ {"id":"c2","objective":"Best way to learn piano?",
+  "labels":{"Unsafe":"No"}}]
+\end{lstlisting}
+
+\important{Multi-label} (multiple dimensions): \mono{\{"Topic":"Technology","Sentiment":"Positive"\}}. Each label needs its own entry in the \mono{labels} array.
+
+\important{Dynamic classes} (e.g. MMLU where options change per question): omit \mono{classes} from \mono{info.json}, provide per-task via \mono{task\_type\_fields}.
+
+\sectionheader{CRITERIA EVALUATION --- EXAMPLE}
+
+Define scoring \textbf{dimensions} (broad categories like ``Content'', ``Style'') each containing \textbf{criteria} (specific aspects like ``accuracy'', ``clarity''). Everything is weighted:
+
+\begin{lstlisting}
+"dimensions": [{
+  "name":"content", "weight":0.7,
+  "criteria": [
+    {"name":"accuracy","weight":0.5,
+     "description":"Claims supported by evidence"},
+    {"name":"depth","weight":0.5,
+     "description":"Goes beyond surface analysis"}
+]},{
+  "name":"style", "weight":0.3,
+  "criteria": [
+    {"name":"structure","weight":0.5,
+     "description":"Logical flow with headings"},
+    {"name":"clarity","weight":0.5,
+     "description":"Unambiguous professional prose"}
+]}]
+\end{lstlisting}
+
+Each \textbf{dimension} has: \mono{name} (identifier), \mono{weight} (importance --- all dimensions sum to 1.0), \mono{criteria} (array of scoring aspects).
+
+Each \textbf{criterion} has: \mono{name} (identifier), \mono{weight} (within its dimension --- sum to 1.0), \mono{description} (what the judge evaluates --- be specific and measurable).
+
+Tasks provide \mono{objective} (the writing prompt) and \mono{expected} (a reference report the judge compares against). The LLM judge scores each criterion 1--5, scores are weighted and normalized.
+
+\sectionheader{INSTRUCTION FOLLOWING --- EXAMPLE}
+
+Each task defines \mono{constraints} in its \mono{task\_type\_fields}. Checked programmatically (no LLM). Task correct if \textbf{$\geq$50\%} of constraints pass:
+
+\begin{lstlisting}
+[{"id":"if1",
+  "objective":"Write about AI. Use 200+ words.
+    Do not use 'revolutionary'. End with
+    'The future is now.'",
+  "task_type_fields":{"constraints":[
+    {"type":"length_constraints:number_words",
+     "params":{"relation":"at least","num_words":200}},
+    {"type":"keywords:forbidden_words",
+     "params":{"forbidden_words":["revolutionary"]}},
+    {"type":"startend:end_checker",
+     "params":{"end_phrase":"The future is now."}}
+]}}]
+\end{lstlisting}
+
+Each constraint has \mono{type} (checker name) and \mono{params} (checker arguments). The \mono{relation} param accepts: \note{``at least'', ``at most'', ``less than'', ``more than'', ``exactly''}.
+
+\important{Available types:} \mono{punctuation:no\_comma}, \mono{length\_constraints:number\_words}, \mono{length\_constraints:number\_sentences}, \mono{keywords:existence}, \mono{keywords:forbidden\_words}, \mono{keywords:frequency}, \mono{change\_case:english\_lowercase}, \mono{change\_case:english\_capital}, \mono{startend:end\_checker}, \mono{startend:quotation}, \mono{detectable\_format:json\_format}, \mono{detectable\_format:title}, \mono{combination:repeat\_prompt}, \mono{combination:two\_responses}, \mono{language:response\_language}
+
+\sectionheader{AGENTIC --- OVERVIEW}
+
+Agentic benchmarks run an LLM agent inside a Docker container with tools. The agent can execute commands, read/write files, browse the web. Your \mono{verify.py} script checks whether it succeeded.
+
+\important{You need to provide:} (1) \mono{info.json} with \mono{env} config, (2) \mono{tasks.json} with \mono{seed\_args} and \mono{expected\_outcome}, (3) \mono{environment/seed.py} to set up the container, (4) \mono{environment/verify.py} to evaluate the result.
+
+In \mono{tasks.json}, agentic tasks use these additional fields:
+
+\mono{env} --- which environment to use (required if \mono{info.json} defines multiple environments).
+
+\mono{seed\_args} --- arbitrary dict passed to \mono{seed.py} as its first argument. Put setup data here (source code, commit hashes, configs).
+
+\mono{expected\_outcome} --- arbitrary dict passed to \mono{verify.py} as its first argument. Put success criteria here (test commands, expected flags, assertions).
+
+\sectionheader{AGENTIC --- INFO.JSON ENV CONFIG}
+
+The \mono{env} key (\textbf{required} for Agentic) maps environment names to Docker specs:
+
+\begin{lstlisting}
+"env": {"default": {
+  "image": "python:3.11-slim",
+  "tools": ["bash","read","write","edit",
+            "grep","glob","ls"],
+  "resources":{"memory":"4g","cpus":2.0,
+               "network":false},
+  "custom_tools":["tools/query_db.py"],
+  "agent_instructions":"You are a coding assistant."
+}}
+\end{lstlisting}
+
+\mono{image} --- Docker image (public or custom with Dockerfile in \mono{environment/}).
+
+\mono{tools} --- built-in tools: \note{bash, read, write, edit, grep, glob, ls, web\_fetch, web\_search}. Set \mono{[]} for custom-tools-only.
+
+\mono{resources} --- container limits: \mono{memory} (e.g. ``4g'', ``512m''), \mono{cpus} (e.g. 2.0), \mono{network} (true/false).
+
+\mono{custom\_tools} --- array of paths to tool files relative to \mono{environment/}.
+
+\mono{agent\_instructions} --- system prompt prepended to the agent's context.
+
+\sectionheader{AGENTIC --- SEED.PY}
+
+\important{Must be} \mono{async def seed(seed\_args, container)}. Called once per task. Prepares the container: writes files, installs dependencies, starts companion services. \mono{seed\_args} comes from the task's \mono{seed\_args} field.
+
+\begin{lstlisting}
+async def seed(seed_args, container):
+    # Write a file (takes bytes!)
+    await container.write("/app/code.py",
+        seed_args["source_code"].encode())
+
+    # Run a shell command
+    rc, output = await container.exec(
+        "cd /app && pip install -r requirements.txt",
+        timeout=120)
+    if rc != 0:
+        raise RuntimeError(f"Setup failed: {output}")
+
+    # Start a companion service
+    await container.start_companion(
+        image="postgres:15",
+        hostname="db", memory="512m")
+\end{lstlisting}
+
+\sectionheader{AGENTIC --- VERIFY.PY}
+
+\important{Must be} \mono{async def verify(expected\_outcome, agent\_answer, container)}. Called after the agent finishes.
+
+\mono{expected\_outcome} --- the dict from the task's \mono{expected\_outcome} field. \mono{agent\_answer} --- the agent's final text response (often empty for agentic). \mono{container} --- the same container object as in seed (exec/read/write API).
+
+\important{Must return a dict with:} \mono{is\_correct} (bool, required) --- did the agent succeed? \mono{reasoning} (str, required) --- explanation of the verdict. \mono{metrics} (dict, optional) --- numeric scores for reporting.
+
+\begin{lstlisting}
+async def verify(expected_outcome, agent_answer, container):
+    rc, output = await container.exec(
+        expected_outcome["test_cmd"], timeout=180)
+    return {
+        "is_correct": rc == 0,
+        "reasoning": output[-800:],
+        "metrics": {"exit_code": rc}
+    }
+\end{lstlisting}
+
+\sectionheader{AGENTIC --- CUSTOM TOOLS}
+
+Place one tool per file in \mono{environment/tools/}. Each file must export:
+
+\mono{TOOL} --- a dict with OpenAI function-calling schema: \mono{name} (tool name the agent calls), \mono{description} (shown to agent), \mono{parameters} (JSON Schema for arguments).
+
+\mono{async def execute(args, context)} --- args is the parsed argument dict. \mono{context} is a dict from the tool's optional \mono{CONTEXT} variable.
+
+Return \mono{\{"content": "..."\}} on success or \mono{\{"error": "..."\}} on failure.
+
+\begin{lstlisting}
+TOOL = {"name": "lookup_user",
+  "description": "Find user by ID",
+  "parameters": {"type": "object",
+    "properties": {
+      "user_id": {"type":"string"}
+    }, "required": ["user_id"]}}
+
+async def execute(args, context):
+    db = json.loads(await container.read("/data.json"))
+    user = db.get(args["user_id"])
+    if not user:
+        return {"error": "User not found"}
+    return {"content": json.dumps(user)}
+\end{lstlisting}
+
+\sectionheader{CONTAINER API REFERENCE}
+
+\begin{lstlisting}
+await container.read(path)         -> str
+await container.write(path, bytes) -> None
+await container.exec(cmd, timeout) -> (int, str)
+await container.start_companion(image, hostname, mem)
+\end{lstlisting}
+
+\important{Remember:} \mono{write()} takes bytes --- always use \mono{.encode()}. \mono{read()} returns str.
+
+\sectionheader{MULTI-ENVIRONMENT TASKLISTS}
+
+When different tasks need different Docker images, define multiple entries in \mono{env}. Each task \textbf{must} then specify which environment it uses via an \mono{env} field:
+
+\begin{lstlisting}
+// info.json:
+"env": {
+  "python-django":{"image":"swe:django",...},
+  "js-express":{"image":"swe:express",...}
+}
+// tasks.json:
+[{"id":"t1","env":"python-django",...},
+ {"id":"t2","env":"js-express",...}]
+\end{lstlisting}
+
+\note{Images are pulled lazily on first use --- hundreds of unique environments are fine.}
+
+\sectionheader{COMPANION CONTAINERS}
+
+For tasks needing background services (databases, web servers, APIs), use \mono{container.start\_companion()} in \mono{seed.py}. Each companion runs as a separate Docker container on an internal network. The agent reaches it by \textbf{hostname} (e.g. \mono{http://web:8080}, \mono{postgresql://db:5432}).
+
+Parameters: \mono{image} (Docker image), \mono{hostname} (network alias), \mono{memory} (limit). Multiple companions allowed. Destroyed automatically with the environment.
+
+The agent's \mono{network} resource must be \mono{true} to reach companions.
+
+\sectionheader{IMPORTANT RULES \& GOTCHAS}
+
+\bull \mono{task\_type} strings are case-sensitive --- use exactly as documented
+
+\bull All \mono{id} values must be unique across the entire tasklist
+
+\bull Agentic \mono{info.json} \textbf{must} have the \mono{env} key --- omitting it causes a crash
+
+\bull \mono{seed.py}, \mono{verify.py}, and tool \mono{execute()} must be \textbf{async def}
+
+\bull Files in \mono{task\_files/} land at \mono{/task\_files/} inside the container
+
+\bull Classification labels format: \mono{\{"LabelName":"ClassName"\}} --- not booleans
+
+\bull Custom image: put Dockerfile in \mono{environment/} --- or use a public image
+
+\bull Dimension weights sum to 1.0; criteria weights within each dimension sum to 1.0
+
+\bull Per-task \mono{task\_type\_fields} override tasklist-level ones (task wins on conflict)
+
+\sectionheader{VALIDATION}
+
+After creating your tasklist, validate it:
+
+\begin{lstlisting}
+# Structural check (instant, catches format errors):
+python validate_tasklist.py ~/.cache/palace/tasklists/MyBench
+
+# Smoke test (Agentic only, needs Docker):
+python smoke_test_tasklist.py path/to/tasklist --task-limit 2
+\end{lstlisting}
+
+The structural validator checks: required fields, valid \mono{task\_type}, unique IDs, async signatures, attachment references, label consistency. The smoke test builds images, creates containers, and runs seed/verify without an LLM --- catches broken Dockerfiles and script errors.
+
+\end{multicols}
+\end{document}

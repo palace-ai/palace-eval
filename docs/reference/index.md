@@ -41,6 +41,8 @@ Detailed documentation of `task_type_fields` configuration for each task type:
 - QA: `correctness_criterion`, `references`
 - Classification: `labels`
 - Criteria Evaluation: `criteria`, `dimensions`, `per_task_criteria`
+- Instruction Following: constraints defined per task
+- Agentic: Vivarium spec configuration
 
 ### [Output Metrics](metrics.md)
 
@@ -49,6 +51,15 @@ Complete specification for evaluation output format. Covers JSONL structure, per
 ### [CLI Reference](cli.md)
 
 Command-line interface documentation for `palace-cli`, `palace-run`, and `palace-download`.
+
+## Cheatsheets
+
+Printable quick-reference documents (A3 landscape PDFs):
+
+- **[Reference Sheet](https://code.europa.eu/palace/palace-eval/-/blob/main/cheatsheets/reference-sheet.pdf)** — Complete reference for all 5 task types, JSON schemas, and common patterns
+- **[Agentic Tutorial](https://code.europa.eu/palace/palace-eval/-/blob/main/cheatsheets/agentic-tutorial.pdf)** — Step-by-step guide for building an agentic benchmark
+
+Source files are in [`cheatsheets/`](https://code.europa.eu/palace/palace-eval/-/tree/main/cheatsheets) if you want to rebuild or contribute.
 
 ## Quick Reference
 
@@ -76,7 +87,9 @@ Command-line interface documentation for `palace-cli`, `palace-run`, and `palace
 |------|--------------|---------------|
 | QA | LLM judge | `correctness_criterion`, `references` |
 | Classification | Exact match | `labels` (required) |
-| Criteria Evaluation | LLM pairwise | `criteria` or `dimensions` |
+| Criteria Evaluation | LLM judge | `criteria` or `dimensions` |
+| Instruction Following | Deterministic | `constraints` per task |
+| Agentic | External verifier | Vivarium spec |
 
 ### CLI Commands
 

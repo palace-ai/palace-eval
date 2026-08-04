@@ -1,6 +1,6 @@
 # Task Types
 
-PALACE supports three task types, each designed for different evaluation scenarios. Choosing the right one depends on what you're measuring and how you want to verify correctness.
+PALACE supports five task types, each designed for different evaluation scenarios. Choosing the right one depends on what you're measuring and how you want to verify correctness.
 
 ## Overview
 
@@ -12,7 +12,7 @@ Every PALACE benchmark uses exactly one task type, specified in `info.json`. The
 
 Understanding the differences helps you choose the right approach for your evaluation goals.
 
-## The Four Task Types
+## The Five Task Types
 
 ### QA (Question-Answering)
 
@@ -81,6 +81,22 @@ Instruction Following evaluates whether a model's response satisfies syntactic a
 
 [Learn more about Instruction Following →](instruction-following.md)
 
+### Agentic
+
+Agentic evaluates models that interact with tools and environments to complete tasks. The agent runs in a sandboxed Docker container (via [Vivarium](https://code.europa.eu/palace/vivarium)) with access to bash, file I/O, web search, and other tools. Verification is performed by an external verifier script that checks the final environment state.
+
+**Best for**: Coding benchmarks, computer use, web navigation, any task where the model must interact with tools.
+
+**Verification**: External verifier script checks environment state (database, files, etc.)
+
+**Example use cases**:
+- Software engineering (SWE-bench)
+- Tool-use benchmarks (τ-bench)
+- Computer use (OSWorld, WebArena)
+- Multi-step reasoning with tool interaction
+
+**Note**: Agentic evaluation requires Docker and the Vivarium SDK (`pip install vivarium-ai`).
+
 ## Choosing a Task Type
 
 ```mermaid
@@ -95,6 +111,8 @@ flowchart TD
     E -->|No, use rubric| H[Criteria Evaluation - absolute]
     A --> I{Checking format/structure?}
     I -->|Yes| J[Instruction Following]
+    A --> K{Agent interacts with tools?}
+    K -->|Yes| L[Agentic]
 ```
 
 ### Decision Guide
@@ -130,6 +148,13 @@ flowchart TD
 - Constraints are syntactic (word count, keywords, format)
 - Speed matters (no API calls for verification)
 
+**Choose Agentic when:**
+
+- The model needs to interact with tools (bash, files, web)
+- Tasks require multi-step execution in an environment
+- Correctness depends on final state (database, file system)
+- You're evaluating coding or computer-use capabilities
+
 **Choose Criteria Evaluation (absolute) when:**
 
 - Evaluating against a rubric without a reference document
@@ -139,13 +164,13 @@ flowchart TD
 
 ## Quick Comparison
 
-| Aspect | QA | Classification | Criteria Evaluation | Instruction Following | Criteria Evaluation |
-|--------|----|-----------------|--------------------|----------------------|---------------------|
-| **Output type** | Short/medium text | Categorical labels | Long-form documents | Any text | Any text |
-| **Verification** | LLM judge | Exact match | LLM judge (pairwise) | Deterministic checkers | LLM judge (absolute) |
-| **Speed** | Slower (API calls) | Fast (no API) | Slower (API calls) | Fast (no API) | Slower (API calls) |
-| **Flexibility** | High (semantic) | Low (exact) | High (multi-criteria) | Medium (structural) | High (rubric-based) |
-| **Configuration** | Criterion, references | Labels, classes | Criteria, weights | Constraints per task | Criteria with points |
+| Aspect | QA | Classification | Criteria Evaluation | Instruction Following | Agentic |
+|--------|----|-----------------|--------------------|----------------------|---------|
+| **Output type** | Short/medium text | Categorical labels | Long-form documents | Any text | Environment state |
+| **Verification** | LLM judge | Exact match | LLM judge (pairwise/absolute) | Deterministic checkers | External verifier |
+| **Speed** | Slower (API calls) | Fast (no API) | Slower (API calls) | Fast (no API) | Slowest (execution) |
+| **Flexibility** | High (semantic) | Low (exact) | High (multi-criteria) | Medium (structural) | High (arbitrary) |
+| **Configuration** | Criterion, references | Labels, classes | Criteria, weights | Constraints per task | Spec, verifier |
 
 ## Common Mistakes
 
@@ -275,4 +300,5 @@ See each task type's documentation for complete configuration options.
 - [Classification Task Type](classification.md) - Exact-match categorical outputs
 - [Criteria Evaluation Task Type](criteria-evaluation.md) - Pairwise document comparison
 - [Instruction Following Task Type](instruction-following.md) - Deterministic constraint verification
+- [Agentic Task Type](agentic.md) - Tool-using agents in sandboxed environments
 - [Task Type Fields Reference](../reference/task-type-fields.md) - Complete field specifications

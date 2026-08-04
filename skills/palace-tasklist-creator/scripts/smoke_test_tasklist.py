@@ -7,7 +7,7 @@ Tests the infrastructure chain WITHOUT an LLM agent:
 Usage:
   python smoke_test_tasklist.py <tasklist_path> [--task-limit N]
 
-Requires: Docker running + vivarium SDK installed (`pip install -e /path/to/vivarium`)
+Requires: Docker running + vivarium SDK installed (`pip install vivarium-ai`)
 """
 
 import argparse
@@ -198,7 +198,7 @@ def main():
     except ImportError as e:
         if "vivarium" in str(e):
             print("Error: vivarium SDK not installed. Install with:")
-            print("  pip install -e /path/to/vivarium/")
+            print("  pip install vivarium-ai")
         else:
             print(f"Error: Import failed in tasklist scripts: {e}")
         sys.exit(1)

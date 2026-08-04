@@ -1,0 +1,102 @@
+% palace-cheatsheet.sty - Shared style for PALACE A3 landscape cheatsheets
+%
+% BUILD INSTRUCTIONS:
+%   cd palace-eval/cheatsheets
+%   tectonic palace-tasklist-cheatsheet.tex
+%   tectonic palace-tasklist-agentic-tutorial.tex
+%
+% Or with conda:
+%   conda run tectonic palace-tasklist-cheatsheet.tex --outdir=.
+%
+% Requires: tectonic (install via: conda install -c conda-forge tectonic)
+%
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{palace-cheatsheet}[2026/08/04 PALACE Cheatsheet Style]
+
+% A3 paper landscape
+\RequirePackage[a3paper,landscape,margin=10mm,top=9mm,bottom=10mm]{geometry}
+
+% Multi-column layout
+\RequirePackage{multicol}
+\setlength{\columnsep}{14pt}
+\setlength{\columnseprule}{0pt}
+
+% Fonts - Source Serif Pro (good for print) + Source Code Pro
+\RequirePackage[T1]{fontenc}
+\RequirePackage{sourceserifpro}
+\RequirePackage{sourcecodepro}
+
+% Colors from original DOCX
+\RequirePackage{xcolor}
+\RequirePackage{amssymb}  % for \blacksquare
+\definecolor{darkblue}{HTML}{1B3A6B}
+\definecolor{taskorange}{HTML}{CC4400}
+\definecolor{graytext}{HTML}{555555}
+\definecolor{codebg}{HTML}{F2F2F2}
+\definecolor{codeborder}{HTML}{CCCCCC}
+
+% Code listings
+\RequirePackage{listings}
+\lstset{
+  basicstyle=\fontsize{6pt}{6.5pt}\selectfont\ttfamily,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeborder},
+  framesep=2pt,
+  xleftmargin=2pt,
+  xrightmargin=2pt,
+  aboveskip=2pt,
+  belowskip=2pt,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  literate={~}{{\textasciitilde}}1 {├}{{\textSFviii}}1 {└}{{\textSFii}}1 {│}{{\textSFx}}1 {─}{{\textSFi}}1
+}
+
+% Tight spacing
+\RequirePackage{parskip}
+\setlength{\parskip}{1.5pt}
+\setlength{\parindent}{0pt}
+
+% No page numbers
+\pagestyle{empty}
+
+% === Custom Commands ===
+
+% Document title: \doctitle{Main Title}{Subtitle}
+\newcommand{\doctitle}[2]{%
+  \begin{center}
+  {\fontsize{13pt}{14pt}\selectfont\bfseries\color{darkblue}#1}{\fontsize{13pt}{14pt}\selectfont\color{graytext}\ \ #2}
+  \end{center}
+  \vspace{3pt}
+}
+
+% Section header with underline: \sectionheader{SECTION NAME}
+\newcommand{\sectionheader}[1]{%
+  \vspace{5pt}
+  {\fontsize{7.5pt}{8pt}\selectfont\bfseries\color{darkblue}#1}\\[-3pt]
+  \textcolor{darkblue}{\rule{\linewidth}{0.5pt}}\\[-8pt]
+}
+
+% Task type names (bold orange): \tasktype{QA}
+\newcommand{\tasktype}[1]{{\bfseries\color{taskorange}#1}}
+
+% Monospace for field names, file names, code references: \mono{field_name}
+\newcommand{\mono}[1]{{\fontsize{6.3pt}{7pt}\selectfont\ttfamily#1}}
+
+% Gray italic for notes: \note{This is a note}
+\newcommand{\note}[1]{{\itshape\color{graytext}#1}}
+
+% Bold for emphasis: \important{Key rule:}
+\newcommand{\important}[1]{{\bfseries#1}}
+
+% Bullet point: \bull
+\newcommand{\bull}{$\blacksquare$\ }
+
+% Base font size
+\renewcommand{\normalsize}{\fontsize{6.3pt}{7.3pt}\selectfont}
+\normalsize
+
+\endinput

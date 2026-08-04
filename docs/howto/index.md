@@ -63,5 +63,5 @@ Evaluate specialized finetuned models (guardrails, classifiers) that can't follo
 ## Related Pages
 
 - [Getting Started](../getting-started/index.md) — New to PALACE? Start here
-- [Task Types](../task-types/index.md) — Understanding QA, Classification, Criteria Evaluation
+- [Task Types](../task-types/index.md) — Understanding QA, Classification, Criteria Evaluation, Instruction Following, and Agentic
 - [Reference](../reference/index.md) — Technical specifications
