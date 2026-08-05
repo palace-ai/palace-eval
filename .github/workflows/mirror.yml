@@ -13,10 +13,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
+
+      - name: Fetch all tags
+        run: git fetch --tags origin
 
       - name: Push mirror
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git refs/heads/main:refs/heads/main
-          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git refs/tags/*:refs/tags/*
+          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git --tags
