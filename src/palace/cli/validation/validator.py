@@ -18,7 +18,6 @@ import json
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 
 class Severity(Enum):
@@ -224,7 +223,7 @@ class Validator:
         category = info_data.get("category")
         subcategory = info_data.get("subcategory")
         all_subcategories = [sub for subs in CATEGORY_TAXONOMY.values() for sub in subs]
-        
+
         if category:
             if category not in CATEGORY_TAXONOMY:
                 # Check if it's actually a subcategory (common mistake)
@@ -246,7 +245,7 @@ class Validator:
                             field="category",
                         )
                     )
-        
+
         if subcategory:
             if subcategory not in all_subcategories:
                 warnings.append(

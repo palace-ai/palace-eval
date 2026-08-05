@@ -16,16 +16,14 @@
 
 import base64
 import json
-import os
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
-from urllib.request import urlopen
 
 import requests
 
-from palace.cli.git_adapters.base import GitAdapter, TasklistInfo, RateLimitError
+from palace.cli.git_adapters.base import GitAdapter, RateLimitError, TasklistInfo
 
 
 class GitHubGitAdapter(GitAdapter):
@@ -213,20 +211,20 @@ class GitHubGitAdapter(GitAdapter):
 
             # Download archive
             archive_url = f"https://github.com/{identifier}/archive/refs/heads/{default_branch}.zip"
-            
+
             with tempfile.TemporaryDirectory() as tmpdir:
                 zip_path = Path(tmpdir) / "repo.zip"
-                
+
                 # Download zip
                 with requests.get(archive_url, stream=True, timeout=60) as r:
                     r.raise_for_status()
                     with open(zip_path, "wb") as f:
                         for chunk in r.iter_content(chunk_size=8192):
                             f.write(chunk)
-                
+
                 # Extract
                 shutil.unpack_archive(zip_path, tmpdir)
-                
+
                 # Find extracted directory (usually repo-name-branch)
                 extracted = [d for d in Path(tmpdir).iterdir() if d.is_dir()]
                 if extracted:

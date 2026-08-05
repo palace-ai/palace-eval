@@ -112,7 +112,7 @@ from palace.prompts.fact_prompts import (
 )
 from palace.task_types import Task, TaskVerificationResult
 from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
-from palace.utils.constants import get_judge_model, get_api_url
+from palace.utils.constants import get_api_url, get_judge_model
 from palace.utils.printing import print
 from palace.utils.secrets import get_api_key
 

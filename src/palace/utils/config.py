@@ -28,13 +28,11 @@ Config file keys:
 """
 
 import os
-from pathlib import Path
 from typing import Any
 
 import yaml
 
 from palace.utils.paths import CONFIG_DIR
-
 
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 
@@ -56,13 +54,13 @@ VALID_KEYS = set(CONFIG_TO_ENV.keys())
 
 def load_config() -> dict[str, Any]:
     """Load configuration from config file.
-    
+
     Returns:
         Dictionary of config values. Empty dict if file doesn't exist or is invalid.
     """
     if not CONFIG_FILE.exists():
         return {}
-    
+
     try:
         content = CONFIG_FILE.read_text()
         config = yaml.safe_load(content) or {}
@@ -79,37 +77,37 @@ def load_config() -> dict[str, Any]:
 
 def save_config(config: dict[str, Any]) -> None:
     """Save configuration to config file.
-    
+
     Args:
         config: Dictionary of config values to save.
     """
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Filter to only valid keys
     filtered = {k: v for k, v in config.items() if k in VALID_KEYS}
-    
+
     with open(CONFIG_FILE, "w") as f:
         yaml.dump(filtered, f, default_flow_style=False)
 
 
 def get_config_value(key: str) -> str | None:
     """Get a config value with priority: env var > config file.
-    
+
     Args:
         key: Config key (e.g., "url", "key", "judge_model").
-        
+
     Returns:
         The value, or None if not set anywhere.
     """
     if key not in VALID_KEYS:
         return None
-    
+
     # Check env var first
     env_var = CONFIG_TO_ENV[key]
     env_value = os.environ.get(env_var)
     if env_value:
         return env_value
-    
+
     # Fall back to config file
     config = load_config()
     return config.get(key)
@@ -117,17 +115,17 @@ def get_config_value(key: str) -> str | None:
 
 def set_config_value(key: str, value: str) -> None:
     """Set a config value in the config file.
-    
+
     Args:
         key: Config key (e.g., "url", "key").
         value: Value to set.
-        
+
     Raises:
         ValueError: If key is not a valid config key.
     """
     if key not in VALID_KEYS:
         raise ValueError(f"Invalid config key: {key}. Valid keys: {', '.join(sorted(VALID_KEYS))}")
-    
+
     config = load_config()
     config[key] = value
     save_config(config)
@@ -135,10 +133,10 @@ def set_config_value(key: str, value: str) -> None:
 
 def delete_config_value(key: str) -> bool:
     """Delete a config value from the config file.
-    
+
     Args:
         key: Config key to delete.
-        
+
     Returns:
         True if key was deleted, False if it didn't exist.
     """
@@ -152,22 +150,22 @@ def delete_config_value(key: str) -> bool:
 
 def get_all_config() -> dict[str, dict[str, Any]]:
     """Get all config values with their sources.
-    
+
     Returns:
         Dictionary mapping keys to {"value": ..., "source": "env"|"config"|None}.
     """
     config_file = load_config()
     result = {}
-    
+
     for key, env_var in CONFIG_TO_ENV.items():
         env_value = os.environ.get(env_var)
         file_value = config_file.get(key)
-        
+
         if env_value:
             result[key] = {"value": env_value, "source": "env"}
         elif file_value:
             result[key] = {"value": file_value, "source": "config"}
         else:
             result[key] = {"value": None, "source": None}
-    
+
     return result

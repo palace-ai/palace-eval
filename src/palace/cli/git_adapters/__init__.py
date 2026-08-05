@@ -17,7 +17,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
-from palace.cli.git_adapters.base import GitAdapter, TasklistInfo, RateLimitError
+from palace.cli.git_adapters.base import GitAdapter, RateLimitError, TasklistInfo
 
 
 def detect_adapter(url: str) -> tuple[str, str | None, dict]:
@@ -64,10 +64,10 @@ def detect_adapter(url: str) -> tuple[str, str | None, dict]:
         # - https://huggingface.co/datasets/org/dataset-name (dataset page)
         # - https://huggingface.co/collections/org/collection-slug (collection page with full slug)
         # - https://huggingface.co/collections/org/collection-title (collection page with title only)
-        
+
         if not path_parts:
             return "huggingface", None, {}
-        
+
         if path_parts[0] == "datasets":
             # Dataset URL: https://huggingface.co/datasets/org/dataset-name
             if len(path_parts) >= 3:
@@ -79,7 +79,7 @@ def detect_adapter(url: str) -> tuple[str, str | None, dict]:
                 org = path_parts[1]
                 return "huggingface", org, extra
             return "huggingface", None, extra
-        
+
         if path_parts[0] == "collections":
             # Collection URL: https://huggingface.co/collections/org/collection-name[-uniqueid]
             if len(path_parts) >= 3:
@@ -98,7 +98,7 @@ def detect_adapter(url: str) -> tuple[str, str | None, dict]:
                 org = path_parts[1]
                 return "huggingface", org, extra
             return "huggingface", None, extra
-        
+
         # Org URL: https://huggingface.co/org-name
         org = path_parts[0]
         return "huggingface", org, extra

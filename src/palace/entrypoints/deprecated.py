@@ -19,8 +19,8 @@ Users should migrate to the new unified 'palace' command.
 """
 
 import sys
-from palace.utils.printing import print
 
+from palace.utils.printing import print
 
 _DEPRECATION_BANNER = """
 [yellow]╔══════════════════════════════════════════════════════════════════════════╗
@@ -45,7 +45,7 @@ def _show_deprecation_warning(old_cmd: str, new_cmd: str) -> None:
 def palace_cli_deprecated() -> None:
     """Deprecated: Use 'palace' instead."""
     _show_deprecation_warning("palace-cli", "palace")
-    
+
     # Import and run the legacy interactive CLI
     from palace.entrypoints.palace_cli import main
     main()
@@ -54,7 +54,7 @@ def palace_cli_deprecated() -> None:
 def palace_run_deprecated() -> None:
     """Deprecated: Use 'palace run' instead."""
     _show_deprecation_warning("palace-run", "palace run <benchmark> -m <model>")
-    
+
     # Import and run the legacy run CLI
     from palace.entrypoints.palace_run import run
     run()
@@ -63,7 +63,7 @@ def palace_run_deprecated() -> None:
 def palace_download_deprecated() -> None:
     """Deprecated: Use 'palace download' instead."""
     _show_deprecation_warning("palace-download", "palace download <name>")
-    
+
     # Import and run the legacy download CLI
     from palace.entrypoints.download.palace_download import main
     main()
@@ -82,7 +82,7 @@ def palace_mcpstart_deprecated() -> None:
 ║                                                                          ║
 ╚══════════════════════════════════════════════════════════════════════════╝[/yellow]
 """)
-    
+
     # Check if the old mcpstart module exists
     try:
         from palace.entrypoints.palace_mcpstart import main

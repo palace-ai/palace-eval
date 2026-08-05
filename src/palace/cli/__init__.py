@@ -14,9 +14,9 @@
 
 """Palace CLI - Unified command-line interface for LLM benchmark evaluation."""
 
-import click
-
 from importlib.metadata import version
+
+import click
 
 
 def get_version() -> str:
@@ -64,16 +64,16 @@ def help(ctx: click.Context) -> None:
 # These are imported lazily to avoid slow startup
 def _register_commands() -> None:
     """Register all subcommands."""
-    from palace.cli.discovery import list_cmd, search, info
-    from palace.cli.sources_cmd import sources
+    from palace.cli.config import adapters, config, version_cmd
+    from palace.cli.discovery import info, list_cmd, search
     from palace.cli.download_cmd import download
-    from palace.cli.local import local
-    from palace.cli.run import run
-    from palace.cli.results import results
     from palace.cli.init_cmd import init
-    from palace.cli.validate import validate
+    from palace.cli.local import local
     from palace.cli.publish import publish
-    from palace.cli.config import config, adapters, version_cmd
+    from palace.cli.results import results
+    from palace.cli.run import run
+    from palace.cli.sources_cmd import sources
+    from palace.cli.validate import validate
 
     palace.add_command(list_cmd, name="list")
     palace.add_command(search)

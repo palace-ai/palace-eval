@@ -14,7 +14,7 @@
 
 """Source management for tasklist discovery."""
 
-from palace.cli.sources.manager import SourceManager
 from palace.cli.sources.cache import SourceCache
+from palace.cli.sources.manager import SourceManager
 
 __all__ = ["SourceManager", "SourceCache"]

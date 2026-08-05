@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from huggingface_hub import HfApi, hf_hub_download, list_repo_tree
+from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
 
 from palace.cli.git_adapters.base import GitAdapter, TasklistInfo
@@ -126,7 +126,7 @@ class HuggingFaceGitAdapter(GitAdapter):
             ValueError: If the repository doesn't exist.
         """
         from huggingface_hub import snapshot_download
-        
+
         dest.mkdir(parents=True, exist_ok=True)
 
         try:

@@ -22,7 +22,6 @@ import questionary
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import print
 
-
 # Task type templates
 TASK_TYPES = ["QA", "Classification", "CriteriaEvaluation", "InstructionFollowing", "Agentic"]
 CATEGORIES = ["Knowledge", "Reasoning", "Coding", "Safety", "Instruction Following", "Agentic", "Multimodal", "Other"]
@@ -37,7 +36,7 @@ def init(name: str, agentic: bool, bare: bool) -> None:
 
     Creates a new benchmark directory with info.json and tasks.json templates.
     Runs an interactive wizard to configure the benchmark unless --bare is used.
-    
+
     \b
     Examples:
         palace init my-benchmark
@@ -45,17 +44,17 @@ def init(name: str, agentic: bool, bare: bool) -> None:
         palace init quick-test --bare
     """
     dest = TASKLISTS_PATH / name
-    
+
     if dest.exists():
         print(f"[red]Error:[/red] Benchmark already exists: {name}")
         print(f"[dim]Path: {dest}[/dim]")
         return
-    
+
     if agentic:
         task_type = "Agentic"
     else:
         task_type = None
-    
+
     if bare:
         # Create minimal scaffold without wizard
         _create_scaffold(dest, name, task_type=task_type or "QA", agentic=agentic)
@@ -65,10 +64,10 @@ def init(name: str, agentic: bool, bare: bool) -> None:
         print("[dim]Edit info.json and tasks.json to configure your benchmark.[/dim]")
         print("[dim]Run 'palace validate {name}' when ready.[/dim]")
         return
-    
+
     # Interactive wizard
     print(f"[bold]Creating benchmark: {name}[/bold]\n")
-    
+
     # Description
     description = questionary.text(
         "Description:",
@@ -76,7 +75,7 @@ def init(name: str, agentic: bool, bare: bool) -> None:
     ).ask()
     if description is None:
         return
-    
+
     # Category
     category = questionary.select(
         "Category:",
@@ -84,7 +83,7 @@ def init(name: str, agentic: bool, bare: bool) -> None:
     ).ask()
     if category is None:
         return
-    
+
     # Task type
     if not task_type:
         task_type = questionary.select(
@@ -93,7 +92,7 @@ def init(name: str, agentic: bool, bare: bool) -> None:
         ).ask()
         if task_type is None:
             return
-    
+
     # Agentic-specific options
     env_image = None
     if task_type == "Agentic" or agentic:
@@ -104,7 +103,7 @@ def init(name: str, agentic: bool, bare: bool) -> None:
         ).ask()
         if env_image is None:
             return
-    
+
     # Create scaffold
     _create_scaffold(
         dest,
@@ -115,7 +114,7 @@ def init(name: str, agentic: bool, bare: bool) -> None:
         agentic=agentic,
         env_image=env_image,
     )
-    
+
     print()
     print(f"[green]Created benchmark scaffold:[/green] {name}")
     print(f"[dim]Path: {dest}[/dim]")
@@ -137,7 +136,7 @@ def _create_scaffold(
 ) -> None:
     """Create the benchmark scaffold files."""
     dest.mkdir(parents=True, exist_ok=True)
-    
+
     # Build info.json
     info = {
         "name": name,
@@ -147,7 +146,7 @@ def _create_scaffold(
         "input_modalities": ["text"],
         "output_modalities": ["text"],
     }
-    
+
     # Add task_type_fields based on type
     if task_type == "QA":
         info["task_type_fields"] = {
@@ -171,11 +170,11 @@ def _create_scaffold(
             "image": env_image or "python:3.11-slim",
             "# comment": "Specify Docker image and optional tools for agentic execution"
         }
-    
+
     # Write info.json with comments
     info_content = json.dumps(info, indent=4, ensure_ascii=False)
     (dest / "info.json").write_text(info_content)
-    
+
     # Build tasks.json template
     if task_type == "QA":
         tasks = [
@@ -212,10 +211,10 @@ def _create_scaffold(
                 "expected": "Expected outcome",
             }
         ]
-    
+
     tasks_content = json.dumps(tasks, indent=4, ensure_ascii=False)
     (dest / "tasks.json").write_text(tasks_content)
-    
+
     # Create task_files directory for attachments
     (dest / "task_files").mkdir(exist_ok=True)
     (dest / "task_files" / ".gitkeep").touch()

@@ -14,6 +14,6 @@
 
 """Tasklist validation module."""
 
-from palace.cli.validation.validator import Validator, ValidationIssue, Severity
+from palace.cli.validation.validator import Severity, ValidationIssue, Validator
 
 __all__ = ["Validator", "ValidationIssue", "Severity"]

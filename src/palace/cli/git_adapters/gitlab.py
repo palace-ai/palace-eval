@@ -16,7 +16,6 @@
 
 import base64
 import json
-import os
 import shutil
 import tempfile
 from pathlib import Path

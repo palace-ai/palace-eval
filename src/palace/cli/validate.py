@@ -19,7 +19,7 @@ from pathlib import Path
 
 import click
 
-from palace.cli.validation import Validator, Severity
+from palace.cli.validation import Validator
 from palace.download import resolve_local_path
 from palace.utils.printing import print
 
@@ -31,12 +31,12 @@ def validate(name: str) -> None:
 
     NAME is the benchmark name (e.g., "MMLU") or path to a tasklist directory.
     Reports errors (blocking) and warnings (non-blocking) separately.
-    
+
     \b
     Exit codes:
         0 - Valid (no errors)
         1 - Invalid (has errors)
-    
+
     \b
     Examples:
         palace validate MMLU
@@ -55,12 +55,12 @@ def validate(name: str) -> None:
             print(f"[red]Tasklist not found:[/red] {path_or_name}")
             print("[dim]Run 'palace local' to see downloaded tasklists.[/dim]")
             sys.exit(1)
-    
+
     print(f"[bold]Validating:[/bold] {path.name}\n")
-    
+
     validator = Validator()
     errors, warnings = validator.validate(path)
-    
+
     # Display errors
     if errors:
         print(f"[bold red]Errors ({len(errors)}):[/]")
@@ -73,7 +73,7 @@ def validate(name: str) -> None:
             print(f"  [red]✗[/]{location}")
             print(f"    {issue.message}")
         print()
-    
+
     # Display warnings
     if warnings:
         print(f"[bold yellow]Warnings ({len(warnings)}):[/]")
@@ -86,7 +86,7 @@ def validate(name: str) -> None:
             print(f"  [yellow]⚠[/]{location}")
             print(f"    {issue.message}")
         print()
-    
+
     # Summary
     if errors:
         print(f"[red]✗ Validation failed with {len(errors)} error(s)[/red]")

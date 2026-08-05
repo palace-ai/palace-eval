@@ -20,7 +20,7 @@ from typing import Any, Callable
 
 import yaml
 
-from palace.cli.git_adapters import detect_adapter, get_adapter, TasklistInfo, RateLimitError
+from palace.cli.git_adapters import RateLimitError, TasklistInfo, detect_adapter, get_adapter
 from palace.cli.sources.cache import SourceCache
 from palace.utils.paths import CONFIG_DIR
 
@@ -139,11 +139,11 @@ class SourceManager:
             The created Source object.
         """
         adapter_type, org, extra = detect_adapter(url)
-        
+
         # Resolve collection_title to collection_slug if needed
         collection_title = extra.get("collection_title")
         collection_slug = extra.get("collection_slug")
-        
+
         if collection_title and not collection_slug and org:
             # Need to look up the collection slug from the title
             resolved_slug = self._resolve_collection_slug(org, collection_title)
@@ -154,7 +154,7 @@ class SourceManager:
                     f"Collection '{collection_title}' not found for user '{org}'. "
                     f"Check the collection URL or use the full collection page URL."
                 )
-        
+
         # Build extra dict - keep both slug (for API) and title (for display)
         source_extra = {}
         if collection_slug:
@@ -165,7 +165,7 @@ class SourceManager:
             else:
                 # Extract name from slug (remove the unique ID suffix)
                 source_extra["collection_name"] = collection_slug
-        
+
         source = Source(
             type=adapter_type,
             url=url,
@@ -217,20 +217,20 @@ class SourceManager:
                 slug_parts = collection.slug.split("/")
                 if len(slug_parts) < 2:
                     continue
-                
+
                 # Remove the unique ID suffix to get the title
                 slug_title = slug_parts[1]
                 # The title in slug has the unique ID at the end after a dash
                 # e.g., "palace-698071045baae6945f7757e2" -> compare "palace"
-                
+
                 # Also check the actual collection title
                 if collection.title and collection.title.lower() == title_lower:
                     return collection.slug
-                
+
                 # Check if the URL title matches the beginning of the slug
                 if slug_title.lower().startswith(title_lower.replace(" ", "-")):
                     return collection.slug
-                    
+
         except Exception:
             pass
 
@@ -346,8 +346,9 @@ class SourceManager:
 
             # Try to get info.json to check if it's a palace tasklist
             try:
-                from huggingface_hub import hf_hub_download
                 import json
+
+                from huggingface_hub import hf_hub_download
 
                 info_path = hf_hub_download(
                     repo_id=dataset_id,

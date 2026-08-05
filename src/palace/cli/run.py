@@ -14,17 +14,15 @@
 
 """Run command: palace run."""
 
-import json
-import os
 import sys
 
 import click
 import questionary
 
 from palace.download import download_by_name, is_downloaded
-from palace.utils.paths import TASKLISTS_PATH, RESULTS_PATH
-from palace.utils.printing import print
 from palace.utils.config import get_config_value
+from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
+from palace.utils.printing import print
 
 
 @click.command()
@@ -56,7 +54,7 @@ def run(
 
     NAME is the benchmark to evaluate (e.g., "MMLU", "GPQA Diamond").
     Downloads automatically if not found locally.
-    
+
     \b
     Examples:
         palace run MMLU -m gpt-4o
@@ -64,11 +62,11 @@ def run(
         palace run SWE-bench -m o3-mini --agentic -y
     """
     benchmark = name  # Use 'benchmark' internally
-    
+
     # Get URL and token: CLI flags > env vars > config file
     url = url or get_config_value("url")
     token = token or get_config_value("key")
-    
+
     if not url or not token:
         print("[red]Error: API not configured.[/red]\n")
         print("Set up with:")
@@ -80,7 +78,7 @@ def run(
         print()
         print("Run [cyan]palace config[/cyan] to see current configuration.")
         sys.exit(1)
-    
+
     # Check if benchmark exists locally
     if not is_downloaded(benchmark):
         # Try case-insensitive match
@@ -89,7 +87,7 @@ def run(
             if d.is_dir() and d.name.lower() == benchmark.lower():
                 local_match = d.name
                 break
-        
+
         if local_match:
             benchmark = local_match
         else:
@@ -111,11 +109,11 @@ def run(
                     f"Benchmark '{benchmark}' not found locally. Download now?",
                     default=True,
                 ).ask()
-                
+
                 if answer is None:
                     # User cancelled
                     sys.exit(130)
-                
+
                 if answer:
                     try:
                         download_by_name(benchmark)
@@ -129,14 +127,15 @@ def run(
                 else:
                     print("[dim]Evaluation cancelled.[/dim]")
                     sys.exit(0)
-    
+
     # Run evaluation
     try:
         from pathlib import Path
+
         from palace.evaluation import Evaluation
-        
+
         output_path = Path(output) if output else RESULTS_PATH
-        
+
         evaluation = Evaluation(
             name=run_name,
             url=url,
@@ -147,9 +146,9 @@ def run(
             output_path=output_path,
             concurrency=concurrency,
         )
-        
+
         evaluation.evaluate_all([model], tasklists=[benchmark])
-        
+
     except FileNotFoundError as e:
         print(f"[red]Error:[/red] {e}")
         sys.exit(1)
