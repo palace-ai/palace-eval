@@ -13,6 +13,34 @@ Benchmarks should be portable. A PALACE benchmark is a self-contained folder wit
 
 `palace-eval` is the reference implementation.
 
+## Quick start
+
+**1. Install:**
+
+```bash
+uv tool install palace-eval   # recommended
+# or: pip install palace-eval
+```
+
+**2. Configure your API:**
+
+```bash
+palace config set url https://api.openai.com/v1
+palace config set key sk-your-api-key
+palace config set judge_model gpt-4o
+```
+
+**3. Run your first evaluation:**
+
+```bash
+palace download SimpleQA
+palace run SimpleQA -m gpt-4o -l 10
+```
+
+That's it. Results go to `~/.cache/palace/results/`.
+
+Run `palace config` anytime to see your current settings.
+
 ## Why another benchmark format?
 
 Most benchmarks today are tied to specific frameworks. LM-eval-harness tasks are Python code. Inspect-AI uses `@task` decorators. If you want to run a benchmark, you need their infrastructure.
@@ -20,7 +48,7 @@ Most benchmarks today are tied to specific frameworks. LM-eval-harness tasks are
 PALACE takes a different approach:
 
 - **Self-contained**: everything travels together (tasks, expected outputs, judge criteria, evaluation logic)
-- **HuggingFace-distributed**: download with `palace-download`, standard hosting and discovery  
+- **HuggingFace-distributed**: download with `palace download`, standard hosting and discovery  
 - **Agentic-native**: tool-using agents are a first-class task type
 - **Framework-agnostic**: palace-eval runs them, but so could anything else
 
@@ -28,7 +56,7 @@ We ship 27+ benchmarks covering reasoning, knowledge, safety, multilingual, mult
 
 ## The format
 
-A PALACE benchmark looks like this:
+A PALACE benchmark is just two JSON files:
 
 ```
 SimpleQA/
@@ -42,15 +70,8 @@ SimpleQA/
 {
   "name": "SimpleQA",
   "id": "openai/SimpleQA", 
-  "format_version": "1.0",
   "task_type": "QA",
-  "category": "Knowledge",
-  "task_type_fields": {
-    "correctness_criterion": {
-      "name": "semantic equivalence",
-      "description": "The answer is semantically equivalent to the reference"
-    }
-  }
+  "category": "Knowledge"
 }
 ```
 
@@ -58,57 +79,44 @@ SimpleQA/
 
 ```json
 [
-  {
-    "id": "q1",
-    "objective": "What is the capital of France?",
-    "references": {"correct": ["Paris"]}
-  },
-  {
-    "id": "q2", 
-    "objective": "Who wrote Romeo and Juliet?",
-    "references": {"correct": ["William Shakespeare", "Shakespeare"]}
-  }
+  {"id": "q1", "objective": "What is the capital of France?", "expected": "Paris"},
+  {"id": "q2", "objective": "Who wrote Romeo and Juliet?", "expected": "Shakespeare"}
 ]
 ```
 
-That's it. The format supports five task types (QA, Classification, Criteria Evaluation, Instruction Following, and Agentic), each with its own verification logic. See the [docs](https://palace.pages.code.europa.eu/palace-eval) for the full spec.
+The format supports five task types (QA, Classification, Criteria Evaluation, Instruction Following, and Agentic), each with its own verification logic. See the [full spec](https://palace.pages.code.europa.eu/palace-eval/reference/info-json/).
 
-## Quick start
+## Configuration
 
-Install from PyPI:
+Palace stores settings in `~/.config/palace/config.yaml`. The quick start covers the essentials. 
+
+For CI/Docker, use environment variables instead. Run `palace config env` to see the mapping.
+
+## Included benchmarks
+
+| Category | Benchmarks |
+|----------|------------|
+| Knowledge & Reasoning | SimpleQA, HotpotQA, Humanity's Last Exam, GPQA Diamond, MUSR |
+| Academic & Math | MMLU, MMLU-Pro, MATH-500, AIME 2025, BBH, HellaSwag |
+| Multilingual | MMMLU (14 languages), MGSM, Belebele (122 languages) |
+| Long Context | BABILong (4k-128k), LongBench v2 |
+| Multimodal | MMMU, MMMU Pro, VLSBench |
+| Instruction Following | IFEval |
+| Agentic | GAIA, AssistantBench |
 
 ```bash
-pip install palace-eval
+palace list                    # see all available
+palace download MMLU           # download one
+palace download --all          # download everything
 ```
-
-Download a benchmark and run it:
-
-```bash
-palace-download -t SimpleQA
-palace-run -u https://api.openai.com/v1 -k $OPENAI_API_KEY -m gpt-4o -t SimpleQA -l 20
-```
-
-Results go to `~/.cache/palace/results/`.
 
 ## Running evaluations
 
-Three ways to use it:
-
-**Interactive CLI** (walks you through the options):
-
 ```bash
-palace-cli
-```
-
-**Direct command** (for scripting):
-
-```bash
-palace-run \
-  -u https://api.openai.com/v1 \
-  -k $OPENAI_API_KEY \
-  -m gpt-4o \
-  -t SimpleQA \
-  -l 50
+palace run MMLU -m gpt-4o
+palace run MMLU -m gpt-4o -l 50           # limit to 50 tasks
+palace run "GPQA Diamond" -m claude-sonnet
+palace run SWE-bench -m o3-mini --agentic # agentic benchmark
 ```
 
 **Python API** (for integration):
@@ -126,31 +134,7 @@ evaluate(
 )
 ```
 
-Works with any OpenAI-compatible endpoint: OpenAI, Anthropic, Mistral, local deployments, etc.
-
-## Included benchmarks
-
-| Category | Benchmarks |
-|----------|------------|
-| Knowledge & Reasoning | SimpleQA, HotpotQA, Humanity's Last Exam, GPQA Diamond, MUSR |
-| Academic & Math | MMLU, MMLU-Pro, MATH-500, AIME 2025, BBH, HellaSwag |
-| Multilingual | MMMLU (14 languages), MGSM, Belebele (122 languages) |
-| Long Context | BABILong (4k-128k), LongBench v2 |
-| Multimodal | MMMU, MMMU Pro, VLSBench |
-| Instruction Following | IFEval |
-| Agentic | GAIA, AssistantBench |
-
-Download all of them:
-
-```bash
-palace-download
-```
-
-Or specific ones:
-
-```bash
-palace-download -t SimpleQA MMLU GPQA-Diamond
-```
+Works with any OpenAI-compatible endpoint: OpenAI, Anthropic, Azure, Mistral, local deployments, etc.
 
 ## Agentic evaluation
 
@@ -166,12 +150,10 @@ Vivarium starts automatically when you run an agentic tasklist. Requires Docker 
 
 ## Creating your own benchmarks
 
-Add a folder to `~/.cache/palace/tasklists/`:
-
-```
-MyBenchmark/
-├── info.json
-└── tasks.json
+```bash
+palace init my-benchmark      # interactive wizard
+palace validate my-benchmark  # check for errors
+palace publish my-benchmark   # publish to HuggingFace
 ```
 
 See [Your First Benchmark](https://palace.pages.code.europa.eu/palace-eval/getting-started/first-benchmark/) for a walkthrough.

@@ -186,7 +186,7 @@ Agentic evaluation tracks additional metrics:
 vivarium start
 
 # Run evaluation
-palace-run -u https://api.openai.com/v1 -m gpt-4o -t MyAgenticBenchmark
+palace run MyAgenticBenchmark -m gpt-4o
 
 # Stop Vivarium when done
 vivarium stop

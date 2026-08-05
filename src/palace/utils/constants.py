@@ -12,14 +12,34 @@
 # You should have received a copy of the European Union Public Licence
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
+"""Configuration value accessors.
+
+These functions provide access to configuration values with proper priority:
+CLI flags > env vars > config file.
+
+Use these instead of reading env vars directly.
+"""
+
 import os
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Primary API endpoint (OpenAI-compatible)
-OPENAI_LIKE_API_BASE_URL = os.getenv("OPENAI_LIKE_API_BASE_URL")
 
-# Judge model (required - no default)
+def get_api_url() -> str | None:
+    """Get API URL (env: OPENAI_LIKE_API_BASE_URL, config: url)."""
+    from palace.utils.config import get_config_value
+    return get_config_value("url")
+
+
+def get_judge_model() -> str | None:
+    """Get judge model (env: JUDGE_MODEL, config: judge_model)."""
+    from palace.utils.config import get_config_value
+    return get_config_value("judge_model")
+
+
+# Legacy module-level variables for backward compatibility
+# These only see env vars (evaluated at import time)
+OPENAI_LIKE_API_BASE_URL = os.getenv("OPENAI_LIKE_API_BASE_URL")
 JUDGE_MODEL = os.getenv("JUDGE_MODEL")

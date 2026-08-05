@@ -130,17 +130,17 @@ python -c "import json; json.load(open('info.json')); json.load(open('tasks.json
 Check that PALACE recognizes your tasklist:
 
 ```bash
-palace-cli
+palace local
 ```
 
-You should see "EuropeanCapitals" in the list of available tasklists.
+You should see "EuropeanCapitals" in the list of local tasklists.
 
 ## Step 6: Run the Evaluation
 
 Run your benchmark:
 
 ```bash
-palace-run -u https://api.example.com/v1 -k your-api-key -m gpt-4o -t EuropeanCapitals
+palace run EuropeanCapitals -m gpt-4o
 ```
 
 You'll see output like:
@@ -287,7 +287,7 @@ You've created a complete PALACE benchmark:
 1. **Planned** what capability to test and which task type to use
 2. **Created** `info.json` with benchmark metadata (including `original: true`)
 3. **Created** `tasks.json` with evaluation tasks
-4. **Ran** the evaluation with `palace-run`
+4. **Ran** the evaluation with `palace run`
 5. **Interpreted** results including judge reasoning
 
 This same process applies to any benchmark—change the task type and configuration to match your evaluation goals.

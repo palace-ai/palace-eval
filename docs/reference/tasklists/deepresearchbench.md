@@ -193,13 +193,13 @@ The pairwise comparison produces a normalized score based on the gap between the
 
 ```bash
 # Download the tasklist
-palace-download -t DeepResearchBench
+palace download DeepResearchBench
 
 # Run evaluation (generates long reports with detailed scoring)
-palace-run -u https://api.example.com/v1 -m gpt-4o -t DeepResearchBench -l 5
+palace run DeepResearchBench -m gpt-4o -l 5
 
 # Run with smaller limit to inspect per-criterion scores
-palace-run -u https://api.example.com/v1 -m gpt-4o -t DeepResearchBench -l 3
+palace run DeepResearchBench -m gpt-4o -l 3
 ```
 
 ### Considerations

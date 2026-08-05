@@ -91,7 +91,7 @@ The conversion selects 6 subsets from the original dataset based on suitability 
 
 ## Generation
 
-RTVLM is not available via `palace-download`. Generate it using the conversion script:
+RTVLM is not available via `palace download`. Generate it using the conversion script:
 
 ```bash
 python -m palace.data_utils.rtvlm_dataset.create_dataset
@@ -103,10 +103,10 @@ This downloads images from HuggingFace and creates both variants in `~/.cache/pa
 
 ```bash
 # Run on the lenient variant
-palace-run -u https://api.example.com/v1 -m my-guardrail -t RTVLM-Lenient
+palace run RTVLM-Lenient -m my-guardrail
 
 # Quick test with task limit
-palace-run -u https://api.example.com/v1 -m my-guardrail -t RTVLM-Lenient -l 50
+palace run RTVLM-Lenient -m my-guardrail -l 50
 ```
 
 Requires a vision-capable model endpoint.

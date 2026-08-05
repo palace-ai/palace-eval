@@ -31,7 +31,7 @@ from huggingface_hub.utils.tqdm import disable_progress_bars
 
 from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import loading, print
-from palace.utils.secrets import HUGGINGFACE_TOKEN
+from palace.utils.secrets import get_huggingface_token
 
 PALACE_HF_COLLECTION = "jrc-ai/palace"
 
@@ -58,12 +58,13 @@ def _ensure_login():
     global _logged_in
     if _logged_in:
         return
-    if not HUGGINGFACE_TOKEN:
+    token = get_huggingface_token()
+    if not token:
         raise EnvironmentError(
             "A HuggingFace token is required for this dataset. "
-            "Please set the HUGGINGFACE_TOKEN environment variable in your .env file."
+            "Set it with: palace config set huggingface_token <token>"
         )
-    login(token=HUGGINGFACE_TOKEN)
+    login(token=token)
     _logged_in = True
 
 
@@ -684,9 +685,6 @@ def download_tasklist(
         with open(info_path, "w", encoding="utf-8") as f:
             json.dump(info_data, f, ensure_ascii=False, indent=4)
 
-    # Write .palace-complete marker (authoritative completion signal)
-    (tasklist_path / ".palace-complete").touch()
-
 
 def _string_type(s):
     """Returns:
@@ -775,17 +773,17 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
                 name = item.item_id.replace("jrc-ai/", "")
                 if tasklists and name not in tasklists:
                     continue
-                if skip_existing and (TASKLISTS_PATH / name / ".palace-complete").exists():
+                if skip_existing and (TASKLISTS_PATH / name / "info.json").exists():
                     continue
                 all_items.append({"name": name, "id": item.item_id, "_private": True})
     except EnvironmentError:
-        print("[yellow]Skipping private PALACE collection (no HUGGINGFACE_TOKEN set).")
+        print("[yellow]Skipping private PALACE collection (no huggingface_token set).")
 
     # Public datasets
     with open(Path(__file__).parent / "public_datasets_info.json") as f:
         public_info = json.load(f)
 
-    if HUGGINGFACE_TOKEN:
+    if get_huggingface_token():
         try:
             _ensure_login()
         except Exception:
@@ -794,7 +792,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
     for item in public_info:
         if tasklists and item["name"] not in tasklists:
             continue
-        if skip_existing and (TASKLISTS_PATH / item["name"] / ".palace-complete").exists():
+        if skip_existing and (TASKLISTS_PATH / item["name"] / "info.json").exists():
             continue
         all_items.append({**item, "_private": False})
 
@@ -836,7 +834,7 @@ def download_all(
         name = item["name"]
 
         # Check gated
-        if not item.get("_private") and not HUGGINGFACE_TOKEN:
+        if not item.get("_private") and not get_huggingface_token():
             try:
                 info = hf_dataset_info(item["id"])
                 if info.gated:

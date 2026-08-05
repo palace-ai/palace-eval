@@ -30,7 +30,7 @@ from palace.analyzers.fetch import get_fetch_fn
 from palace.evaluation.dispatch import dispatch_tasks
 from palace.evaluation.renderers import select_renderer
 from palace.task_types import Task
-from palace.utils.constants import JUDGE_MODEL
+from palace.utils.constants import get_judge_model
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.model_extra_params import get_model_extra_params, load_model_extra_params
 from palace.utils.paths import (
@@ -170,10 +170,11 @@ class Evaluation:
     ):
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
-        if not JUDGE_MODEL:
+        self.judge_model = get_judge_model()
+        if not self.judge_model:
             raise ValueError(
-                "JUDGE_MODEL environment variable is required but not set. "
-                "Set it to a model identifier (e.g., 'gpt-4o', 'claude-3-5-sonnet-latest')."
+                "judge_model is required but not set. "
+                "Set it with: palace config set judge_model <model>"
             )
         if concurrency is None:
             concurrency = int(os.environ.get("PALACE_CONCURRENCY", "25"))
@@ -239,7 +240,7 @@ class Evaluation:
 [bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
 :robot: agent [blue] {model}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
-:scales: judge [blue]{JUDGE_MODEL}[/]
+:scales: judge [blue]{self.judge_model}[/]
 """)
 
                 accuracy, metrics, report = await self.evaluate_async(model, tasklist)

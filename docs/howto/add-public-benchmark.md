@@ -207,7 +207,7 @@ The function must:
 Test your configuration:
 
 ```bash
-palace-download -t MyBenchmark
+palace download MyBenchmark
 ```
 
 Verify the output:
@@ -228,7 +228,7 @@ ls ~/.cache/palace/tasklists/MyBenchmark/task_files/
 Verify the benchmark works end-to-end:
 
 ```bash
-palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 5
+palace run MyBenchmark -l 5
 ```
 
 ## Configuration Reference

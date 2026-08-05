@@ -19,7 +19,7 @@ from typing import Any
 
 from palace.judge import Judge
 from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
-from palace.utils.constants import JUDGE_MODEL
+from palace.utils.constants import get_judge_model
 from palace.utils.printing import print
 
 DEFAULT_CRITERIA = [
@@ -225,7 +225,7 @@ The length of a report is not necessarily an indicator of quality - focus on the
         # Nested format: {criterion_name: [inner_tags]}
         output_keywords = {c["name"]: ["discussion", "best", "gap"] for c in batch}
         verifier = Judge(
-            judge_model=JUDGE_MODEL,
+            judge_model=get_judge_model(),
             judge_prompt=judge_prompt,
             output_keywords=output_keywords,
         )
@@ -346,7 +346,7 @@ Structure your output exactly as follows:
         content = f"QUESTION\n{self.objective}\n\nRESPONSE\n{answer}"
         output_keywords = {c["name"]: ["met"] for c in batch}
         verifier = Judge(
-            judge_model=JUDGE_MODEL,
+            judge_model=get_judge_model(),
             judge_prompt=judge_prompt,
             output_keywords=output_keywords,
         )

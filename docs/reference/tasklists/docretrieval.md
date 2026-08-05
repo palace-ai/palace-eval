@@ -155,10 +155,10 @@ This ensures that every document listed in the `documents` field is genuinely ne
 
 ```bash
 # Download the tasklist
-palace-download -t DocRetrieval-ai
+palace download DocRetrieval-ai
 
 # Run evaluation
-palace-run -u https://api.example.com/v1 -m gpt-4o -t DocRetrieval-ai -l 20
+palace run DocRetrieval-ai -m gpt-4o -l 20
 ```
 
 ## Interpreting Results

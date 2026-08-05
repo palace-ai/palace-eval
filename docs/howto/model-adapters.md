@@ -41,7 +41,7 @@ mkdir -p ~/.config/palace
 Run the evaluation as normal:
 
 ```bash
-palace-run -u http://localhost:8000/v1 -m llamaguard-7b -t GuardBench-EN -l 3
+palace run llamaguard-7b -m GuardBench-EN -l 3
 ```
 
 PALACE matches `llamaguard-7b` against the `llamaguard-*` glob pattern, applies the adapter, and the evaluation works correctly.
@@ -352,7 +352,7 @@ Each model can have its own adapter. Endpoints with adapters show an **N Adapter
 Run a single task first to verify:
 
 ```bash
-palace-run -u http://localhost:8000/v1 -m llamaguard-7b -t GuardBench-EN -l 1
+palace run llamaguard-7b -m GuardBench-EN -l 1
 ```
 
 Check the output for:

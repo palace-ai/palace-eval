@@ -131,13 +131,13 @@ The construction script (`create_dataset.py`) processes JSONL source files conta
 
 ```bash
 # Download the tasklist
-palace-download -t GuardBench-EN
+palace download GuardBench-EN
 
 # Run evaluation
-palace-run -u https://api.openai.com/v1 -m gpt-4o -t GuardBench-EN
+palace run GuardBench-EN -m gpt-4o
 
 # Run with task limit for quick testing
-palace-run -u https://api.openai.com/v1 -m gpt-4o -t GuardBench-EN -l 100
+palace run GuardBench-EN -m gpt-4o -l 100
 ```
 
 ## Use Cases

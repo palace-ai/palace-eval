@@ -2,7 +2,7 @@
 
 This section documents the official benchmark tasklists developed by the JRC AI team. These tasklists are designed to evaluate specific capabilities of large language models, from safety classification to complex research report generation.
 
-Most official tasklists are available on HuggingFace under the `jrc-ai` organization and can be downloaded using `palace-download`. Multimodal safety benchmarks (RTVLM, VLGuard, MM-SafetyBench) use conversion scripts instead — see their individual pages for setup instructions.
+Most official tasklists are available on HuggingFace under the `jrc-ai` organization and can be downloaded using `palace download`. Multimodal safety benchmarks (RTVLM, VLGuard, MM-SafetyBench) use conversion scripts instead — see their individual pages for setup instructions.
 
 ## Overview
 
@@ -22,18 +22,18 @@ The official PALACE tasklists span multiple task types and cover a diverse range
 
 ## Downloading Tasklists
 
-Use `palace-download` to fetch any official tasklist:
+Use `palace download` to fetch any official tasklist:
 
 ```bash
 # Interactive selection
-palace-download
+palace download
 
 # Direct download by name
-palace-download -t GuardBench-EN
-palace-download -t DeepResearchBench
+palace download GuardBench-EN
+palace download DeepResearchBench
 ```
 
-Tasklists are cached in `~/.cache/palace/tasklists/` and can be used immediately with `palace-run` or `palace-cli`.
+Tasklists are cached in `~/.cache/palace/tasklists/` and can be used immediately with `palace run` or `palace`.
 
 ## Design Principles
 

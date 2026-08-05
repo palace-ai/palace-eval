@@ -75,7 +75,7 @@ The benchmark covers 13 categories of harmful content:
 
 ## Generation
 
-MM-SafetyBench is not available via `palace-download`. It requires manual setup before running the conversion script.
+MM-SafetyBench is not available via `palace download`. It requires manual setup before running the conversion script.
 
 ### Prerequisites
 
@@ -111,10 +111,10 @@ Images are resized to 512px max and compressed to JPEG quality 80 during convers
 
 ```bash
 # Run evaluation
-palace-run -u https://api.example.com/v1 -m my-guardrail -t MM-SafetyBench
+palace run MM-SafetyBench -m my-guardrail
 
 # Quick test with task limit
-palace-run -u https://api.example.com/v1 -m my-guardrail -t MM-SafetyBench -l 50
+palace run MM-SafetyBench -m my-guardrail -l 50
 ```
 
 Requires a vision-capable model endpoint.

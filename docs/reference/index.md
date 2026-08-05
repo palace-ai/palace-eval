@@ -20,7 +20,7 @@ Comprehensive documentation for the official benchmark tasklists developed by th
 
 ### [Public Benchmarks](public-benchmarks.md)
 
-Public HuggingFace benchmarks supported by `palace-download`:
+Public HuggingFace benchmarks supported by `palace download`:
 
 - BABILong (32k/128k), CURIE-protein, HotpotQA, GAIA, SimpleQA, SimpleQA-Verified, AssistantBench, Humanity's Last Exam, VLSBench
 
@@ -50,7 +50,7 @@ Complete specification for evaluation output format. Covers JSONL structure, per
 
 ### [CLI Reference](cli.md)
 
-Command-line interface documentation for `palace-cli`, `palace-run`, and `palace-download`.
+Command-line interface documentation for the unified `palace` command.
 
 ## Cheatsheets
 
@@ -95,9 +95,10 @@ Source files are in [`cheatsheets/`](https://code.europa.eu/palace/palace-eval/-
 
 | Command | Purpose |
 |---------|---------|
-| `palace-cli` | Interactive interface |
-| `palace-run -u URL -m NAME -t TASKLIST` | Run evaluation |
-| `palace-download` | Download tasklists |
+| `palace list` | List available benchmarks |
+| `palace download NAME` | Download a benchmark |
+| `palace run NAME -m MODEL` | Run evaluation |
+| `palace config` | Manage configuration |
 
 ---
 

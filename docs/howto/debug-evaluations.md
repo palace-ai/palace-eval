@@ -109,7 +109,7 @@ Negative scores mean the reference was better for that criterion. For hierarchic
 PALACE outputs evaluation progress to the console using rich formatting. To see detailed per-task output including prompts, model responses, and judge verdicts, reduce the task limit and observe the console output:
 
 ```bash
-palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 3
+palace run MyBenchmark -l 3
 ```
 
 Or in Python:
@@ -167,7 +167,7 @@ For QA tasks, the judge sees a prompt constructed from your criterion and refere
 Test a single task to isolate issues:
 
 ```bash
-palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBenchmark -l 1
+palace run MyBenchmark -l 1
 ```
 
 Or create a minimal test tasklist:

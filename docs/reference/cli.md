@@ -1,139 +1,102 @@
-# CLI Reference
 
-Complete reference for PALACE command-line tools.
+Complete reference for the PALACE command-line interface.
 
-## Commands Overview
+## Quick Reference
 
 | Command | Description |
 |---------|-------------|
-| `palace-cli` | Interactive menu-driven interface |
-| `palace-run` | Run evaluations from command line |
-| `palace-download` | Download tasklists from HuggingFace |
+| `palace` | Show help and available commands |
+| `palace list` | List available benchmarks |
+| `palace download NAME` | Download a benchmark |
+| `palace run NAME -m MODEL` | Run evaluation |
+| `palace results` | List evaluation results |
+| `palace config` | Show/manage configuration |
+| `palace init NAME` | Create new benchmark |
+| `palace validate NAME` | Validate a benchmark |
+| `palace publish NAME` | Publish to HuggingFace |
 
-## palace-cli
+## Configuration
 
-Interactive CLI for exploring and running evaluations.
-
-### Usage
+Before running evaluations, configure your API:
 
 ```bash
-palace-cli
+palace config set url https://api.openai.com/v1
+palace config set key sk-your-api-key
+palace config set judge_model gpt-4o
 ```
 
-### Features
-
-- Browse available tasklists
-- Configure evaluation parameters
-- Run evaluations interactively
-- View results
-
-### Navigation
-
-- Use arrow keys to navigate menus
-- Press Enter to select
-- Press `q` to quit
-
-## palace-run
-
-Run evaluations directly from the command line.
-
-### Usage
+View current configuration:
 
 ```bash
-palace-run -u <url> -t <tasklist> [-m <model-name>] [options]
+palace config
 ```
 
-### Required Arguments
+### Config Commands
 
-| Argument | Description |
-|----------|-------------|
-| `-u`, `--url` | API endpoint URL (OpenAI-compatible) |
-| `-t`, `--tasklist` | Name of the tasklist to evaluate |
+| Command | Description |
+|---------|-------------|
+| `palace config` | Show current configuration |
+| `palace config set KEY VALUE` | Set a configuration value |
+| `palace config get KEY` | Get a configuration value |
+| `palace config unset KEY` | Remove a configuration value |
 
-### Optional Arguments
+### Available Settings
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `-m`, `--name` | None | Model name to evaluate. If omitted, lists available models at the endpoint. |
-| `-k`, `--token` | `$OPENAI_LIKE_API_KEY` | API authentication token. Falls back to `OPENAI_LIKE_API_KEY` environment variable. |
-| `-l`, `--limit` | All tasks | Maximum number of tasks to run |
-| `-c`, `--concurrency` | 25 | Number of tasks to run concurrently. Also configurable via `PALACE_CONCURRENCY` env var. |
-| `--output-folder` | `~/.cache/palace/results/` | Output directory |
-| `--run-name` | `eval` | Name for this evaluation run |
-| `--runs-per-configuration` | 1 | Number of evaluation runs to perform |
-| `--endpoint-type` | `auto` | Endpoint type: `auto`, `openai`, `anthropic`, `azure`, or `mcp` |
-| `--agentic` | False | Force agentic execution via Vivarium for all tasklists (sandboxed environment with tools). Requires Docker + Vivarium SDK ([setup](../getting-started/installation.md#agentic-evaluation-optional)). |
-| `--report-detail` | `default` | Per-task report detail: `none`, `default`, or `full` |
-| `--param` | None | Extra model parameter (e.g., `--param temperature=0.5`). Can be specified multiple times. |
+| Key | Environment Variable | Description |
+|-----|---------------------|-------------|
+| `url` | `OPENAI_LIKE_API_BASE_URL` | API endpoint URL |
+| `key` | `OPENAI_LIKE_API_KEY` | API key |
+| `judge_model` | `JUDGE_MODEL` | Model for answer verification |
+| `concurrency` | `PALACE_CONCURRENCY` | Parallel tasks (default: 25) |
+| `huggingface_token` | `HUGGINGFACE_TOKEN` | For gated datasets |
+| `github_token` | `GITHUB_TOKEN` | For higher rate limits |
+| `vivarium_url` | `VIVARIUM_URL` | Remote Vivarium URL |
 
-### Examples
+Priority: CLI flags > environment variables > config file
+
+## palace list
+
+List available benchmarks from all sources.
 
 ```bash
-# List available models at an endpoint
-palace-run -u https://api.example.com/v1 -t GuardBench-EN
-
-# Basic evaluation
-palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN
-
-# With authentication
-palace-run -u https://api.example.com/v1 -k your-api-key -m gpt-4o -t GuardBench-EN
-
-# Limit to 10 tasks
-palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN -l 10
-
-# Custom output directory
-palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN --output-folder ./my-results
-
-# MCP endpoint
-palace-run -u http://localhost:8080/mcp/ -m my-agent -t GuardBench-EN --endpoint-type mcp
-
-# Agentic evaluation via Vivarium (requires Docker)
-palace-run -u https://api.example.com/v1 -m gpt-4o -t Tau2-bench-Airline --agentic
+palace list                  # All benchmarks
+palace list --official       # Official benchmarks only
+palace list --local-only     # Downloaded benchmarks only
+palace list --refresh        # Force refresh from sources
 ```
 
-### Exit Codes
+## palace search
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Error (invalid arguments, API failure, etc.) |
-
-## palace-download
-
-Download tasklists from HuggingFace. Works without a HuggingFace token for public datasets; gated datasets (e.g., GAIA) are skipped with a message. Private PALACE collection datasets require `HUGGINGFACE_TOKEN` in your `.env`.
-
-### Usage
+Search for benchmarks by name, description, or category.
 
 ```bash
-palace-download [options]
+palace search reasoning
+palace search "expert reasoning"
+palace search --refresh mmlu
 ```
 
-### Optional Arguments
+## palace info
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `-t`, `--tasklists` | All | Specific tasklist(s) to download |
-| `--skip-existing` | False | Skip tasklists that already exist locally |
-
-### Examples
+Show detailed information about a benchmark without downloading.
 
 ```bash
-# Download all available tasklists
-palace-download
+palace info MMLU
+palace info "GPQA Diamond"
+```
 
-# Download specific tasklist
-palace-download -t GuardBench-EN
+## palace download
 
-# Download multiple tasklists
-palace-download -t GuardBench-EN Sycophancy-Binary
+Download benchmarks to local cache.
 
-# Skip already downloaded
-palace-download --skip-existing
+```bash
+palace download MMLU              # Download one benchmark
+palace download "GPQA Diamond"    # Names with spaces need quotes
+palace download --all             # Download all benchmarks
+palace download --all -y          # Skip confirmation
+palace download --all --skip-existing  # Skip already downloaded
 ```
 
 ### Download Location
-
-Tasklists are downloaded to:
 
 | Platform | Location |
 |----------|----------|
@@ -141,88 +104,131 @@ Tasklists are downloaded to:
 | macOS | `~/Library/Caches/palace/tasklists/` |
 | Windows | `C:\Users\<user>\AppData\Local\palace\Cache\tasklists\` |
 
-### Available Tasklists
+## palace local
 
-Run `palace-download` without arguments to see available tasklists.
-
-## Environment Variables
-
-PALACE uses the following environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_LIKE_API_BASE_URL` | API endpoint for the judge model | Required for QA and Criteria Evaluation |
-| `OPENAI_LIKE_API_KEY` | API key for the judge endpoint (also used as `-k` fallback for `palace-run`) | Required for QA and Criteria Evaluation |
-| `JUDGE_MODEL` | Model used for LLM-based judging (QA and Criteria Evaluation) | `gpt-4o` |
-| `ENABLE_CITATION_VERIFIER` | Enable the citation verifier analyzer (`true`/`false`) | `false` |
-| `HUGGINGFACE_TOKEN` | HuggingFace token for downloading gated/private datasets | Optional |
-
-## Common Workflows
-
-### Quick Test
+Manage locally downloaded benchmarks.
 
 ```bash
-# Download and run with limit
-palace-download -t GuardBench-EN
-palace-run -u https://api.example.com/v1 -m gpt-4o -t GuardBench-EN -l 5
+palace local              # List local benchmarks with sizes
+palace local rm NAME      # Remove a benchmark
 ```
 
-### Full Evaluation
+## palace run
+
+Run evaluation on a benchmark.
 
 ```bash
-palace-run -u https://api.example.com/v1 -k $API_KEY -m gpt-4o -t GuardBench-EN --output-folder ./results/guardench
+palace run NAME -m MODEL [options]
 ```
 
-### Batch Evaluation
+### Required Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `NAME` | Benchmark to evaluate |
+| `-m, --model` | Model name to evaluate |
+
+### Optional Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `-u, --url` | From config | API endpoint URL |
+| `-k, --token` | From config | API key |
+| `-l, --limit` | All | Maximum tasks to run |
+| `-c, --concurrency` | 25 | Parallel tasks |
+| `-o, --output` | `~/.cache/palace/results/` | Output directory |
+| `--name` | `eval` | Run name for output file |
+| `--runs` | 1 | Number of evaluation runs |
+| `--agentic` | Auto | Force agentic execution via Vivarium |
+| `-y, --yes` | False | Auto-confirm prompts |
+
+### Examples
 
 ```bash
-for tasklist in GuardBench-EN Sycophancy-Binary Tau2-bench-Airline; do
-    palace-run -u https://api.example.com/v1 -m gpt-4o -t $tasklist --output-folder ./batch-results
-done
+# Basic evaluation
+palace run MMLU -m gpt-4o
+
+# Limit to 10 tasks
+palace run MMLU -m gpt-4o -l 10
+
+# With specific endpoint
+palace run MMLU -m gpt-4o -u https://api.example.com/v1 -k sk-xxx
+
+# Agentic benchmark
+palace run SWE-bench -m o3-mini --agentic
+
+# Custom output
+palace run MMLU -m gpt-4o -o ./my-results --name my-eval
 ```
 
-### Compare Models
+## palace results
+
+List and view evaluation results.
 
 ```bash
-# Model A
-palace-run -u https://api-a.example.com/v1 -m model-a -t GuardBench-EN --output-folder ./results/model-a
-
-# Model B
-palace-run -u https://api-b.example.com/v1 -m model-b -t GuardBench-EN --output-folder ./results/model-b
+palace results           # List all results
+palace results my-eval   # Show specific result
 ```
 
-## Troubleshooting
+## palace init
 
-### "Tasklist not found"
+Create a new benchmark scaffold.
 
 ```bash
-# Check available tasklists
-ls ~/.cache/palace/tasklists/
-
-# Download if missing
-palace-download -t <name>
+palace init my-benchmark           # Interactive wizard
+palace init my-benchmark --bare    # Minimal scaffold
+palace init my-benchmark --agentic # Agentic benchmark scaffold
 ```
 
-### "API connection error"
+## palace validate
+
+Validate a benchmark before publishing.
 
 ```bash
-# Test connectivity
-curl -H "Authorization: Bearer $API_KEY" \
-     "https://api.example.com/v1/models"
+palace validate my-benchmark
+palace validate ./path/to/benchmark
 ```
 
-### "Invalid JSON"
+## palace publish
+
+Publish a benchmark to HuggingFace.
 
 ```bash
-# Validate tasklist files
-python -c "import json; json.load(open('info.json')); print('Valid')"
-python -c "import json; json.load(open('tasks.json')); print('Valid')"
+palace publish my-benchmark
+palace publish my-benchmark --org palace-ai
+palace publish my-benchmark --private
+palace publish my-benchmark --dry-run
+palace publish my-benchmark --token hf_xxx  # Use specific token
 ```
 
----
+## palace adapters
 
-## Related Pages
+Manage I/O adapters for model-specific formatting.
 
-- [Run Evaluations](../howto/run-evaluations.md) — Detailed usage guide
-- [Installation](../getting-started/installation.md) — Setup and configuration
-- [Debug Evaluations](../howto/debug-evaluations.md) — Troubleshooting
+```bash
+palace adapters                    # List all adapters
+palace adapters show "*Aegis*"     # Show adapter details
+palace adapters match "my-model"   # Find adapter for a model
+```
+
+## palace sources
+
+Manage benchmark sources.
+
+```bash
+palace sources              # List sources
+palace sources add URL      # Add a source
+palace sources rm URL       # Remove a source
+```
+
+## Deprecated Commands
+
+The following commands are deprecated and will be removed in a future version:
+
+| Old Command | New Command |
+|-------------|-------------|
+| `palace-cli` | `palace` |
+| `palace-run` | `palace run` |
+| `palace-download` | `palace download` |
+
+The old commands still work but display a deprecation warning.

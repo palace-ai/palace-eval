@@ -60,7 +60,7 @@ Label mapping from the original dataset:
 
 ## Generation
 
-VLGuard is not available via `palace-download`. Generate it using the conversion script:
+VLGuard is not available via `palace download`. Generate it using the conversion script:
 
 ```bash
 python -m palace.data_utils.vlguard_dataset.create_dataset
@@ -72,10 +72,10 @@ This downloads the test split and images from HuggingFace automatically and crea
 
 ```bash
 # Run evaluation
-palace-run -u https://api.example.com/v1 -m my-guardrail -t VLGuard
+palace run VLGuard -m my-guardrail
 
 # Quick test with task limit
-palace-run -u https://api.example.com/v1 -m my-guardrail -t VLGuard -l 50
+palace run VLGuard -m my-guardrail -l 50
 ```
 
 Requires a vision-capable model endpoint.

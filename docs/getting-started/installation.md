@@ -1,4 +1,3 @@
-# Installation
 
 This guide walks you through installing PALACE and configuring your environment. By the end, you'll have a working installation ready to run evaluations.
 
@@ -7,12 +6,20 @@ This guide walks you through installing PALACE and configuring your environment.
 PALACE requires:
 
 - **Python 3.13 or higher** — PALACE uses modern Python features
-- **pip** — Python's package installer
+- **pip or uv** — Python package installer
 - **An OpenAI-compatible API endpoint** — For running evaluations and LLM judges
 
 ## Installation
 
 ### Quick Install (Recommended)
+
+Using uv (recommended for CLI tools):
+
+```bash
+uv tool install palace-eval
+```
+
+Or with pip:
 
 ```bash
 pip install palace-eval
@@ -28,65 +35,81 @@ cd palace-eval
 pip install -e .
 ```
 
+### Verify Installation
+
 ```bash
-palace-cli
+palace version
 ```
 
-You should see the interactive CLI menu. Press `q` to exit.
+You should see the version number. Run `palace` to see available commands.
 
 ## Configuration
 
-PALACE needs API credentials to run evaluations. The model being evaluated receives its endpoint via the `-u` flag (or `url` parameter). The LLM judge — used for QA and Criteria Evaluation verification — reads its endpoint from environment variables.
-
-### Environment Variables
-
-Create a `.env` file in your working directory or set these environment variables:
+PALACE needs API credentials to run evaluations. Configure them with the CLI:
 
 ```bash
-# Required for QA and Criteria Evaluation: API endpoint for the LLM judge
-OPENAI_LIKE_API_BASE_URL=https://api.example.com/v1
-OPENAI_LIKE_API_KEY=your-api-key
-
-# Required: Model to use for judging
-JUDGE_MODEL=gpt-4o
+palace config set url https://api.openai.com/v1
+palace config set key sk-your-api-key
+palace config set judge_model gpt-4o
 ```
 
-If you have a `.env.example` file in the repository:
+Check your configuration:
 
 ```bash
-cp .env.example .env
-# Edit .env with your credentials
+palace config
 ```
 
 ### Configuration Options
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_LIKE_API_BASE_URL` | For QA / Criteria Evaluation | Base URL for the LLM judge API endpoint |
-| `OPENAI_LIKE_API_KEY` | For QA / Criteria Evaluation | API key for the judge endpoint |
-| `JUDGE_MODEL` | For QA / Criteria Evaluation | Model to use for LLM judging |
+| Setting | Required | Description |
+|---------|----------|-------------|
+| `url` | Yes | API endpoint URL (OpenAI-compatible) |
+| `key` | Yes | API key for the endpoint |
+| `judge_model` | Yes | Model to use for answer verification |
+| `concurrency` | No | Number of parallel tasks (default: 25) |
+| `huggingface_token` | No | For gated datasets (GAIA, GPQA Diamond) |
+| `github_token` | No | For higher GitHub API rate limits |
 
-## Download Tasklists
+### Alternative: Environment Variables
 
-PALACE benchmarks are distributed as "tasklists" hosted on HuggingFace. Download the official collection:
+You can also use environment variables (useful for CI/Docker):
 
 ```bash
-palace-download
+export OPENAI_LIKE_API_BASE_URL=https://api.openai.com/v1
+export OPENAI_LIKE_API_KEY=sk-your-api-key
+export JUDGE_MODEL=gpt-4o
 ```
 
-This downloads all available tasklists to your user data directory:
+Environment variables take priority over the config file.
+
+## Download Benchmarks
+
+List available benchmarks:
+
+```bash
+palace list
+```
+
+Download a specific benchmark:
+
+```bash
+palace download MMLU
+palace download "GPQA Diamond"
+```
+
+Or download all benchmarks:
+
+```bash
+palace download --all
+```
+
+Benchmarks are stored in your user cache directory:
 
 | Platform | Location |
 |----------|----------|
 | Linux | `~/.cache/palace/tasklists/` |
 | macOS | `~/Library/Caches/palace/tasklists/` |
 | Windows | `C:\Users\<user>\AppData\Local\palace\Cache\tasklists\` |
-
-You can also download specific tasklists:
-
-```bash
-palace-download -t GuardBench-EN
-```
 
 ## Platform-Specific Notes
 
@@ -98,7 +121,7 @@ No special requirements. Ensure Python 3.13+ is installed:
 python3 --version  # Should show 3.13.x or higher
 ```
 
-If your distribution doesn't have Python 3.13, consider using [pyenv](https://github.com/pyenv/pyenv) or conda.
+If your distribution doesn't have Python 3.13, consider using [pyenv](https://github.com/pyenv/pyenv) or [uv](https://docs.astral.sh/uv/).
 
 ### macOS
 
@@ -108,20 +131,13 @@ Install Python 3.13 via Homebrew if needed:
 brew install python@3.13
 ```
 
-Or use conda/pyenv for version management.
+Or use uv/conda/pyenv for version management.
 
 ### Windows
 
 1. Download Python 3.13 from [python.org](https://www.python.org/downloads/)
 2. During installation, check "Add Python to PATH"
 3. Use PowerShell or Command Prompt for the installation commands
-
-For the virtual environment activation:
-```powershell
-.venv\Scripts\Activate.ps1  # PowerShell
-# or
-.venv\Scripts\activate.bat  # Command Prompt
-```
 
 ## Troubleshooting
 
@@ -133,23 +149,11 @@ PALACE requires Python 3.13+. Check your version:
 python3 --version
 ```
 
-If you have multiple Python versions, specify the correct one:
+If using uv, it will automatically fetch the correct Python version:
 
 ```bash
-python3.13 -m venv .venv
+uv tool install palace-eval
 ```
-
-### "Module not found" errors
-
-Ensure you're in the activated virtual environment:
-
-```bash
-which python  # Should point to your venv
-# or on Windows:
-where python
-```
-
-If not, activate the environment again.
 
 ### API connection errors
 
@@ -158,22 +162,26 @@ If not, activate the environment again.
 3. Ensure the endpoint is reachable from your network
 
 Test with curl:
+
 ```bash
-curl -H "Authorization: Bearer $OPENAI_LIKE_API_KEY" \
-     "$OPENAI_LIKE_API_BASE_URL/models"
+curl -H "Authorization: Bearer $(palace config get key)" \
+     "$(palace config get url)/models"
 ```
 
 ### Download failures
 
-If `palace-download` fails:
+If `palace download` fails:
 
 1. Check your internet connection
 2. Verify HuggingFace is accessible
-3. Try downloading a specific tasklist: `palace-download -t GuardBench-EN`
+3. For gated datasets, set your HuggingFace token:
+   ```bash
+   palace config set huggingface_token hf_your_token
+   ```
 
 ## Agentic Evaluation (Optional)
 
-Some benchmarks (e.g., Tau2-bench) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://code.europa.eu/palace/vivarium), a managed agent runtime.
+Some benchmarks (GAIA, SWE-bench, etc.) require agentic evaluation — the model runs in a sandboxed Docker environment with access to tools like bash, file I/O, and web search. This is powered by [Vivarium](https://code.europa.eu/palace/vivarium), a managed agent runtime.
 
 ### Additional Requirements
 
@@ -194,11 +202,11 @@ vivarium status
 vivarium stop
 ```
 
-Vivarium starts automatically when you run an agentic tasklist — no manual startup required.
+Vivarium starts automatically when you run an agentic benchmark — no manual startup required.
 
 ---
 
 ## Next Steps
 
-- [Quick Start](quickstart.md) — Run your first evaluation in 5 minutes
-- [Your First Benchmark](first-benchmark.md) — Create a custom tasklist from scratch
+- [Quickstart](quickstart.md) — Run your first evaluation
+- [Your First Benchmark](first-benchmark.md) — Create a custom benchmark

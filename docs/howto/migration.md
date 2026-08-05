@@ -202,7 +202,7 @@ After migration, verify your tasklist works:
 python -c "import json; json.load(open('info.json')); json.load(open('tasks.json')); print('Valid!')"
 
 # Run a test evaluation
-palace-run -u https://api.example.com/v1 -m gpt-4o -t YourTasklist -l 5
+palace run YourTasklist -l 5
 ```
 
 ## Common Issues

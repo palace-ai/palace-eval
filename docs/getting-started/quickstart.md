@@ -1,31 +1,53 @@
-# Quick Start
 
 Run your first PALACE evaluation in 5 minutes. This guide assumes you've completed the [installation](installation.md).
 
 ## What You'll Do
 
-1. Download a benchmark tasklist
-2. Run an evaluation against a model
-3. View the results
+1. Configure your API credentials
+2. Download a benchmark
+3. Run an evaluation
+4. View the results
 
-## Step 1: Download a Tasklist
+## Step 1: Configure API
 
-First, download the GuardBench-EN tasklist—a safety classification benchmark:
+If you haven't already, configure your API credentials:
 
 ```bash
-palace-download -t GuardBench-EN
+palace config set url https://api.openai.com/v1
+palace config set key sk-your-api-key
+palace config set judge_model gpt-4o
 ```
 
-This downloads the tasklist to your cache directory. You should see output like:
+Verify your configuration:
+
+```bash
+palace config
+```
+
+## Step 2: Download a Benchmark
+
+List available benchmarks:
+
+```bash
+palace list
+```
+
+Download SimpleQA—a knowledge benchmark:
+
+```bash
+palace download SimpleQA
+```
+
+You should see:
 
 ```
-Downloading GuardBench-EN...
-Downloaded to ~/.cache/palace/tasklists/GuardBench-EN/
+Downloading SimpleQA...
+(3.2s)  ✓ Downloaded SimpleQA
 ```
 
 ### What Just Happened?
 
-PALACE downloaded two files:
+PALACE downloaded two files to your cache:
 
 - `info.json` — Metadata about the benchmark (name, task type, configuration)
 - `tasks.json` — The actual evaluation tasks (prompts and expected outputs)
@@ -33,76 +55,70 @@ PALACE downloaded two files:
 You can inspect them:
 
 ```bash
-cat ~/.cache/palace/tasklists/GuardBench-EN/info.json
+palace info SimpleQA
 ```
 
-```json
-{
-    "name": "GuardBench-EN",
-    "id": "jrc-ai/GuardBench-EN",
-    "version": "1.0.0",
-    "original": true,
-    "category": "Safety",
-    "task_type": "Classification",
-    "task_type_fields": {
-        "labels": [
-            {
-                "name": "Unsafe",
-                "description": "Content that is unsafe or potentially harmful.",
-                "classes": [
-                    {"name": "Yes", "condition": "if the prompt contains unsafe content"},
-                    {"name": "No", "condition": "if the prompt does not contain unsafe content"}
-                ]
-            }
-        ]
-    }
-}
-```
+## Step 3: Run an Evaluation
 
-This tells PALACE that GuardBench-EN is a Classification task where the model must label content as "Unsafe: Yes" or "Unsafe: No".
-
-## Step 2: Run an Evaluation
-
-Now run the evaluation against your model:
+Run the evaluation:
 
 ```bash
-palace-run -u https://api.example.com/v1 -k your-api-key -m gpt-4o -t GuardBench-EN -l 10
+palace run SimpleQA -m gpt-4o -l 10
 ```
 
 Let's break down the arguments:
 
 | Argument | Meaning |
 |----------|---------|
-| `-u` | API endpoint URL |
-| `-k` | API key for authentication |
-| `-m` | Model name to evaluate |
-| `-t` | Tasklist to run |
+| `SimpleQA` | Benchmark to run |
+| `-m gpt-4o` | Model name to evaluate |
 | `-l 10` | Limit to first 10 tasks (for quick testing) |
 
 ### What Just Happened?
 
 For each task, PALACE:
 
-1. **Constructed a prompt** from the task's objective and label configuration
-2. **Sent it to your model** via the configured API
-3. **Parsed the response** to extract the classification
-4. **Verified correctness** by comparing against expected labels
+1. **Sent the question** to your model via the configured API
+2. **Received the answer** and extracted the response
+3. **Verified correctness** using the LLM judge (comparing against expected answers)
 
 You'll see progress output:
 
 ```
-Running GuardBench-EN (10 tasks)
-[1/10] GuardBench-EN_0 ✓
-[2/10] GuardBench-EN_1 ✓
-[3/10] GuardBench-EN_2 ✗
+Evaluating (run 1/1)
+🤖 agent  gpt-4o
+📜 on tasklist SimpleQA
+⚖️  judge gpt-4o
+
+[1/10] SimpleQA_0 ✓
+[2/10] SimpleQA_1 ✓
+[3/10] SimpleQA_2 ✗
 ...
-Accuracy: 8/10 (80.0%)
-Results saved to ~/.cache/palace/results/eval.jsonl
+
+╭─ Evaluation Report ──────────────────────────────────╮
+│  🤖 gpt-4o:                                          │
+│  on 📜 SimpleQA                                      │
+│                                                      │
+│  8 / 10 (80%) tasks completed successfully.          │
+│  Total time: 45.2s                                   │
+╰──────────────────────────────────────────────────────╯
 ```
 
-## Step 3: View Results
+## Step 4: View Results
 
-Results are saved as JSONL. View them:
+Results are saved as JSONL. List your results:
+
+```bash
+palace results
+```
+
+View a specific result:
+
+```bash
+palace results eval
+```
+
+Or inspect the raw file:
 
 ```bash
 cat ~/.cache/palace/results/eval.jsonl | python -m json.tool
@@ -113,24 +129,20 @@ Each evaluation run produces a JSON object with:
 ```json
 {
     "model": "gpt-4o",
-    "tasklist": "GuardBench-EN",
+    "tasklist": "SimpleQA",
     "accuracy": 0.8,
     "metrics": {
         "task_count": 10,
         "evaluated_count": 10,
         "correct_count": 8,
         "skipped_count": 0,
-        "total_time": 45.2,
-        "task_type": {},
-        "agent": {}
+        "total_time": 45.2
     },
     "detailed_report": {
-        "GuardBench-EN_0": {
-            "actual": "<Unsafe>\nYes\n</Unsafe>",
+        "SimpleQA_0": {
+            "actual": "Paris",
             "is_correct": true,
-            "is_skipped": false,
-            "skip_reason": null,
-            "reasoning": "Label-wise correctness\n✅ Unsafe",
+            "reasoning": "Semantically equivalent to reference answer",
             "elapsed_time": 1.2
         }
     }
@@ -141,39 +153,11 @@ Each evaluation run produces a JSON object with:
 
 | Field | Description |
 |-------|-------------|
-| `agent` | Model name used for evaluation |
+| `model` | Model name used for evaluation |
 | `tasklist` | Name of the benchmark |
 | `accuracy` | Overall accuracy (0.0 to 1.0) |
-| `metrics` | Aggregated metrics including counters, timing, and task-type-specific data |
+| `metrics` | Aggregated metrics (counters, timing) |
 | `detailed_report` | Per-task results keyed by task ID |
-
-Each task in `detailed_report` contains:
-
-| Field | Description |
-|-------|-------------|
-| `actual` | What the model actually produced |
-| `is_correct` | Whether the model's answer was correct |
-| `is_skipped` | Whether the task was skipped due to infrastructure failure |
-| `skip_reason` | Machine-readable reason for skipping (null if not skipped) |
-| `reasoning` | Explanation of the verification result |
-| `elapsed_time` | Time taken for this task in seconds |
-
-## Alternative: Interactive CLI
-
-Instead of `palace-run`, you can use the interactive CLI:
-
-```bash
-palace-cli
-```
-
-This presents a menu where you can:
-
-1. Select a tasklist from downloaded options
-2. Configure evaluation parameters
-3. Run the evaluation
-4. View results
-
-The interactive mode is helpful when exploring available tasklists or adjusting settings.
 
 ## Alternative: Programmatic API
 
@@ -185,30 +169,30 @@ from palace import evaluate
 evaluate(
     run_name="my-evaluation",
     output_folder="./my-results",
-    url="https://api.example.com/v1",
-    token="your-api-key",
+    url="https://api.openai.com/v1",
+    token="sk-your-api-key",
     name="gpt-4o",
-    tasklist="GuardBench-EN",
+    tasklist="SimpleQA",
     limit=10
 )
 ```
-
-Note: The `evaluate` function writes results to the output folder and returns `None`. Check the output JSONL file for results.
 
 ## Next Steps
 
 You've run your first evaluation! Here's where to go next:
 
-- [Your First Benchmark](first-benchmark.md) — Create a custom tasklist from scratch
+- [Your First Benchmark](first-benchmark.md) — Create a custom benchmark from scratch
 - [Task Types](../task-types/index.md) — Understand QA, Classification, and Criteria Evaluation
-- [Run Evaluations](../howto/run-evaluations.md) — Full guide to CLI and API options
+- [Public Benchmarks](../reference/public-benchmarks.md) — See all available benchmarks
 
 ## Quick Reference
 
 | Command | Description |
 |---------|-------------|
-| `palace-download` | Download all available tasklists |
-| `palace-download -t NAME` | Download a specific tasklist |
-| `palace-run -u URL -m MODEL -t NAME` | Run evaluation on a tasklist |
-| `palace-run ... -l N` | Run first N tasks only |
-| `palace-cli` | Interactive CLI menu |
+| `palace list` | List available benchmarks |
+| `palace download NAME` | Download a benchmark |
+| `palace download --all` | Download all benchmarks |
+| `palace run NAME -m MODEL` | Run evaluation |
+| `palace run NAME -m MODEL -l N` | Run first N tasks only |
+| `palace results` | List evaluation results |
+| `palace config` | Show configuration |

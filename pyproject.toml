@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "palace-eval"
-version = "1.0.0"
+version = "1.0.1"
 description = "An open benchmark format for LLM evaluation, with native agentic support."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -39,6 +39,7 @@ classifiers = [
 dependencies = [
     "anthropic>=0.83.0",
     "beautifulsoup4>=4.14.0",
+    "click>=8.0",
     "datasets>=4.8.0",
     "emoji>=2.15.0",
     "filetype>=1.2.0",
@@ -66,14 +67,17 @@ Issues = "https://github.com/palace-ai/palace-eval/issues"
 Changelog = "https://code.europa.eu/palace/palace-eval/-/blob/main/CHANGELOG.md"
 
 [project.scripts]
-palace-cli = "palace.entrypoints.palace_cli:main"
-palace-run = "palace.entrypoints.palace_run:run"
-palace-download = "palace.entrypoints.download.palace_download:main"
+palace = "palace.cli:main"
+# Deprecated entrypoints - show warning then invoke legacy behavior
+palace-cli = "palace.entrypoints.deprecated:palace_cli_deprecated"
+palace-run = "palace.entrypoints.deprecated:palace_run_deprecated"
+palace-download = "palace.entrypoints.deprecated:palace_download_deprecated"
 
 [tool.setuptools.package-data]
 palace = [
     "prompts/*.md",
     "entrypoints/download/*.json",
+    "download/*.json",
     "bundled_io_adapters.yaml",
     "bundled_model_extra_params.yaml",
 ]

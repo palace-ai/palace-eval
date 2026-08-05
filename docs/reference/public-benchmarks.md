@@ -4,7 +4,7 @@ PALACE supports automatic downloading and conversion of public HuggingFace bench
 
 ## Supported Benchmarks
 
-The following public benchmarks can be downloaded with `palace-download`:
+The following public benchmarks can be downloaded with `palace download`:
 
 | Benchmark | HuggingFace ID | Category | Task Type | Modality |
 |-----------|----------------|----------|-----------|----------|
@@ -45,19 +45,21 @@ The following public benchmarks can be downloaded with `palace-download`:
 Download all public benchmarks:
 
 ```bash
-palace-download
+palace download --all
 ```
 
 Download specific benchmarks:
 
 ```bash
-palace-download -t SimpleQA HotpotQA IFEval
+palace download SimpleQA
+palace download HotpotQA
+palace download IFEval
 ```
 
 Skip already downloaded benchmarks:
 
 ```bash
-palace-download --skip-existing
+palace download --all --skip-existing
 ```
 
 ## Benchmark Details

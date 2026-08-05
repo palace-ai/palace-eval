@@ -333,7 +333,7 @@ evaluate(
 
 Or via CLI:
 ```bash
-palace-run -u https://api.example.com/v1 -m gpt-4o -t MyBench
+palace run MyBench -m gpt-4o
 ```
 
 ---

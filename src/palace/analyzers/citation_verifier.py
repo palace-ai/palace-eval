@@ -51,8 +51,12 @@ Configuration
 -------------
 Environment variables:
 - ENABLE_CITATION_VERIFIER: Set to "true" to enable (default: disabled)
-- JUDGE_MODEL: Model for extraction/validation (required, no default)
 - USE_ALOHA: Set to "true" to use ALOHA MCP for URL fetching (for DMZ clusters)
+
+Required config (set via 'palace config set'):
+- judge_model: Model for extraction/validation
+- url: API endpoint URL
+- key: API key
 
 Output Metrics
 --------------
@@ -108,23 +112,26 @@ from palace.prompts.fact_prompts import (
 )
 from palace.task_types import Task, TaskVerificationResult
 from palace.task_types.criteria_evaluation import CriteriaEvaluationTask
-from palace.utils.constants import JUDGE_MODEL, OPENAI_LIKE_API_BASE_URL
+from palace.utils.constants import get_judge_model, get_api_url
 from palace.utils.printing import print
-from palace.utils.secrets import OPENAI_LIKE_API_KEY
+from palace.utils.secrets import get_api_key
 
 MAX_RETRIES = 3
 
 
 def _get_model() -> APIModel:
     """Get the model for LLM calls."""
-    if OPENAI_LIKE_API_BASE_URL is None:
-        raise ValueError("Missing required env var: OPENAI_LIKE_API_BASE_URL")
-    if OPENAI_LIKE_API_KEY is None:
-        raise ValueError("Missing required env var: OPENAI_LIKE_API_KEY")
+    api_url = get_api_url()
+    api_key = get_api_key()
+    judge_model = get_judge_model()
+    if api_url is None:
+        raise ValueError("API URL not configured. Run: palace config set url <url>")
+    if api_key is None:
+        raise ValueError("API key not configured. Run: palace config set key <key>")
     return create_api_model(
-        JUDGE_MODEL,
-        OPENAI_LIKE_API_BASE_URL,
-        OPENAI_LIKE_API_KEY,
+        judge_model,
+        api_url,
+        api_key,
     )
 
 

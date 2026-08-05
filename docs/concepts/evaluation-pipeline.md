@@ -289,17 +289,18 @@ Non-vision models will fail on image tasks.
 
 ### Model Configuration
 
-- API endpoint: `-u` / `--url` argument (required for `palace-run`)
-- Authentication: `-k` / `--token` argument
-- Model selection: `-m` / `--name` argument (required for `palace-run`)
+- API endpoint: `-u` / `--url` argument or `palace config set url`
+- Authentication: `-k` / `--token` argument or `palace config set key`
+- Model selection: `-m` / `--model` argument
 
 ### Judge Configuration (QA, Criteria Evaluation)
 
-The judge uses the same API endpoint configured via environment variables:
+The judge model is configured via:
 
-- API endpoint: `OPENAI_LIKE_API_BASE_URL`
-- Authentication: `OPENAI_LIKE_API_KEY`
-- Model: `JUDGE_MODEL` (required, no default)
+- Config file: `palace config set judge_model gpt-4o`
+- Environment variable: `JUDGE_MODEL`
+
+The judge uses the same API endpoint configured for evaluation.
 
 ## Error Handling
 

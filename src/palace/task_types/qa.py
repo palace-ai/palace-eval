@@ -16,7 +16,7 @@
 
 from palace.judge import Judge
 from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
-from palace.utils.constants import JUDGE_MODEL
+from palace.utils.constants import get_judge_model
 
 DEFAULT_CORRECTNESS_CRITERION = {
     "name": "semantic equivalence",
@@ -143,7 +143,7 @@ Either Correct or Incorrect. No other text can be here.
         judge_prompt = self._build_judge_prompt(criterion, references, has_incorrect)
         judge_input = self._build_judge_input(answer, references)
 
-        verifier = Judge(judge_model=JUDGE_MODEL, judge_prompt=judge_prompt)
+        verifier = Judge(judge_model=get_judge_model(), judge_prompt=judge_prompt)
         keyword_values = await verifier.judge(judge_input)
 
         judgement = keyword_values.get("judgement", "").strip()
