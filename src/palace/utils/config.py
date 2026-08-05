@@ -68,6 +68,7 @@ def load_config() -> dict[str, Any]:
     except yaml.YAMLError:
         # Invalid YAML - warn but continue with empty config
         import sys
+
         print(f"Warning: Config file {CONFIG_FILE} has invalid YAML syntax. Using defaults.", file=sys.stderr)
         return {}
     except Exception:

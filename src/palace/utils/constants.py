@@ -30,12 +30,14 @@ load_dotenv()
 def get_api_url() -> str | None:
     """Get API URL (env: OPENAI_LIKE_API_BASE_URL, config: url)."""
     from palace.utils.config import get_config_value
+
     return get_config_value("url")
 
 
 def get_judge_model() -> str | None:
     """Get judge model (env: JUDGE_MODEL, config: judge_model)."""
     from palace.utils.config import get_config_value
+
     return get_config_value("judge_model")
 
 

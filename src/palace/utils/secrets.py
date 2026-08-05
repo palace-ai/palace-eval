@@ -30,12 +30,14 @@ load_dotenv()
 def get_huggingface_token() -> str | None:
     """Get HuggingFace token (env: HUGGINGFACE_TOKEN, config: huggingface_token)."""
     from palace.utils.config import get_config_value
+
     return get_config_value("huggingface_token")
 
 
 def get_api_key() -> str | None:
     """Get API key (env: OPENAI_LIKE_API_KEY, config: key)."""
     from palace.utils.config import get_config_value
+
     return get_config_value("key")
 
 

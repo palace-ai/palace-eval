@@ -34,6 +34,7 @@ def _get_conversion_recipes() -> list[TasklistInfo]:
 
     # Load from palace/download/conversion_recipes.json
     from importlib.resources import files
+
     try:
         package_files = files("palace.download")
         recipes_path = package_files / "conversion_recipes.json"
@@ -326,7 +327,7 @@ def info(name: str) -> None:
             if recipe.task_type:
                 print(f"  Task type: {recipe.task_type}")
             print("\n  [dim]This is a HuggingFace dataset that will be converted to palace format on download.[/]")
-            print(f"  [dim]Run: palace download \"{recipe.name}\"[/]")
+            print(f'  [dim]Run: palace download "{recipe.name}"[/]')
             return
 
     # Search all configured sources
@@ -358,7 +359,7 @@ def info(name: str) -> None:
                     print(f"  Category: {tl.category}")
                 if tl.task_type:
                     print(f"  Task type: {tl.task_type}")
-                print(f"\n  [dim]Download: palace download \"{tl.name}\"[/]")
+                print(f'\n  [dim]Download: palace download "{tl.name}"[/]')
                 return
             except Exception as e:
                 print(f"[red]Error fetching info: {e}[/]")
@@ -436,4 +437,4 @@ def _display_info(ref: str, info_data: dict, source: str) -> None:
     # Download hint for remote sources
     if source != "local":
         print()
-        print(f"  [dim]Download: palace download \"{name}\"[/]")
+        print(f'  [dim]Download: palace download "{name}"[/]')

@@ -32,6 +32,7 @@ class GitLabGitAdapter(GitAdapter):
 
     def __init__(self, base_url: str = "https://gitlab.com"):
         from palace.utils.config import get_config_value
+
         self.token = get_config_value("gitlab_token")
         self.base_url = base_url.rstrip("/")
         self.api_url = f"{self.base_url}/api/v4"

@@ -172,10 +172,7 @@ class Evaluation:
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
         self.judge_model = get_judge_model()
         if not self.judge_model:
-            raise ValueError(
-                "judge_model is required but not set. "
-                "Set it with: palace config set judge_model <model>"
-            )
+            raise ValueError("judge_model is required but not set. Set it with: palace config set judge_model <model>")
         if concurrency is None:
             concurrency = int(os.environ.get("PALACE_CONCURRENCY", "25"))
         if concurrency < 1:

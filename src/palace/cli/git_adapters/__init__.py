@@ -87,7 +87,7 @@ def detect_adapter(url: str) -> tuple[str, str | None, dict]:
                 collection_part = path_parts[2]
                 # Check if it looks like a full slug (has hex ID suffix)
                 # Full slugs look like: "palace-698071045baae6945f7757e2"
-                if len(collection_part) > 24 and collection_part[-24:].replace('-', '').isalnum():
+                if len(collection_part) > 24 and collection_part[-24:].replace("-", "").isalnum():
                     # Looks like a full slug
                     extra["collection_slug"] = f"{org}/{collection_part}"
                 else:

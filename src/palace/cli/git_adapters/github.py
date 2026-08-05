@@ -31,6 +31,7 @@ class GitHubGitAdapter(GitAdapter):
 
     def __init__(self):
         from palace.utils.config import get_config_value
+
         self.token = get_config_value("github_token")
         self.base_url = "https://api.github.com"
 

@@ -145,25 +145,19 @@ class Validator:
 
         # Cross-validation (if both files exist)
         if info_data and tasks_data:
-            cross_errors, cross_warnings = self._validate_cross(
-                tasklist_path, info_data, tasks_data
-            )
+            cross_errors, cross_warnings = self._validate_cross(tasklist_path, info_data, tasks_data)
             errors.extend(cross_errors)
             warnings.extend(cross_warnings)
 
         # Validate file references (attachments)
         if tasks_data:
-            ref_errors, ref_warnings = self._validate_file_references(
-                tasklist_path, tasks_data
-            )
+            ref_errors, ref_warnings = self._validate_file_references(tasklist_path, tasks_data)
             errors.extend(ref_errors)
             warnings.extend(ref_warnings)
 
         return errors, warnings
 
-    def _validate_info(
-        self, tasklist_path: Path
-    ) -> tuple[list[ValidationIssue], list[ValidationIssue], dict | None]:
+    def _validate_info(self, tasklist_path: Path) -> tuple[list[ValidationIssue], list[ValidationIssue], dict | None]:
         """Validate info.json file.
 
         Returns:
@@ -334,9 +328,7 @@ class Validator:
 
         return errors, warnings, info_data
 
-    def _validate_tasks(
-        self, tasklist_path: Path
-    ) -> tuple[list[ValidationIssue], list[ValidationIssue], list | None]:
+    def _validate_tasks(self, tasklist_path: Path) -> tuple[list[ValidationIssue], list[ValidationIssue], list | None]:
         """Validate tasks.json file.
 
         Returns:

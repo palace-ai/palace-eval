@@ -61,8 +61,7 @@ def _ensure_login():
     token = get_huggingface_token()
     if not token:
         raise EnvironmentError(
-            "A HuggingFace token is required for this dataset. "
-            "Set it with: palace config set huggingface_token <token>"
+            "A HuggingFace token is required for this dataset. Set it with: palace config set huggingface_token <token>"
         )
     login(token=token)
     _logged_in = True

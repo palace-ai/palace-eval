@@ -48,6 +48,7 @@ def palace_cli_deprecated() -> None:
 
     # Import and run the legacy interactive CLI
     from palace.entrypoints.palace_cli import main
+
     main()
 
 
@@ -57,6 +58,7 @@ def palace_run_deprecated() -> None:
 
     # Import and run the legacy run CLI
     from palace.entrypoints.palace_run import run
+
     run()
 
 
@@ -66,6 +68,7 @@ def palace_download_deprecated() -> None:
 
     # Import and run the legacy download CLI
     from palace.entrypoints.download.palace_download import main
+
     main()
 
 
@@ -86,6 +89,7 @@ def palace_mcpstart_deprecated() -> None:
     # Check if the old mcpstart module exists
     try:
         from palace.entrypoints.palace_mcpstart import main
+
         main()
     except ImportError:
         print("[red]Error: palace-mcpstart module not found.[/red]")

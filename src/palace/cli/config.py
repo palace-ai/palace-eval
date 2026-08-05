@@ -37,7 +37,16 @@ from palace.utils.paths import (
 from palace.utils.printing import print
 
 # Display order for config keys (used in both config and env subcommands)
-DISPLAY_ORDER = ["url", "key", "judge_model", "concurrency", "huggingface_token", "github_token", "gitlab_token", "vivarium_url"]
+DISPLAY_ORDER = [
+    "url",
+    "key",
+    "judge_model",
+    "concurrency",
+    "huggingface_token",
+    "github_token",
+    "gitlab_token",
+    "vivarium_url",
+]
 
 # Keys that should be masked in output
 SENSITIVE_KEYS = {"key", "huggingface_token", "github_token", "gitlab_token"}
@@ -114,7 +123,11 @@ def _show_config() -> None:
     print("\n[bold]Stats:[/bold]")
 
     # Count local tasklists
-    tasklist_count = sum(1 for d in TASKLISTS_PATH.iterdir() if d.is_dir() and (d / "info.json").exists()) if TASKLISTS_PATH.exists() else 0
+    tasklist_count = (
+        sum(1 for d in TASKLISTS_PATH.iterdir() if d.is_dir() and (d / "info.json").exists())
+        if TASKLISTS_PATH.exists()
+        else 0
+    )
     print(f"  Local tasklists: {tasklist_count}")
 
     # Count results
@@ -356,10 +369,7 @@ def match(model: str) -> None:
 
     # Find first matching adapter (user adapters take priority)
     # Sort so user adapters come before bundled
-    sorted_adapters = sorted(
-        all_adapters.items(),
-        key=lambda x: (0 if x[1]["source"] == "user" else 1, x[0])
-    )
+    sorted_adapters = sorted(all_adapters.items(), key=lambda x: (0 if x[1]["source"] == "user" else 1, x[0]))
 
     matched = None
     for pattern, adapter in sorted_adapters:

@@ -259,14 +259,14 @@ def download(name: str | None, download_all: bool, skip_existing: bool, yes: boo
         return
 
     # Download based on source type
-    start_time = __import__('time').time()
+    start_time = __import__("time").time()
     print(f"Downloading [bold]{tasklist.name}[/]...")
 
     try:
         if tasklist.source == "convertible":
             # Use legacy download system for conversion recipes
             success = download_by_name(tasklist.name)
-            elapsed = __import__('time').time() - start_time
+            elapsed = __import__("time").time() - start_time
             if success:
                 print(f"({elapsed:.1f}s)  [green]✓[/] Downloaded {tasklist.name}")
             else:
@@ -297,7 +297,7 @@ def download(name: str | None, download_all: bool, skip_existing: bool, yes: boo
                     shutil.rmtree(dest)
                 shutil.move(str(tmp_dest), str(dest))
 
-            elapsed = __import__('time').time() - start_time
+            elapsed = __import__("time").time() - start_time
             print(f"({elapsed:.1f}s)  [green]✓[/] Downloaded {tasklist.name}")
 
         else:
@@ -305,6 +305,6 @@ def download(name: str | None, download_all: bool, skip_existing: bool, yes: boo
             return
 
     except Exception as e:
-        elapsed = __import__('time').time() - start_time
+        elapsed = __import__("time").time() - start_time
         print(f"({elapsed:.1f}s)  [red]✗[/] Download failed: {e}")
         raise SystemExit(1)

@@ -149,9 +149,7 @@ def _create_scaffold(
 
     # Add task_type_fields based on type
     if task_type == "QA":
-        info["task_type_fields"] = {
-            "# comment": "QA tasks require 'expected' field in each task"
-        }
+        info["task_type_fields"] = {"# comment": "QA tasks require 'expected' field in each task"}
     elif task_type == "Classification":
         info["task_type_fields"] = {
             "labels": [
@@ -161,14 +159,14 @@ def _create_scaffold(
                     "classes": [
                         {"name": "A", "condition": "First option"},
                         {"name": "B", "condition": "Second option"},
-                    ]
+                    ],
                 }
             ]
         }
     elif task_type == "Agentic" or agentic:
         info["env"] = {
             "image": env_image or "python:3.11-slim",
-            "# comment": "Specify Docker image and optional tools for agentic execution"
+            "# comment": "Specify Docker image and optional tools for agentic execution",
         }
 
     # Write info.json with comments
@@ -182,7 +180,7 @@ def _create_scaffold(
                 "id": "task_001",
                 "objective": "What is the capital of France?",
                 "expected": "Paris",
-                "# comment": "Add your QA tasks here. Each task needs id, objective, and expected."
+                "# comment": "Add your QA tasks here. Each task needs id, objective, and expected.",
             }
         ]
     elif task_type == "Classification":
@@ -191,7 +189,7 @@ def _create_scaffold(
                 "id": "task_001",
                 "objective": "Classify the sentiment of: 'I love this product!'",
                 "labels": {"Answer": "A"},
-                "# comment": "Each task needs id, objective, and labels matching info.json task_type_fields"
+                "# comment": "Each task needs id, objective, and labels matching info.json task_type_fields",
             }
         ]
     elif task_type == "Agentic":
@@ -200,7 +198,7 @@ def _create_scaffold(
                 "id": "task_001",
                 "objective": "Create a file named 'hello.txt' containing 'Hello, World!'",
                 "expected": "File hello.txt exists with content 'Hello, World!'",
-                "# comment": "Agentic tasks are executed in a sandboxed environment with tools"
+                "# comment": "Agentic tasks are executed in a sandboxed environment with tools",
             }
         ]
     else:
