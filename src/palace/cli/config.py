@@ -40,6 +40,8 @@ from palace.utils.printing import print
 DISPLAY_ORDER = [
     "url",
     "key",
+    "judge_url",
+    "judge_key",
     "judge_model",
     "concurrency",
     "huggingface_token",
@@ -49,7 +51,7 @@ DISPLAY_ORDER = [
 ]
 
 # Keys that should be masked in output
-SENSITIVE_KEYS = {"key", "huggingface_token", "github_token", "gitlab_token"}
+SENSITIVE_KEYS = {"key", "judge_key", "huggingface_token", "github_token", "gitlab_token"}
 
 
 def _mask_sensitive(key: str, value: str | None) -> str:
@@ -148,8 +150,10 @@ def set(key: str, value: str) -> None:
 
     \b
     Available keys:
-        url              API endpoint URL
-        key              API key
+        url              API endpoint URL (for agent model)
+        key              API key (for agent model)
+        judge_url        API endpoint URL for judge (defaults to url)
+        judge_key        API key for judge (defaults to key)
         judge_model      Model for judging answers
         concurrency      Number of parallel tasks
         huggingface_token  HuggingFace token
@@ -202,10 +206,36 @@ def unset(key: str) -> None:
     """
     _validate_key(key)
 
+    # Check if it's set via env var
+    all_config = get_all_config()
+    info = all_config.get(key, {"value": None, "source": None})
+    is_from_env = info["source"] == "env"
+
     if delete_config_value(key):
         print(f"[green]✓[/green] Removed {key} from config file")
+        if is_from_env:
+            env_var = CONFIG_TO_ENV[key]
+            print(f"[dim]Note: {key} is still set via env var {env_var}[/dim]")
     else:
-        print(f"[dim]{key} was not set in config file[/dim]")
+        if is_from_env:
+            env_var = CONFIG_TO_ENV[key]
+            # Find .env file path (dotenv searches from cwd upward)
+            from pathlib import Path
+            cwd = Path.cwd()
+            env_file = None
+            for parent in [cwd] + list(cwd.parents):
+                candidate = parent / ".env"
+                if candidate.exists():
+                    env_file = candidate
+                    break
+            
+            print(f"[dim]{key} is set via env var {env_var}, not in config file[/dim]")
+            if env_file:
+                print(f"[dim]To unset: unset {env_var} and remove from {env_file}[/dim]")
+            else:
+                print(f"[dim]To unset: unset {env_var}[/dim]")
+        else:
+            print(f"[dim]{key} is not set (neither in config file nor env var)[/dim]")
 
 
 @config.command("env")

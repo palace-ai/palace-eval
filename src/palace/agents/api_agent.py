@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from palace.agents import Agent
 from palace.evaluation.types import AgentResult
 from palace.models.api_model import create_api_model
+from palace.utils.exceptions import ModelNotFoundError
 from palace.utils.multimodal import build_multimodal_content
 from palace.utils.printing import print
 
@@ -39,6 +40,16 @@ _UNSUPPORTED_PATTERNS = [
     "input tokens exceed",
 ]
 
+# Patterns indicating the model doesn't exist — should abort evaluation
+_MODEL_NOT_FOUND_PATTERNS = [
+    "model not found",
+    "not available",
+    "does not exist",
+    "unknown model",
+    "invalid model",
+    "no such model",
+]
+
 
 def _is_unsupported_error(e: Exception) -> bool:
     """Detect deterministic capability limitations from API errors.
@@ -53,6 +64,16 @@ def _is_unsupported_error(e: Exception) -> bool:
     # Message-based detection (Anthropic, vLLM variants, other providers)
     msg = str(e).lower()
     return any(p in msg for p in _UNSUPPORTED_PATTERNS)
+
+
+def _is_model_not_found(e: Exception) -> bool:
+    """Detect model-not-found errors that should abort the evaluation.
+
+    Returns True for errors that indicate the model doesn't exist on the endpoint.
+    These are configuration errors, not per-task issues.
+    """
+    msg = str(e).lower()
+    return any(p in msg for p in _MODEL_NOT_FOUND_PATTERNS)
 
 
 class APIAgent(Agent):
@@ -108,6 +129,9 @@ class APIAgent(Agent):
             _logger.warning(f"Agent error: {e}")
             if self.verbose:
                 print(f"[bold red]OpenAIAPI agent error: {e}[/]")
+            # Model not found is a fatal configuration error — abort evaluation
+            if _is_model_not_found(e):
+                raise ModelNotFoundError(f"Model '{self._name}' not found on {self.url}: {e}") from e
             if _is_unsupported_error(e):
                 return AgentResult(outcome="unsupported", reason=f"unsupported: {e}")
             return AgentResult(outcome="error", reason=f"agent_error: {e}")

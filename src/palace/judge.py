@@ -65,9 +65,9 @@ import re
 from typing import Any
 
 from palace.models.api_model import create_api_model
-from palace.utils.constants import OPENAI_LIKE_API_BASE_URL
+from palace.utils.constants import get_judge_key, get_judge_url
+from palace.utils.exceptions import JudgeConfigurationError
 from palace.utils.printing import print
-from palace.utils.secrets import OPENAI_LIKE_API_KEY
 
 
 class Judge:
@@ -85,6 +85,8 @@ class Judge:
             As a dict: nested structure where values can be [] (leaf tag),
             ["a", "b"] (extract child tags), or {...} (recurse).
             Returns nested dict mirroring the input structure.
+        url: API endpoint URL. Defaults to judge_url config, then falls back to url config.
+        token: API token. Defaults to judge_key config, then falls back to key config.
 
     Examples:
         >>> judge = Judge("gpt-4o", prompt, ["reasoning", "judgement"])
@@ -103,15 +105,35 @@ class Judge:
         judge_model: str,
         judge_prompt: str,
         output_keywords: list[str] | dict[str, Any] = ["reasoning", "judgement"],
+        url: str | None = None,
+        token: str | None = None,
     ) -> None:
         self.judge_prompt = judge_prompt
         self.output_keywords = output_keywords
 
-        assert OPENAI_LIKE_API_BASE_URL is not None, "OPENAI_LIKE_API_BASE_URL is not set in the environment variables."
+        # Check judge_model is set
+        if not judge_model:
+            raise JudgeConfigurationError(
+                "judge_model is required but not set. Set via:\n"
+                "  - palace config set judge_model <model>\n"
+                "  - JUDGE_MODEL env var"
+            )
+
+        # Resolve URL and token: explicit params > judge config > main config
+        resolved_url = url or get_judge_url()
+        resolved_token = token or get_judge_key()
+
+        if not resolved_url:
+            raise JudgeConfigurationError(
+                "Judge API URL not configured. Set via:\n"
+                "  - palace config set judge_url <url>  (judge-specific)\n"
+                "  - palace config set url <url>  (fallback)\n"
+                "  - JUDGE_API_URL or OPENAI_LIKE_API_BASE_URL env var"
+            )
         self.judge_model = create_api_model(
             judge_model,
-            OPENAI_LIKE_API_BASE_URL,
-            OPENAI_LIKE_API_KEY,
+            resolved_url,
+            resolved_token,
         )
 
     def _parse_tag(self, content: str, tag: str) -> str:

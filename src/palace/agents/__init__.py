@@ -17,3 +17,4 @@ from palace.agents.base_agent import Agent as Agent
 from palace.agents.mcp_agent import MCPAgent as MCPAgent
 from palace.agents.api_agent import APIAgent as APIAgent
 from palace.agents.vivarium_agent import VivariumAgent as VivariumAgent
+from palace.utils.exceptions import ModelNotFoundError as ModelNotFoundError

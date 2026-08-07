@@ -27,6 +27,7 @@ import pandas as pd
 from palace.agents import Agent
 from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
+from palace.download import resolve_local_path
 from palace.evaluation.dispatch import dispatch_tasks
 from palace.evaluation.renderers import select_renderer
 from palace.task_types import Task
@@ -112,17 +113,28 @@ def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
 
 
 def _check_endpoint(url: str, token: str | None) -> None:
-    """Verify LLM endpoint is reachable. Raises RuntimeError if not."""
+    """Verify LLM endpoint is reachable and valid. Raises RuntimeError if not."""
     import httpx
 
     try:
-        httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
+        resp = httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
+        # 404 on /models likely means wrong API path
+        if resp.status_code == 404:
+            raise RuntimeError(
+                f"LLM endpoint returned 404 for /models: {url}\n"
+                f"  Check the URL path (e.g., trailing /v1)"
+            )
+        # Other status codes (200, 401, 403, etc.) mean the endpoint exists
     except httpx.ConnectError as e:
         raise RuntimeError(f"Cannot reach LLM endpoint: {url}\n  {e}") from e
     except httpx.TimeoutException as e:
         raise RuntimeError(f"LLM endpoint timed out: {url}\n  {e}") from e
+    except httpx.UnsupportedProtocol as e:
+        raise RuntimeError(f"Invalid URL (check for typos): {url}\n  {e}") from e
+    except RuntimeError:
+        raise  # Re-raise our own RuntimeErrors
     except Exception:
-        pass  # Other errors (401, 404, etc.) mean the endpoint is reachable
+        pass  # Other errors mean the endpoint is reachable
 
 
 class Evaluation:
@@ -171,8 +183,8 @@ class Evaluation:
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
         self.judge_model = get_judge_model()
-        if not self.judge_model:
-            raise ValueError("judge_model is required but not set. Set it with: palace config set judge_model <model>")
+        # Note: judge_model can be None here — it's only required for task types that use LLM judging
+        # (QA, CriteriaEvaluation). The Judge class will raise a clear error if needed.
         if concurrency is None:
             concurrency = int(os.environ.get("PALACE_CONCURRENCY", "25"))
         if concurrency < 1:
@@ -269,8 +281,11 @@ class Evaluation:
                 results.append(run_results)
 
                 os.makedirs(self.output_path, exist_ok=True)
-                with open(self.output_path / f"{self.name}.jsonl", "a", encoding="utf-8") as f:
+                output_file = self.output_path / f"{self.name}.jsonl"
+                with open(output_file, "a", encoding="utf-8") as f:
                     f.write(json.dumps(run_results, ensure_ascii=False) + "\n")
+
+                print(f"[dim]Results saved to {output_file}[/dim]")
 
         return pd.DataFrame(results)
 
@@ -280,9 +295,9 @@ class Evaluation:
 
     async def evaluate_async(self, model: str, tasklist: str) -> tuple[float, dict, dict[str, dict]]:
         """Async: run model on tasklist, verify, compute metrics. Returns (accuracy, metrics, report)."""
-        tasklist_path = TASKLISTS_PATH / tasklist
+        tasklist_path = resolve_local_path(tasklist)
 
-        if not tasklist_path.exists():
+        if not tasklist_path:
             available = [t.name for t in TASKLISTS_PATH.iterdir() if t.is_dir()]
             raise FileNotFoundError(
                 f"Tasklist '{tasklist}' not found. "

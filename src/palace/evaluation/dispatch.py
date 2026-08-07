@@ -65,6 +65,12 @@ async def dispatch_tasks(
                     timeout=task_timeout,
                 )
             except Exception as e:
+                # Re-raise fatal errors that should abort the entire evaluation
+                from palace.utils.exceptions import FatalEvaluationError
+
+                if isinstance(e, FatalEvaluationError):
+                    raise
+
                 from palace.task_types.base import TaskVerificationResult
 
                 error_msg = str(e) or type(e).__name__

@@ -12,14 +12,47 @@
 # You should have received a copy of the European Union Public Licence
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
-
-class ToolHallucinationException(Exception):
-    pass
+"""Palace evaluation exceptions."""
 
 
 class TimeoutException(Exception):
+    """Raised when an operation times out."""
+
     pass
 
 
 class ConvergenceError(Exception):
+    """Raised when an iterative process fails to converge."""
+
+    pass
+
+
+class FatalEvaluationError(Exception):
+    """Base class for errors that should abort the entire evaluation.
+
+    Subclass this for configuration errors, authentication failures,
+    or other issues that affect all tasks and shouldn't be retried.
+
+    These exceptions will propagate through the task dispatch layer
+    instead of being caught and converted to per-task errors.
+    """
+
+    pass
+
+
+class ModelNotFoundError(FatalEvaluationError):
+    """Raised when the requested model doesn't exist on the API endpoint."""
+
+    pass
+
+
+class JudgeConfigurationError(FatalEvaluationError):
+    """Raised when judge model is required but not configured."""
+
+    pass
+
+
+class AuthenticationError(FatalEvaluationError):
+    """Raised when API authentication fails."""
+
     pass

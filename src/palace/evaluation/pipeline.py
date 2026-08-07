@@ -24,7 +24,7 @@ from palace.analyzers.base import Analyzer
 from palace.evaluation.renderers import Renderer
 from palace.evaluation.types import AgentResult, Attachment, PreparedTask, TaskResult
 from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
-from palace.utils.exceptions import ConvergenceError
+from palace.utils.exceptions import ConvergenceError, FatalEvaluationError
 from palace.utils.io_adapters import IOAdapter
 from palace.utils.multimodal import mime_from_extension
 from palace.utils.printing import loading, print
@@ -126,6 +126,9 @@ async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> Agent
         result = await agent.run(prompt=prepared.prompt, attachments=prepared.attachments or None, task_id=task_id)
         result.elapsed = time.time() - start
         return result
+    except FatalEvaluationError:
+        # Re-raise fatal errors that should abort the evaluation
+        raise
     except ConvergenceError:
         return AgentResult(outcome="error", reason="no_response", elapsed=time.time() - start)
     except Exception as e:

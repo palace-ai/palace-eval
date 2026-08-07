@@ -14,6 +14,7 @@
 
 """Run command: palace run."""
 
+import json
 import sys
 
 import click
@@ -23,6 +24,14 @@ from palace.download import download_by_name, is_downloaded
 from palace.utils.config import get_config_value
 from palace.utils.paths import RESULTS_PATH, TASKLISTS_PATH
 from palace.utils.printing import print
+
+
+def _parse_param_value(value: str):
+    """Parse a param value: try JSON literal (number, bool, object), fallback to string."""
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, ValueError):
+        return value
 
 
 @click.command()
@@ -37,6 +46,13 @@ from palace.utils.printing import print
 @click.option("--agentic", is_flag=True, help="Force agentic execution via Vivarium.")
 @click.option("--concurrency", "-c", type=int, default=None, help="Number of concurrent tasks.")
 @click.option("--name", "run_name", default="eval", help="Name for this evaluation run.")
+@click.option(
+    "--param", "-p",
+    "params",
+    multiple=True,
+    metavar="KEY=VALUE",
+    help="Extra model parameter (e.g., -p reasoning_effort=high -p temperature=0.5). Can be specified multiple times.",
+)
 def run(
     name: str,
     model: str,
@@ -49,6 +65,7 @@ def run(
     agentic: bool,
     concurrency: int | None,
     run_name: str,
+    params: tuple[str, ...],
 ) -> None:
     """Run evaluation on a benchmark.
 
@@ -67,8 +84,8 @@ def run(
     url = url or get_config_value("url")
     token = token or get_config_value("key")
 
-    if not url or not token:
-        print("[red]Error: API not configured.[/red]\n")
+    if not url:
+        print("[red]Error: API URL not configured.[/red]\n")
         print("Set up with:")
         print("  [cyan]palace config set url https://api.openai.com/v1[/cyan]")
         print("  [cyan]palace config set key sk-...[/cyan]")
@@ -78,6 +95,9 @@ def run(
         print()
         print("Run [cyan]palace config[/cyan] to see current configuration.")
         sys.exit(1)
+
+    # Token is optional — local/unauthenticated endpoints don't need it.
+    # The API will return 401 if auth is actually required.
 
     # Check if benchmark exists locally
     if not is_downloaded(benchmark):
@@ -132,9 +152,22 @@ def run(
     try:
         from pathlib import Path
 
+        from palace.agents import ModelNotFoundError
         from palace.evaluation import Evaluation
+        from palace.utils.exceptions import JudgeConfigurationError
 
         output_path = Path(output) if output else RESULTS_PATH
+
+        # Parse --param flags into dict
+        model_extra_params = None
+        if params:
+            model_extra_params = {}
+            for item in params:
+                if "=" not in item:
+                    print(f"[red]Error:[/red] --param must be KEY=VALUE, got: {item}")
+                    sys.exit(1)
+                key, value = item.split("=", 1)
+                model_extra_params[key] = _parse_param_value(value)
 
         evaluation = Evaluation(
             name=run_name,
@@ -145,11 +178,20 @@ def run(
             runs_per_configuration=runs,
             output_path=output_path,
             concurrency=concurrency,
+            model_extra_params=model_extra_params,
         )
 
         evaluation.evaluate_all([model], tasklists=[benchmark])
 
     except FileNotFoundError as e:
+        print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+    except ModelNotFoundError as e:
+        print(f"[red]Error:[/red] {e}")
+        print()
+        print("[dim]Check that the model name is correct and available on the endpoint.[/dim]")
+        sys.exit(1)
+    except JudgeConfigurationError as e:
         print(f"[red]Error:[/red] {e}")
         sys.exit(1)
     except KeyboardInterrupt:

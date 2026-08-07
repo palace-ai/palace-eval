@@ -41,6 +41,8 @@ CONFIG_TO_ENV = {
     "url": "OPENAI_LIKE_API_BASE_URL",
     "key": "OPENAI_LIKE_API_KEY",
     "judge_model": "JUDGE_MODEL",
+    "judge_url": "JUDGE_API_URL",
+    "judge_key": "JUDGE_API_KEY",
     "concurrency": "PALACE_CONCURRENCY",
     "huggingface_token": "HUGGINGFACE_TOKEN",
     "github_token": "GITHUB_TOKEN",
