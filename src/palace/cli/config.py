@@ -55,11 +55,13 @@ SENSITIVE_KEYS = {"key", "judge_key", "huggingface_token", "github_token", "gitl
 
 
 def _mask_sensitive(key: str, value: str | None) -> str:
-    """Mask sensitive values like keys and tokens."""
+    """Mask sensitive values like keys and tokens, showing last 4 chars."""
     if value is None:
         return "[dim]not set[/dim]"
     if key in SENSITIVE_KEYS:
-        return "***"
+        if len(value) <= 8:
+            return "***"
+        return f"***{value[-4:]}"
     return value
 
 
@@ -117,7 +119,13 @@ def _show_config() -> None:
         elif source == "config":
             source_hint = ""
         else:
-            source_hint = ""
+            # Show fallback hint for judge_url and judge_key when not set
+            if key == "judge_url" and not info["value"] and all_config.get("url", {}).get("value"):
+                source_hint = " [dim](→ uses url)[/dim]"
+            elif key == "judge_key" and not info["value"] and all_config.get("key", {}).get("value"):
+                source_hint = " [dim](→ uses key)[/dim]"
+            else:
+                source_hint = ""
 
         print(f"  {key}: {value}{source_hint}")
 
