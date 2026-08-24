@@ -47,7 +47,8 @@ def _parse_param_value(value: str):
 @click.option("--concurrency", "-c", type=int, default=None, help="Number of concurrent tasks.")
 @click.option("--name", "run_name", default="eval", help="Name for this evaluation run.")
 @click.option(
-    "--param", "-p",
+    "--param",
+    "-p",
     "params",
     multiple=True,
     metavar="KEY=VALUE",

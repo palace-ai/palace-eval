@@ -43,7 +43,7 @@ def get_judge_model() -> str | None:
 
 def get_judge_url() -> str | None:
     """Get judge API URL (env: JUDGE_API_URL, config: judge_url).
-    
+
     Falls back to the main API URL if not set.
     """
     from palace.utils.config import get_config_value
@@ -53,7 +53,7 @@ def get_judge_url() -> str | None:
 
 def get_judge_key() -> str | None:
     """Get judge API key (env: JUDGE_API_KEY, config: judge_key).
-    
+
     Falls back to the main API key if not set.
     """
     from palace.utils.config import get_config_value

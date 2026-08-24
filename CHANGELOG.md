@@ -5,6 +5,39 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-08-24
+
+### Fixed
+- API key now optional for endpoints that don't require authentication
+- Judge URL can now be configured separately from model URL
+- Improved error messages for malformed URLs or unavailable model names
+- Tasklist name resolution for `org--name` folder format
+
+### Changed
+- Improved `config unset` command messages
+- Now showing results path after evaluation completes
+
+### Added
+- `--param` / `-p` option for `palace run` to pass extra model parameters
+
+## [1.0.1] - 2026-08-05
+
+### Added
+- Unified `palace` CLI replacing fragmented entrypoints (`palace-cli`, `palace-run`, `palace-download`)
+- `palace config set/get/unset` for persistent configuration in `~/.config/palace/config.yaml`
+- `palace config env` to show environment variable mappings for CI/Docker
+- Tag-based benchmark discovery from HuggingFace and GitHub
+- Custom source management via `palace sources add/rm`
+- Tasklist authoring tools: `palace init`, `palace validate`, `palace publish`
+
+### Changed
+- Configuration priority: CLI flags > environment variables > config file
+- Old entrypoints (`palace-cli`, `palace-run`, `palace-download`) now show deprecation banner
+
+### Fixed
+- Pin `mcp<2` to avoid breaking API change
+- Updated URLs to code.europa.eu
+
 ## [1.0.0] - 2025-08-03
 
 ### Added
@@ -31,4 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agentic**: GAIA, AssistantBench
 - **Domain-Specific**: CURIE-protein
 
+[1.0.2]: https://code.europa.eu/palace/palace-eval/-/releases/v1.0.2
+[1.0.1]: https://code.europa.eu/palace/palace-eval/-/releases/v1.0.1
 [1.0.0]: https://code.europa.eu/palace/palace-eval/-/releases/v1.0.0

@@ -221,6 +221,7 @@ def unset(key: str) -> None:
             env_var = CONFIG_TO_ENV[key]
             # Find .env file path (dotenv searches from cwd upward)
             from pathlib import Path
+
             cwd = Path.cwd()
             env_file = None
             for parent in [cwd] + list(cwd.parents):
@@ -228,7 +229,7 @@ def unset(key: str) -> None:
                 if candidate.exists():
                     env_file = candidate
                     break
-            
+
             print(f"[dim]{key} is set via env var {env_var}, not in config file[/dim]")
             if env_file:
                 print(f"[dim]To unset: unset {env_var} and remove from {env_file}[/dim]")

@@ -121,8 +121,7 @@ def _check_endpoint(url: str, token: str | None) -> None:
         # 404 on /models likely means wrong API path
         if resp.status_code == 404:
             raise RuntimeError(
-                f"LLM endpoint returned 404 for /models: {url}\n"
-                f"  Check the URL path (e.g., trailing /v1)"
+                f"LLM endpoint returned 404 for /models: {url}\n  Check the URL path (e.g., trailing /v1)"
             )
         # Other status codes (200, 401, 403, etc.) mean the endpoint exists
     except httpx.ConnectError as e:
