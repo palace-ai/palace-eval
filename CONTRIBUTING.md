@@ -18,9 +18,9 @@ Thank you for your interest in contributing to PALACE! This document provides gu
    git clone https://github.com/YOUR-USERNAME/palace-eval.git
    cd palace-eval
    ```
-3. Install in development mode:
+3. Install in development mode with dev dependencies:
    ```bash
-   pip install -e .
+   uv sync --all-extras    # installs package + dev dependencies (ruff, pytest)
    ```
 4. Create a branch for your changes:
    ```bash
@@ -29,11 +29,24 @@ Thank you for your interest in contributing to PALACE! This document provides gu
 
 ## Development Setup
 
-PALACE requires Python 3.13+. We recommend using [uv](https://github.com/astral-sh/uv) for dependency management:
+PALACE requires Python 3.13+. We use [uv](https://github.com/astral-sh/uv) for dependency management:
 
 ```bash
-uv sync
-uv run palace-cli  # verify installation
+uv sync --all-extras      # install with dev dependencies
+uv run palace --help      # verify installation
+```
+
+A pre-commit hook runs Ruff automatically on commit. The hook is local to your clone (in `.git/hooks/`), so you may want to set it up:
+
+```bash
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/bash
+set -e
+uv run ruff check --fix .
+uv run ruff format .
+git add -u
+EOF
+chmod +x .git/hooks/pre-commit
 ```
 
 ## Code Style
@@ -43,11 +56,12 @@ uv run palace-cli  # verify installation
 - Write docstrings for public functions and classes
 - Keep functions focused and reasonably sized
 
-We use [Ruff](https://github.com/astral-sh/ruff) for linting:
+We use [Ruff](https://github.com/astral-sh/ruff) for linting and formatting:
 
 ```bash
-ruff check src/
-ruff format src/
+uv run ruff check src/       # lint
+uv run ruff check --fix .    # lint and auto-fix
+uv run ruff format src/      # format
 ```
 
 ## Testing

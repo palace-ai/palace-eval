@@ -229,12 +229,12 @@ async def seed(seed_args, container):
 async def verify(expected_outcome, agent_answer, ctx):
     cmd = expected_outcome["test_command"]
     exit_code, output = await ctx.exec(cmd, timeout=60)
-    
+
     passed = exit_code == 0
     return {
         "is_correct": passed,
         "reasoning": f"Tests {'passed' if passed else 'failed'}:\n{output[-500:]}",
-        "metrics": {"exit_code": exit_code}
+        "metrics": {"exit_code": exit_code},
     }
 ```
 

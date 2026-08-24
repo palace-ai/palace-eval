@@ -12,9 +12,7 @@ TOOL = {
     "description": "Describe what this tool does — this is shown to the agent.",
     "parameters": {
         "type": "object",
-        "properties": {
-            "query": {"type": "string", "description": "The query to look up"}
-        },
+        "properties": {"query": {"type": "string", "description": "The query to look up"}},
         "required": ["query"],
     },
 }

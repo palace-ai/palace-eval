@@ -160,11 +160,11 @@ def verify(expected: dict, answer: str, container) -> dict:
     tests_passed = run_test_suite(container)
     total_tests = expected["total_tests"]
     score = tests_passed / total_tests
-    
+
     return {
         "is_correct": score >= expected.get("pass_threshold", 1.0),
         "reasoning": f"Passed {tests_passed}/{total_tests} tests",
-        "metrics": {"tests_passed": tests_passed, "score": score}
+        "metrics": {"tests_passed": tests_passed, "score": score},
     }
 ```
 
@@ -212,14 +212,14 @@ These require downloading via conversion scripts — see their documentation in 
 def verify(expected: dict, answer: str, container) -> dict:
     # Query final database state
     result = container.exec("sqlite3 /data/app.db 'SELECT * FROM orders'")
-    
+
     # Parse and compare
     rows = parse_sqlite_output(result.stdout)
     expected_rows = expected["expected_orders"]
-    
+
     return {
         "is_correct": rows == expected_rows,
-        "reasoning": f"Found {len(rows)} orders, expected {len(expected_rows)}"
+        "reasoning": f"Found {len(rows)} orders, expected {len(expected_rows)}",
     }
 ```
 
@@ -229,18 +229,16 @@ def verify(expected: dict, answer: str, container) -> dict:
 def verify(expected: dict, answer: str, container) -> dict:
     # Read generated file
     actual = container.read(expected["output_file"])
-    
+
     # Compare against reference (from verify_files/)
     reference = container.read(f"/verify_files/{expected['reference_file']}")
-    
+
     # Use diff for comparison
     import difflib
+
     diff = list(difflib.unified_diff(reference.splitlines(), actual.splitlines()))
-    
-    return {
-        "is_correct": len(diff) == 0,
-        "reasoning": "\n".join(diff) if diff else "Files match"
-    }
+
+    return {"is_correct": len(diff) == 0, "reasoning": "\n".join(diff) if diff else "Files match"}
 ```
 
 ### Test Suite Verification
@@ -249,14 +247,14 @@ def verify(expected: dict, answer: str, container) -> dict:
 def verify(expected: dict, answer: str, container) -> dict:
     # Run pytest in container
     result = container.exec("cd /workspace && pytest --tb=short")
-    
+
     # Parse test results
     passed = "passed" in result.stdout and "failed" not in result.stdout
-    
+
     return {
         "is_correct": passed,
         "reasoning": result.stdout[-500:],  # Last 500 chars of output
-        "metrics": {"exit_code": result.returncode}
+        "metrics": {"exit_code": result.returncode},
     }
 ```
 

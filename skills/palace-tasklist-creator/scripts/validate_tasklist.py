@@ -70,7 +70,17 @@ def validate(tasklist_path: Path) -> bool:
 
     # Agentic: check image is self-contained
     if task_type == "Agentic" and "env" in info:
-        public_prefixes = ("python:", "ubuntu:", "debian:", "alpine:", "node:", "golang:", "rust:", "fedora:", "centos:")
+        public_prefixes = (
+            "python:",
+            "ubuntu:",
+            "debian:",
+            "alpine:",
+            "node:",
+            "golang:",
+            "rust:",
+            "fedora:",
+            "centos:",
+        )
         for env_name, env_spec in info["env"].items():
             img = env_spec.get("image", "")
             if not img:
@@ -82,7 +92,9 @@ def validate(tasklist_path: Path) -> bool:
             env_dir = tasklist_path / env_path
             has_dockerfile = env_dir.is_dir() and (env_dir / "Dockerfile").exists()
             if not has_dockerfile:
-                warn(f"env '{env_name}' uses custom image '{img}' but no Dockerfile in {env_path}/ — tasklist may not be self-contained")
+                warn(
+                    f"env '{env_name}' uses custom image '{img}' but no Dockerfile in {env_path}/ — tasklist may not be self-contained"
+                )
 
     # Classification should have task_type_fields.labels
     if task_type == "Classification":
@@ -181,7 +193,12 @@ def validate(tasklist_path: Path) -> bool:
                 passed = error(f"Agentic env '{env_name}' missing {env_path}/verify.py") and passed
             else:
                 if not _check_async_function(verify_path, "verify"):
-                    passed = error(f"{env_path}/verify.py must define 'async def verify(expected_outcome, agent_answer, ctx)'") and passed
+                    passed = (
+                        error(
+                            f"{env_path}/verify.py must define 'async def verify(expected_outcome, agent_answer, ctx)'"
+                        )
+                        and passed
+                    )
                 else:
                     ok(f"{env_path}/verify.py has correct async signature")
 
@@ -190,7 +207,10 @@ def validate(tasklist_path: Path) -> bool:
             if tools_dir.exists():
                 for tool_file in sorted(tools_dir.glob("*.py")):
                     if not _check_async_function(tool_file, "execute"):
-                        passed = error(f"{env_path}/tools/{tool_file.name} must define 'async def execute(args, context)'") and passed
+                        passed = (
+                            error(f"{env_path}/tools/{tool_file.name} must define 'async def execute(args, context)'")
+                            and passed
+                        )
                     else:
                         ok(f"{env_path}/tools/{tool_file.name} has correct async signature")
 
@@ -204,18 +224,13 @@ def validate(tasklist_path: Path) -> bool:
 
             # Check env references are valid
             valid_envs = set(info["env"].keys())
-            invalid_refs = [
-                t.get("id") for t in tasks
-                if "env" in t and t["env"] not in valid_envs
-            ]
+            invalid_refs = [t.get("id") for t in tasks if "env" in t and t["env"] not in valid_envs]
             if invalid_refs:
                 passed = error(f"Tasks reference unknown environments: {invalid_refs[:5]}") and passed
 
     # 4. Attachment checks
     task_files_dir = tasklist_path / "task_files"
-    has_attachments = any(
-        t.get("attachment") or t.get("attachments") for t in tasks
-    )
+    has_attachments = any(t.get("attachment") or t.get("attachments") for t in tasks)
     if has_attachments and not task_files_dir.exists():
         # Only warn — some tasklists use inline attachments
         warn("Tasks reference attachments but task_files/ directory not found")

@@ -230,6 +230,7 @@ For long-running tasks (especially Criteria Evaluation):
 ```python
 import json
 
+
 def load_results(path):
     with open(path) as f:
         results = [json.loads(l) for l in f]
@@ -238,6 +239,7 @@ def load_results(path):
     for run in results:
         all_tasks.update(run.get("detailed_report", {}))
     return all_tasks
+
 
 run1 = load_results("results_run1.jsonl")
 run2 = load_results("results_run2.jsonl")

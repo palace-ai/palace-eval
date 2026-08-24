@@ -152,7 +152,9 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
                     # Verify crashing is acceptable IF it's due to missing agent output
                     # (e.g., file not found because agent didn't write it)
                     err_str = str(e)
-                    if any(k in err_str.lower() for k in ["not found", "no such file", "does not exist", "empty", "none"]):
+                    if any(
+                        k in err_str.lower() for k in ["not found", "no such file", "does not exist", "empty", "none"]
+                    ):
                         print(f"✓ (expected failure: {err_str[:80]})")
                     else:
                         print(f"⚠ unexpected error: {err_str[:120]}")

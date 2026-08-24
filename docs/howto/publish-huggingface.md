@@ -81,7 +81,7 @@ api.upload_file(
     path_or_fileobj="~/.cache/palace/tasklists/MyBenchmark/info.json",
     path_in_repo="info.json",
     repo_id="your-username/MyBenchmark",
-    repo_type="dataset"
+    repo_type="dataset",
 )
 
 # Upload tasks.json
@@ -89,7 +89,7 @@ api.upload_file(
     path_or_fileobj="~/.cache/palace/tasklists/MyBenchmark/tasks.json",
     path_in_repo="tasks.json",
     repo_id="your-username/MyBenchmark",
-    repo_type="dataset"
+    repo_type="dataset",
 )
 ```
 

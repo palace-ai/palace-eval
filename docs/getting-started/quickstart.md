@@ -173,7 +173,7 @@ evaluate(
     token="sk-your-api-key",
     name="gpt-4o",
     tasklist="SimpleQA",
-    limit=10
+    limit=10,
 )
 ```
 

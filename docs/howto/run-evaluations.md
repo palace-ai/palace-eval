@@ -63,7 +63,7 @@ evaluate(
     url="https://api.example.com/v1",
     token="your-api-key",
     name="gpt-4o",
-    tasklist="GuardBench-EN"
+    tasklist="GuardBench-EN",
 )
 ```
 
@@ -81,7 +81,7 @@ evaluate(
     tasklist="GuardBench-EN",
     limit=10,
     runs_per_configuration=3,
-    report_detail="full"  # "none", "default", or "full"
+    report_detail="full",  # "none", "default", or "full"
 )
 ```
 
@@ -103,9 +103,9 @@ evaluate(
         "output": {
             "pattern": "(?P<result>safe|unsafe)",
             "template": "<Unsafe>{result}</Unsafe>",
-            "mapping": {"result": {"safe": "No", "unsafe": "Yes"}}
-        }
-    }
+            "mapping": {"result": {"safe": "No", "unsafe": "Yes"}},
+        },
+    },
 )
 ```
 

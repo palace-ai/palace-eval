@@ -143,11 +143,13 @@ source_data = load_your_data()  # however you get it
 # Convert to palace format
 tasks = []
 for i, item in enumerate(source_data):
-    tasks.append({
-        "id": f"{TASKLIST_NAME}_{i}",
-        "objective": item["question"],
-        "expected": item["answer"],
-    })
+    tasks.append(
+        {
+            "id": f"{TASKLIST_NAME}_{i}",
+            "objective": item["question"],
+            "expected": item["answer"],
+        }
+    )
 
 # Write outputs
 out_dir = TASKLISTS_PATH / TASKLIST_NAME
@@ -185,11 +187,13 @@ df = df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 tasks = []
 for i, row in df.iterrows():
-    tasks.append({
-        "id": f"{TASKLIST_NAME}_{i}",
-        "objective": row["text"],
-        "labels": {"Unsafe": "Yes" if row["label"] else "No"},
-    })
+    tasks.append(
+        {
+            "id": f"{TASKLIST_NAME}_{i}",
+            "objective": row["text"],
+            "labels": {"Unsafe": "Yes" if row["label"] else "No"},
+        }
+    )
 
 info = {
     "name": TASKLIST_NAME,
@@ -199,14 +203,16 @@ info = {
     "category": "Safety",
     "task_type": "Classification",
     "task_type_fields": {
-        "labels": [{
-            "name": "Unsafe",
-            "description": "Whether the content is unsafe.",
-            "classes": [
-                {"name": "Yes", "condition": "if unsafe"},
-                {"name": "No", "condition": "if safe"},
-            ],
-        }]
+        "labels": [
+            {
+                "name": "Unsafe",
+                "description": "Whether the content is unsafe.",
+                "classes": [
+                    {"name": "Yes", "condition": "if unsafe"},
+                    {"name": "No", "condition": "if safe"},
+                ],
+            }
+        ]
     },
 }
 
@@ -241,16 +247,18 @@ for item in ds:
             "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
             "resources": {"memory": "8g", "cpus": 2.0, "network": True},
         }
-    
+
     task_id = item["instance_id"]
-    tasks.append({
-        "id": task_id,
-        "task_type": "Agentic",
-        "objective": item["problem_statement"],
-        "env": env_name,
-        "seed_args": {"base_commit": item["base_commit"], "problem_statement": item["problem_statement"]},
-        "expected_outcome": {"fail_to_pass": item["fail_to_pass"], "pass_to_pass": item["pass_to_pass"]},
-    })
+    tasks.append(
+        {
+            "id": task_id,
+            "task_type": "Agentic",
+            "objective": item["problem_statement"],
+            "env": env_name,
+            "seed_args": {"base_commit": item["base_commit"], "problem_statement": item["problem_statement"]},
+            "expected_outcome": {"fail_to_pass": item["fail_to_pass"], "pass_to_pass": item["pass_to_pass"]},
+        }
+    )
 
 info = {
     "name": TASKLIST_NAME,

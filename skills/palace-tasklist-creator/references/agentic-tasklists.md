@@ -72,6 +72,7 @@ async def seed(seed_args, container):
 import json
 from pathlib import Path
 
+
 async def seed(seed_args, container):
     db_path = Path(__file__).parent / "data" / "db.json"
     await container.write("/data/db.json", db_path.read_bytes())
@@ -83,9 +84,7 @@ async def seed(seed_args, container):
 async def seed(seed_args, container):
     for companion in seed_args.get("companions", []):
         await container.start_companion(
-            image=companion["image"],
-            hostname=companion["hostname"],
-            memory=companion.get("memory", "512m")
+            image=companion["image"], hostname=companion["hostname"], memory=companion.get("memory", "512m")
         )
     # Now the agent can reach companion at http://hostname:port
 ```
@@ -119,7 +118,7 @@ async def verify(expected_outcome, agent_answer, ctx):
 return {
     "is_correct": True,  # Required
     "reasoning": "All tests pass.\n✓ test_login\n✓ test_signup",  # Required
-    "metrics": {"pass_rate": 1.0, "tests_passed": 5}  # Optional
+    "metrics": {"pass_rate": 1.0, "tests_passed": 5},  # Optional
 }
 ```
 
@@ -129,14 +128,14 @@ return {
 ```python
 async def verify(expected_outcome, agent_answer, ctx):
     exit_code, output = await ctx.exec("cd /app && pytest tests/ -v", timeout=300)
-    
+
     tests_passed = output.count("PASSED")
     tests_failed = output.count("FAILED")
-    
+
     return {
         "is_correct": tests_failed == 0,
         "reasoning": f"Tests: {tests_passed} passed, {tests_failed} failed",
-        "metrics": {"pass_rate": tests_passed / max(tests_passed + tests_failed, 1)}
+        "metrics": {"pass_rate": tests_passed / max(tests_passed + tests_failed, 1)},
     }
 ```
 
@@ -144,13 +143,14 @@ async def verify(expected_outcome, agent_answer, ctx):
 ```python
 import json
 
+
 async def verify(expected_outcome, agent_answer, ctx):
     actual_db = json.loads(await ctx.read("/data/db.json"))
     original_db = json.loads(await ctx.read("/data/db_original.json"))
-    
+
     # Replay expected actions on original to get expected state
     expected_db = replay_actions(original_db, expected_outcome["actions"])
-    
+
     if actual_db == expected_db:
         return {"is_correct": True, "reasoning": "DB state matches", "metrics": {"score": 1.0}}
     else:
@@ -164,13 +164,13 @@ async def verify(expected_outcome, agent_answer, ctx):
         flag = (await ctx.read("/tmp/flag.txt")).strip()
     except Exception:
         return {"is_correct": False, "reasoning": "No flag file found", "metrics": {}}
-    
+
     expected = expected_outcome["flag"]
     correct = flag == expected
     return {
         "is_correct": correct,
         "reasoning": f"Flag: {flag} ({'matches' if correct else 'does not match'} expected)",
-        "metrics": {}
+        "metrics": {},
     }
 ```
 
@@ -193,29 +193,30 @@ TOOL = {
         "type": "object",
         "properties": {
             "param1": {"type": "string", "description": "Description of param1"},
-            "param2": {"type": "integer", "description": "Description of param2"}
+            "param2": {"type": "integer", "description": "Description of param2"},
         },
-        "required": ["param1"]
-    }
+        "required": ["param1"],
+    },
 }
 
 # Optional: context requirements (resolved from vivarium's namespaced pool)
 CONTEXT = {
-    "model_url": "run.model_url",    # The LLM API URL
-    "model_key": "run.model_key",    # The LLM API key
+    "model_url": "run.model_url",  # The LLM API URL
+    "model_key": "run.model_key",  # The LLM API key
     "model_name": "run.model_name",  # The model name being evaluated
 }
+
 
 # Required: execution function (MUST be async)
 async def execute(args, context):
     container = context["container"]
     """Execute the tool.
-    
+
     Args:
         args: dict of parameter values from the agent's tool call
         container: Container object (async API: await container.read(), await container.write(), await container.exec())
         context: dict of resolved CONTEXT values (empty dict if no CONTEXT defined)
-    
+
     Returns:
         {"content": "result string"} on success
         {"error": "error message"} on failure
@@ -232,9 +233,9 @@ async def execute(args, context):
 All container methods are async — in tools, seed, and verify:
 
 ```python
-content = await container.read("/path")           # returns str
-await container.write("/path", b"bytes")          # takes bytes
-exit_code, output = await container.exec("cmd")   # returns (int, str)
+content = await container.read("/path")  # returns str
+await container.write("/path", b"bytes")  # takes bytes
+exit_code, output = await container.exec("cmd")  # returns (int, str)
 ```
 
 ### Tool with LLM Access (User Simulator)
@@ -248,9 +249,11 @@ CONTEXT = {
     "model_name": "run.model_name",
 }
 
+
 async def execute(args, context):
     container = context["container"]
     from openai import OpenAI
+
     client = OpenAI(base_url=context["model_url"], api_key=context["model_key"])
     response = client.chat.completions.create(
         model=context["model_name"],
@@ -397,9 +400,7 @@ For tasks needing server processes (e.g., web servers, databases):
 async def seed(seed_args, container):
     for comp in seed_args.get("companions", []):
         await container.start_companion(
-            image=comp["image"],
-            hostname=comp["hostname"],
-            memory=comp.get("memory", "512m")
+            image=comp["image"], hostname=comp["hostname"], memory=comp.get("memory", "512m")
         )
 ```
 

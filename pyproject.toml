@@ -66,6 +66,9 @@ Repository = "https://code.europa.eu/palace/palace-eval"
 Issues = "https://github.com/palace-ai/palace-eval/issues"
 Changelog = "https://code.europa.eu/palace/palace-eval/-/blob/main/CHANGELOG.md"
 
+[project.optional-dependencies]
+dev = ["ruff>=0.6.0", "pytest>=8.0.0"]
+
 [project.scripts]
 palace = "palace.cli:main"
 # Deprecated entrypoints - show warning then invoke legacy behavior
