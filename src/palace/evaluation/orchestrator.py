@@ -146,7 +146,7 @@ class Evaluation:
         name: Run name used for the output JSONL filename.
         url: API endpoint URL.
         token: API authentication token.
-        endpoint_type: "openai", "azure", or "mcp".
+        endpoint_type: "openai", "azure", "mcp", or None (auto-detect).
         vivarium_url: Vivarium server URL for agentic execution.
         task_amount_limit: Maximum number of tasks to evaluate per tasklist.
         runs_per_configuration: Number of evaluation runs per model/tasklist pair.
@@ -165,7 +165,7 @@ class Evaluation:
         name: str = "eval",
         url: str = "",
         token: str | None = None,
-        endpoint_type: str = "openai",
+        endpoint_type: str | None = None,
         agentic: bool | None = None,
         vivarium_url: str | None = None,
         task_amount_limit: int | None = None,
@@ -229,6 +229,8 @@ class Evaluation:
             return MCPAgent(url=self.url, token=self.token, name=model)
         from palace.agents.api_agent import APIAgent
 
+        # Pass endpoint_type as api_type only if explicitly set (for azure, or to override auto-detection).
+        # None lets APIAgent auto-detect from model name.
         return APIAgent(
             url=self.url, token=self.token, name=model, api_type=self.endpoint_type, extra_params=extra_params
         )
@@ -478,7 +480,7 @@ def evaluate(
     limit: int | None = None,
     runs_per_configuration: int = 1,
     on_task_complete: Callable[[int, int], None] | None = None,
-    endpoint_type: str = "openai",
+    endpoint_type: str | None = None,
     io_adapter: dict | None = None,
     model_extra_params: dict | None = None,
     report_detail: str = "default",

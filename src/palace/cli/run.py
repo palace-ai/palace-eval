@@ -41,11 +41,19 @@ def _parse_param_value(value: str):
 @click.option("--token", "-k", default=None, help="API token. Defaults to OPENAI_LIKE_API_KEY.")
 @click.option("-y", "--yes", is_flag=True, help="Auto-confirm download prompts (for CI).")
 @click.option("--limit", "-l", type=int, default=None, help="Maximum tasks to evaluate.")
-@click.option("--runs", type=int, default=1, help="Number of runs per configuration.")
+@click.option("--runs", "-r", type=int, default=1, help="Number of runs per configuration.")
 @click.option("--output", "-o", default=None, help="Output folder for results.")
-@click.option("--agentic", is_flag=True, help="Force agentic execution via Vivarium.")
+@click.option("--agentic", "-a", is_flag=True, help="Force agentic execution via Vivarium.")
 @click.option("--concurrency", "-c", type=int, default=None, help="Number of concurrent tasks.")
-@click.option("--name", "run_name", default="eval", help="Name for this evaluation run.")
+@click.option("--name", "-n", "run_name", default="eval", help="Name for this evaluation run.")
+@click.option(
+    "--endpoint-type",
+    "-e",
+    "endpoint_type",
+    type=click.Choice(["openai", "anthropic", "azure", "mcp"]),
+    default=None,
+    help="API type. Auto-detected from model name if not specified (e.g., 'claude' → anthropic).",
+)
 @click.option(
     "--param",
     "-p",
@@ -66,6 +74,7 @@ def run(
     agentic: bool,
     concurrency: int | None,
     run_name: str,
+    endpoint_type: str | None,
     params: tuple[str, ...],
 ) -> None:
     """Run evaluation on a benchmark.
@@ -174,6 +183,7 @@ def run(
             name=run_name,
             url=url,
             token=token,
+            endpoint_type=endpoint_type,
             agentic=True if agentic else None,
             task_amount_limit=limit,
             runs_per_configuration=runs,
