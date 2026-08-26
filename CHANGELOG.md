@@ -5,7 +5,22 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-08-26
+
+### Fixed
+- Wrong model name now caught upfront for all run modes (not just non-agentic), before any tasks run
+- Vivarium connectivity checked immediately on startup — wrong URL fails fast with a clear error instead of hanging
+
 ## [1.0.3] - 2026-08-26
+
+### Fixed
+- `palace run --agentic` now correctly reads `vivarium_url` from config file / `VIVARIUM_URL` env var instead of always auto-starting a local vivarium
+- `palace config set` now warns when an env var or `.env` file is shadowing the key being set, and identifies the source file
+
+### Added
+- `--vivarium-url` option on `palace run` to override the vivarium service URL per-run
+
+
 
 ### Fixed
 - `palace run --agentic` now correctly reads `vivarium_url` from config file / `VIVARIUM_URL` env var instead of always auto-starting a local vivarium

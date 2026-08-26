@@ -119,6 +119,16 @@ class VivariumAgent(Agent):
         started = " (auto-started)" if self._auto_started else ""
         print(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url}{started}[/]")
 
+        # Fail fast if vivarium is unreachable
+        try:
+            await self._client.health()
+        except Exception as e:
+            raise RuntimeError(
+                f"Cannot reach Vivarium at {self._client._url}\n"
+                f"  {e}\n"
+                f"  Check the URL with: palace config set vivarium_url <url>"
+            ) from e
+
         self._tasklist_path = tasklist_path
 
         # Resolve task_files search directories
