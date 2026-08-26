@@ -14,6 +14,7 @@
 
 """Configuration commands: config, adapters, version."""
 
+import os
 from importlib.metadata import version as pkg_version
 
 import click
@@ -176,9 +177,43 @@ def set(key: str, value: str) -> None:
         palace config set judge_model gpt-4o
     """
     try:
+        _validate_key(key)
         set_config_value(key, value)
         masked = _mask_sensitive(key, value)
         print(f"[green]✓[/green] Set {key} = {masked}")
+        # Warn if an env var is shadowing this key — the file write succeeded but
+        # the env var will take precedence until it is unset.
+        env_var = CONFIG_TO_ENV[key]
+        if os.environ.get(env_var):
+            # Try to find which .env file is injecting the value
+            from pathlib import Path
+
+            dot_env_source = None
+            for parent in [Path.cwd()] + list(Path.cwd().parents):
+                candidate = parent / ".env"
+                if candidate.exists():
+                    try:
+                        if any(
+                            line.startswith(f"{env_var}=") or line.startswith(f"{env_var} =")
+                            for line in candidate.read_text().splitlines()
+                            if not line.startswith("#")
+                        ):
+                            dot_env_source = candidate
+                            break
+                    except OSError:
+                        pass
+
+            if dot_env_source:
+                print(
+                    f"[yellow]⚠ Warning:[/yellow] [bold]{env_var}[/bold] is defined in [bold]{dot_env_source}[/bold] and will override this value.\n"
+                    f"  To use the config file value, update or remove it from that file."
+                )
+            else:
+                print(
+                    f"[yellow]⚠ Warning:[/yellow] env var [bold]{env_var}[/bold] is set and will override this value.\n"
+                    f"  To use the config file value, unset the env var:\n"
+                    f"    [dim]unset {env_var}[/dim]"
+                )
     except ValueError as e:
         print(f"[red]Error:[/red] {e}")
         raise SystemExit(1)

@@ -62,6 +62,9 @@ def _parse_param_value(value: str):
     metavar="KEY=VALUE",
     help="Extra model parameter (e.g., -p reasoning_effort=high -p temperature=0.5). Can be specified multiple times.",
 )
+@click.option(
+    "--vivarium-url", default=None, help="Vivarium service URL. Defaults to vivarium_url config/VIVARIUM_URL env."
+)
 def run(
     name: str,
     model: str,
@@ -76,6 +79,7 @@ def run(
     run_name: str,
     endpoint_type: str | None,
     params: tuple[str, ...],
+    vivarium_url: str | None,
 ) -> None:
     """Run evaluation on a benchmark.
 
@@ -93,6 +97,7 @@ def run(
     # Get URL and token: CLI flags > env vars > config file
     url = url or get_config_value("url")
     token = token or get_config_value("key")
+    vivarium_url = vivarium_url or get_config_value("vivarium_url")
 
     if not url:
         print("[red]Error: API URL not configured.[/red]\n")
@@ -185,6 +190,7 @@ def run(
             token=token,
             endpoint_type=endpoint_type,
             agentic=True if agentic else None,
+            vivarium_url=vivarium_url,
             task_amount_limit=limit,
             runs_per_configuration=runs,
             output_path=output_path,
