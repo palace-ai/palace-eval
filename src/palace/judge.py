@@ -64,6 +64,7 @@ Deep nesting (arbitrary depth):
 import re
 from typing import Any
 
+from palace.evaluation.judge_config import JudgeConfig
 from palace.models.api_model import create_api_model
 from palace.utils.constants import get_judge_key, get_judge_url
 from palace.utils.exceptions import JudgeConfigurationError
@@ -78,6 +79,7 @@ class Judge:
 
     Args:
         judge_model: Model identifier (e.g., "gpt-4o", "claude-3-5-sonnet-latest").
+            Ignored if config.model is set.
         judge_prompt: System prompt instructing the LLM how to format its response.
             Must specify the XML tag structure matching output_keywords.
         output_keywords: Specifies which XML tags to extract.
@@ -86,7 +88,11 @@ class Judge:
             ["a", "b"] (extract child tags), or {...} (recurse).
             Returns nested dict mirroring the input structure.
         url: API endpoint URL. Defaults to judge_url config, then falls back to url config.
+            Ignored if config.url is set.
         token: API token. Defaults to judge_key config, then falls back to key config.
+            Ignored if config.key is set.
+        extra_params: Extra parameters for API calls. Ignored if config.extra_params is set.
+        config: JudgeConfig object. If provided, its fields take precedence over individual params.
 
     Examples:
         >>> judge = Judge("gpt-4o", prompt, ["reasoning", "judgement"])
@@ -102,26 +108,30 @@ class Judge:
 
     def __init__(
         self,
-        judge_model: str,
-        judge_prompt: str,
+        judge_model: str | None = None,
+        judge_prompt: str = "",
         output_keywords: list[str] | dict[str, Any] = ["reasoning", "judgement"],
         url: str | None = None,
         token: str | None = None,
+        extra_params: dict | None = None,
+        config: JudgeConfig | None = None,
     ) -> None:
         self.judge_prompt = judge_prompt
         self.output_keywords = output_keywords
 
+        # Resolve from config if provided, otherwise use individual params
+        model = (config.model if config else None) or judge_model
+        resolved_url = (config.url if config else None) or url or get_judge_url()
+        resolved_token = (config.key if config else None) or token or get_judge_key()
+        resolved_extra_params = (config.extra_params if config else None) or extra_params
+
         # Check judge_model is set
-        if not judge_model:
+        if not model:
             raise JudgeConfigurationError(
                 "judge_model is required but not set. Set via:\n"
                 "  - palace config set judge_model <model>\n"
                 "  - JUDGE_MODEL env var"
             )
-
-        # Resolve URL and token: explicit params > judge config > main config
-        resolved_url = url or get_judge_url()
-        resolved_token = token or get_judge_key()
 
         if not resolved_url:
             raise JudgeConfigurationError(
@@ -131,9 +141,10 @@ class Judge:
                 "  - JUDGE_API_URL or OPENAI_LIKE_API_BASE_URL env var"
             )
         self.judge_model = create_api_model(
-            judge_model,
+            model,
             resolved_url,
             resolved_token,
+            extra_params=resolved_extra_params,
         )
 
     def _parse_tag(self, content: str, tag: str) -> str:

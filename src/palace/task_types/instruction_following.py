@@ -29,7 +29,7 @@ class InstructionFollowingTask(Task):
     def adapt_prompt(self) -> str:
         return self.objective
 
-    async def verify(self, answer: str, env=None) -> TaskVerificationResult:
+    async def verify(self, answer: str, env=None, **kwargs) -> TaskVerificationResult:
         constraints = self.custom_fields.get("task_type_fields", {}).get("constraints", [])
         if not constraints:
             return TaskVerificationResult(is_correct=False, reasoning="No constraints defined")

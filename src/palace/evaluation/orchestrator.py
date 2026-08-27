@@ -29,9 +29,10 @@ from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
 from palace.download import resolve_local_path
 from palace.evaluation.dispatch import dispatch_tasks
+from palace.evaluation.judge_config import JudgeConfig
 from palace.evaluation.renderers import select_renderer
 from palace.task_types import Task
-from palace.utils.constants import get_judge_model
+from palace.utils.constants import get_judge_key, get_judge_model, get_judge_url
 from palace.utils.io_adapters import get_io_adapter, load_io_adapters
 from palace.utils.model_extra_params import get_model_extra_params, load_model_extra_params
 from palace.utils.paths import (
@@ -176,6 +177,8 @@ class Evaluation:
         model_extra_params: Optional extra params dict to merge into API calls.
         report_detail: Level of detail in per-task report.
         concurrency: Number of tasks to run concurrently.
+        judge_config: Optional JudgeConfig with judge endpoint URL, key, model, and extra params.
+            If not provided, falls back to environment variables and config file settings.
     """
 
     def __init__(
@@ -196,10 +199,19 @@ class Evaluation:
         model_extra_params: dict | None = None,
         report_detail: str = "default",
         concurrency: int | None = None,
+        judge_config: JudgeConfig | None = None,
     ):
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
-        self.judge_model = get_judge_model()
+        # Judge config: use provided config or build from environment/config defaults
+        if judge_config:
+            self.judge_config = judge_config
+        else:
+            self.judge_config = JudgeConfig(
+                url=get_judge_url(),
+                key=get_judge_key(),
+                model=get_judge_model(),
+            )
         # Note: judge_model can be None here — it's only required for task types that use LLM judging
         # (QA, CriteriaEvaluation). The Judge class will raise a clear error if needed.
         if concurrency is None:
@@ -268,7 +280,7 @@ class Evaluation:
 [bold]Evaluating (run [blue]{run + 1}/{self.runs_per_configuration}[/])
 :robot: agent [blue] {model}[/]
 :scroll: on tasklist [blue]{tasklist}[/]
-:scales: judge [blue]{self.judge_model}[/]
+:scales: judge [blue]{self.judge_config.model or "default"}[/]
 """)
 
                 accuracy, metrics, report = await self.evaluate_async(model, tasklist)
@@ -433,6 +445,7 @@ class Evaluation:
             renderer=renderer,
             on_task_complete=self.on_task_complete,
             on_task_state=self.on_task_state,
+            judge_config=self.judge_config,
         )
 
         # Build report and compute metrics
@@ -505,6 +518,7 @@ def evaluate(
     agentic: bool | None = None,
     concurrency: int | None = None,
     vivarium_url: str | None = None,
+    judge_config: JudgeConfig | None = None,
 ):
     """Evaluate a model on tasklists. Convenience function wrapping Evaluation class."""
     output_path = Path(output_folder) if output_folder else RESULTS_PATH
@@ -523,6 +537,7 @@ def evaluate(
         model_extra_params=model_extra_params,
         report_detail=report_detail,
         concurrency=concurrency,
+        judge_config=judge_config,
     )
     tasklist_list = [tasklist] if isinstance(tasklist, str) else tasklist
     return evaluation.evaluate_all([name], tasklist_list)

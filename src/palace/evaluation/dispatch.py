@@ -20,6 +20,7 @@ from typing import Callable
 
 from palace.agents.base_agent import Agent
 from palace.analyzers.base import Analyzer
+from palace.evaluation.judge_config import JudgeConfig
 from palace.evaluation.pipeline import execute_task
 from palace.evaluation.renderers import Renderer
 from palace.evaluation.types import TaskResult
@@ -42,6 +43,7 @@ async def dispatch_tasks(
     on_task_complete: Callable[..., None] | None,
     on_task_state: Callable[[int, str], None] | None = None,
     task_timeout: float = 7800,
+    judge_config: JudgeConfig | None = None,
 ) -> list[TaskResult]:
     """Dispatch all tasks with bounded concurrency. Single path for all values."""
     await agent.on_tasklist_start(tasklist_path, tasklist_info)
@@ -61,7 +63,18 @@ async def dispatch_tasks(
                 on_task_state(i, "active")
             try:
                 result = await asyncio.wait_for(
-                    execute_task(i, task, agent, adapter, tasklist_path, task_files_dirs, analyzers, detail, renderer),
+                    execute_task(
+                        i,
+                        task,
+                        agent,
+                        adapter,
+                        tasklist_path,
+                        task_files_dirs,
+                        analyzers,
+                        detail,
+                        renderer,
+                        judge_config,
+                    ),
                     timeout=task_timeout,
                 )
             except Exception as e:

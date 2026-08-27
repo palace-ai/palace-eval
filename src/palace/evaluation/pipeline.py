@@ -17,7 +17,7 @@
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from palace.agents.base_agent import Agent
 from palace.analyzers.base import Analyzer
@@ -28,6 +28,9 @@ from palace.utils.exceptions import ConvergenceError, FatalEvaluationError
 from palace.utils.io_adapters import IOAdapter
 from palace.utils.multimodal import mime_from_extension
 from palace.utils.printing import loading, print
+
+if TYPE_CHECKING:
+    from palace.evaluation.judge_config import JudgeConfig
 
 _logger = logging.getLogger("palace.pipeline")
 
@@ -137,7 +140,11 @@ async def run_agent(agent: Agent, prepared: PreparedTask, task_id: str) -> Agent
 
 
 async def verify_answer(
-    task: Task, answer: str, env: ExecutionEnvironment | None, adapter: "IOAdapter | None"
+    task: Task,
+    answer: str,
+    env: ExecutionEnvironment | None,
+    adapter: "IOAdapter | None",
+    judge_config: "JudgeConfig | None" = None,
 ) -> TaskVerificationResult:
     """Run verification (judge, custom verificator, or skip)."""
     # Apply output adapter
@@ -159,7 +166,7 @@ async def verify_answer(
             )
 
     # Standard verification via task type
-    vr = await task.verify(answer, env=env)
+    vr = await task.verify(answer, env=env, judge_config=judge_config)
 
     # Handle legacy tuple return
     if isinstance(vr, TaskVerificationResult):
@@ -235,6 +242,7 @@ async def execute_task(
     analyzers: list[Analyzer],
     detail: str,
     renderer: Renderer,
+    judge_config: "JudgeConfig | None" = None,
 ) -> TaskResult:
     """Run one task through the full pipeline with lifecycle hooks."""
     renderer.on_init_started(i)
@@ -264,7 +272,7 @@ async def execute_task(
         # Verify
         if agent_result.answer is not None and not agent_result.is_skipped:
             renderer.on_verify_started(i)
-            vr = await verify_answer(task, agent_result.answer, env, adapter)
+            vr = await verify_answer(task, agent_result.answer, env, adapter, judge_config)
             renderer.on_verify_finished(i, vr)
         else:
             vr = TaskVerificationResult(

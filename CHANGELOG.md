@@ -5,6 +5,17 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-08-27
+
+### Added
+- `JudgeConfig` dataclass for configuring judge endpoint, key, model, and extra parameters
+- Judge extra parameters support: pass `extra_params` (e.g., `reasoning_effort`, `temperature`) to the judge model
+- `JudgeConfig` exported from `palace` package: `from palace import JudgeConfig`
+
+### Changed
+- `Evaluation` class now accepts `judge_config: JudgeConfig` parameter instead of separate `judge_url`, `judge_key`, `judge_model` parameters
+- Cleaner internal API: judge configuration threaded as single object through dispatch pipeline
+
 ## [1.0.5] - 2026-08-27
 
 ### Added

@@ -47,7 +47,7 @@ class AgenticTask(Task):
     def expected_display(self) -> str | None:
         return None
 
-    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None, **kwargs) -> TaskVerificationResult:
         if env is None:
             return TaskVerificationResult(is_correct=False, outcome="error", reason="no_execution_environment")
         if not self._verify_fn:

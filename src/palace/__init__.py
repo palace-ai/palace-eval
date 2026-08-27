@@ -12,8 +12,13 @@
 # You should have received a copy of the European Union Public Licence
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
+from .evaluation.judge_config import JudgeConfig
+
+__all__ = ["JudgeConfig"]
+
 
 def __getattr__(name):
+    # Lazy imports for heavy modules
     if name == "Evaluation":
         from .evaluation.orchestrator import Evaluation
 

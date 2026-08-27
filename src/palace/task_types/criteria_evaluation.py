@@ -219,19 +219,25 @@ Structure your output exactly as follows:
 Be fair and objective in your evaluation. Do not be biased towards either report A or B.
 The length of a report is not necessarily an indicator of quality - focus on the substance and how well it meets the user's needs."""
 
-    async def _judge_batch(self, batch: list[dict], prompt_AB: str, prompt_BA: str) -> tuple[dict, dict]:
+    async def _judge_batch(self, batch: list[dict], prompt_AB: str, prompt_BA: str, **kwargs) -> tuple[dict, dict]:
         """Run judge on a batch of criteria, return keyword values for AB and BA."""
         judge_prompt = self._build_judge_prompt(batch)
         # Nested format: {criterion_name: [inner_tags]}
         output_keywords = {c["name"]: ["discussion", "best", "gap"] for c in batch}
+
+        # Use explicit judge config if provided, otherwise fall back to defaults
+        judge_config = kwargs.get("judge_config")
+        judge_model = (judge_config.model if judge_config else None) or get_judge_model()
+
         verifier = Judge(
-            judge_model=get_judge_model(),
+            judge_model=judge_model,
             judge_prompt=judge_prompt,
             output_keywords=output_keywords,
+            config=judge_config,
         )
         return await verifier.judge(prompt_AB), await verifier.judge(prompt_BA)
 
-    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None, **kwargs) -> TaskVerificationResult:
         """Verify using criteria — dispatches to pairwise or absolute mode."""
         if not answer or not answer.strip():
             return TaskVerificationResult(
@@ -242,10 +248,10 @@ The length of a report is not necessarily an indicator of quality - focus on the
 
         mode = self.custom_fields.get("task_type_fields", {}).get("mode", "pairwise")
         if mode == "absolute":
-            return await self._verify_absolute(answer)
-        return await self._verify_pairwise(answer)
+            return await self._verify_absolute(answer, **kwargs)
+        return await self._verify_pairwise(answer, **kwargs)
 
-    async def _verify_absolute(self, answer: str) -> TaskVerificationResult:
+    async def _verify_absolute(self, answer: str, **kwargs) -> TaskVerificationResult:
         """Absolute mode: evaluate each criterion independently (met/not met)."""
         try:
             criteria = self.custom_fields.get("task_type_fields", {}).get("criteria", [])
@@ -265,7 +271,7 @@ The length of a report is not necessarily an indicator of quality - focus on the
             for i, batch in enumerate(batches):
                 if len(batches) > 1:
                     print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
-                batch_results = await self._judge_absolute_batch(batch, answer)
+                batch_results = await self._judge_absolute_batch(batch, answer, **kwargs)
                 all_results.update(batch_results)
 
             # Score: earned points / max possible points
@@ -326,7 +332,7 @@ The length of a report is not necessarily an indicator of quality - focus on the
                 metrics={"normalized_score": 0.0},
             )
 
-    async def _judge_absolute_batch(self, batch: list[dict], answer: str) -> dict[str, bool]:
+    async def _judge_absolute_batch(self, batch: list[dict], answer: str, **kwargs) -> dict[str, bool]:
         """Judge a batch of criteria in absolute mode. Returns {name: met}."""
         criteria_list = "\n".join(f"{i + 1}. *{c['name']}*: {c['description']}" for i, c in enumerate(batch))
         output_template = "\n\n".join(f"<{c['name']}>\n<met>YES or NO</met>\n</{c['name']}>" for c in batch)
@@ -345,15 +351,21 @@ Structure your output exactly as follows:
 
         content = f"QUESTION\n{self.objective}\n\nRESPONSE\n{answer}"
         output_keywords = {c["name"]: ["met"] for c in batch}
+
+        # Use explicit judge config if provided, otherwise fall back to defaults
+        judge_config = kwargs.get("judge_config")
+        judge_model = (judge_config.model if judge_config else None) or get_judge_model()
+
         verifier = Judge(
-            judge_model=get_judge_model(),
+            judge_model=judge_model,
             judge_prompt=judge_prompt,
             output_keywords=output_keywords,
+            config=judge_config,
         )
         result = await verifier.judge(content)
         return {c["name"]: result.get(c["name"], {}).get("met", "").strip().upper().startswith("Y") for c in batch}
 
-    async def _verify_pairwise(self, answer: str) -> TaskVerificationResult:
+    async def _verify_pairwise(self, answer: str, **kwargs) -> TaskVerificationResult:
         """Pairwise mode: compare model output vs reference using criteria."""
 
         try:
@@ -389,7 +401,7 @@ Structure your output exactly as follows:
             for i, batch in enumerate(batches):
                 if len(batches) > 1:
                     print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
-                ab, ba = await self._judge_batch(batch, prompt_AB, prompt_BA)
+                ab, ba = await self._judge_batch(batch, prompt_AB, prompt_BA, **kwargs)
                 keyword_values_AB.update(ab)
                 keyword_values_BA.update(ba)
 

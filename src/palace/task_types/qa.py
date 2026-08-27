@@ -127,7 +127,7 @@ Either Correct or Incorrect. No other text can be here.
             return self._get_reference_value(correct_fields[0])
         return self.expected
 
-    async def verify(self, answer: str, env: ExecutionEnvironment | None = None) -> TaskVerificationResult:
+    async def verify(self, answer: str, env: ExecutionEnvironment | None = None, **kwargs) -> TaskVerificationResult:
         criterion, references = self._get_config()
 
         correct_fields = references.get("correct", ["expected"])
@@ -143,7 +143,11 @@ Either Correct or Incorrect. No other text can be here.
         judge_prompt = self._build_judge_prompt(criterion, references, has_incorrect)
         judge_input = self._build_judge_input(answer, references)
 
-        verifier = Judge(judge_model=get_judge_model(), judge_prompt=judge_prompt)
+        # Use explicit judge config if provided, otherwise fall back to defaults
+        judge_config = kwargs.get("judge_config")
+        judge_model = (judge_config.model if judge_config else None) or get_judge_model()
+
+        verifier = Judge(judge_model=judge_model, judge_prompt=judge_prompt, config=judge_config)
         keyword_values = await verifier.judge(judge_input)
 
         judgement = keyword_values.get("judgement", "").strip()

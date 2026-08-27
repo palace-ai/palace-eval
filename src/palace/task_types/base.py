@@ -86,13 +86,14 @@ class Task:
         raise NotImplementedError("Subclasses must implement adapt_prompt().")
 
     async def verify(
-        self, answer: str, env: ExecutionEnvironment | None = None
+        self, answer: str, env: ExecutionEnvironment | None = None, **kwargs
     ) -> tuple[bool, str | None] | TaskVerificationResult:
         """Verify the answer. Subclasses must override.
 
         Args:
             answer: The agent's response to evaluate.
             env: Optional execution environment for agentic verification.
+            **kwargs: Additional configuration, including judge_config (JudgeConfig).
         """
         raise NotImplementedError("Subclasses must implement verify().")
 
