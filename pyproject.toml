@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "palace-eval"
-version = "1.0.7"
+version = "1.0.8"
 description = "An open benchmark format for LLM evaluation, with native agentic support."
 readme = "README.md"
 requires-python = ">=3.13"

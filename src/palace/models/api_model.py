@@ -91,13 +91,18 @@ def create_api_model(
         model_id: The model identifier to use.
         url: The URL of the API server.
         token: The API token for authentication.
-        api_type: "openai", "anthropic", or "azure". Auto-detected from model_id if not specified.
+        api_type: "openai", "anthropic", or "azure". Auto-detected from model_id and url if not specified.
         strip_thinking: Whether to strip <think>...</think> tags from output.
         quiet: Whether to suppress retry log messages on terminal.
         extra_params: Extra kwargs to merge into every API call for this model.
     """
     if api_type is None:
-        api_type = "anthropic" if "claude" in model_id.lower() else "openai"
+        if "claude" in model_id.lower():
+            api_type = "anthropic"
+        elif "azure-api.net" in url or "openai.azure.com" in url:
+            api_type = "azure"
+        else:
+            api_type = "openai"
     if api_type == "anthropic":
         return AnthropicModel(
             model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params
