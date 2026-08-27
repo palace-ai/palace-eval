@@ -5,6 +5,11 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-08-27
+
+### Removed
+- Pre-flight `/models` endpoint check — was incompatible with Azure and other non-OpenAI providers. Connectivity errors now surface naturally on first API call with provider-specific messages.
+
 ## [1.0.6] - 2026-08-27
 
 ### Added

@@ -113,48 +113,6 @@ def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
     return metrics
 
 
-def _check_endpoint(url: str, token: str | None, model: str | None = None) -> None:
-    """Verify LLM endpoint is reachable and valid. Raises RuntimeError if not.
-
-    If model is provided, also checks that the model is listed on the endpoint.
-    This is used for agentic mode where the model name error would otherwise
-    surface silently inside the vivarium container.
-    """
-    import httpx
-
-    try:
-        resp = httpx.get(f"{url}/models", headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=10)
-        # 404 on /models likely means wrong API path
-        if resp.status_code == 404:
-            raise RuntimeError(
-                f"LLM endpoint returned 404 for /models: {url}\n  Check the URL path (e.g., trailing /v1)"
-            )
-        # Check model name if requested and endpoint returned a parseable list
-        if model and resp.status_code == 200:
-            try:
-                data = resp.json()
-                available = {m["id"] for m in data.get("data", [])}
-                if available and model not in available:
-                    raise RuntimeError(
-                        f"Model '{model}' not found on {url}\n  Available models: {', '.join(sorted(available))}"
-                    )
-            except RuntimeError:
-                raise
-            except Exception:
-                pass  # Can't parse model list — let it proceed and fail naturally
-        # Other status codes (200, 401, 403, etc.) mean the endpoint exists
-    except httpx.ConnectError as e:
-        raise RuntimeError(f"Cannot reach LLM endpoint: {url}\n  {e}") from e
-    except httpx.TimeoutException as e:
-        raise RuntimeError(f"LLM endpoint timed out: {url}\n  {e}") from e
-    except httpx.UnsupportedProtocol as e:
-        raise RuntimeError(f"Invalid URL (check for typos): {url}\n  {e}") from e
-    except RuntimeError:
-        raise  # Re-raise our own RuntimeErrors
-    except Exception:
-        pass  # Other errors mean the endpoint is reachable
-
-
 class Evaluation:
     """Runs benchmark evaluations on models.
 
@@ -368,9 +326,6 @@ class Evaluation:
             resolved_extra_params = None
 
         agent = self._create_agent(model, tasklist_info["task_type"], extra_params=resolved_extra_params)
-
-        # Pre-check: verify LLM endpoint is reachable and model exists.
-        _check_endpoint(self.url, self.token, model=model)
 
         # Load tasks
         tasks_path = tasklist_info.get("tasks_path", "tasks.json")
