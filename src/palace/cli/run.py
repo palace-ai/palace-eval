@@ -35,8 +35,8 @@ def _parse_param_value(value: str):
 
 
 @click.command()
-@click.argument("name")
-@click.option("--model", "-m", required=True, help="Model name to evaluate.")
+@click.argument("name", required=False, default=None)
+@click.option("--model", "-m", default=None, help="Model name to evaluate.")
 @click.option("--url", "-u", default=None, help="API endpoint URL. Defaults to OPENAI_LIKE_API_BASE_URL.")
 @click.option("--token", "-k", default=None, help="API token. Defaults to OPENAI_LIKE_API_KEY.")
 @click.option("-y", "--yes", is_flag=True, help="Auto-confirm download prompts (for CI).")
@@ -66,8 +66,8 @@ def _parse_param_value(value: str):
     "--vivarium-url", default=None, help="Vivarium service URL. Defaults to vivarium_url config/VIVARIUM_URL env."
 )
 def run(
-    name: str,
-    model: str,
+    name: str | None,
+    model: str | None,
     url: str | None,
     token: str | None,
     yes: bool,
@@ -85,13 +85,34 @@ def run(
 
     NAME is the benchmark to evaluate (e.g., "MMLU", "GPQA Diamond").
     Downloads automatically if not found locally.
+    Without arguments, launches an interactive wizard.
 
     \b
     Examples:
         palace run MMLU -m gpt-4o
         palace run "GPQA Diamond" -m claude-3-5-sonnet -l 10
         palace run SWE-bench -m o3-mini --agentic -y
+        palace run
     """
+    # --- Wizard mode: invoked with no arguments (exactly "palace run") ---
+    # Check sys.argv since Click has already parsed; argv[0]=palace, argv[1]=run
+    if len(sys.argv) == 2:
+        from palace.cli.wizard import run_wizard
+
+        run_wizard()
+        return
+
+    # --- Validate required arguments ---
+    if not name:
+        print("[red]Error:[/red] Missing benchmark name.")
+        print("[dim]Usage: palace run <benchmark> -m <model>[/dim]")
+        print("[dim]   or: palace run  (for interactive wizard)[/dim]")
+        sys.exit(1)
+    if not model:
+        print("[red]Error:[/red] Missing model. Use -m/--model to specify.")
+        print(f"[dim]Usage: palace run {name} -m <model>[/dim]")
+        sys.exit(1)
+
     benchmark = name  # Use 'benchmark' internally
 
     # Get URL and token: CLI flags > env vars > config file
