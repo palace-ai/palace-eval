@@ -210,7 +210,9 @@ class Evaluation:
         if use_vivarium:
             from palace.agents.vivarium_agent import VivariumAgent
 
-            return VivariumAgent(name=model, url=self.url, token=self.token, vivarium_url=self.vivarium_url)
+            return VivariumAgent(
+                name=model, url=self.url, token=self.token, vivarium_url=self.vivarium_url, extra_params=extra_params
+            )
         if self.endpoint_type == "mcp":
             from palace.agents.mcp_agent import MCPAgent
 

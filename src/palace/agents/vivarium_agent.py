@@ -68,6 +68,7 @@ class VivariumAgent(Agent):
         vivarium_url: Vivarium service URL. If None, auto-starts via vivarium SDK.
         timeout_seconds: Max time per agent run.
         max_steps: Max agent loop iterations per task.
+        extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
     """
 
     agentic: bool = True
@@ -80,12 +81,14 @@ class VivariumAgent(Agent):
         vivarium_url: str | None = None,
         timeout_seconds: int = 7200,
         max_steps: int = 200,
+        extra_params: dict | None = None,
     ):
         self._name = name
         self._url = url
         self._token = token
         self._timeout = timeout_seconds
         self._max_steps = max_steps
+        self._extra_params = extra_params
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
         self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
         self._env_configs: dict[str, dict] = {}  # env_name → spec config (lazy)
@@ -264,6 +267,7 @@ class VivariumAgent(Agent):
                     timeout_seconds=self._timeout,
                     max_steps=self._max_steps,
                     attachments=encoded_attachments,
+                    model_extra_params=self._extra_params,
                 )
                 break
             except (

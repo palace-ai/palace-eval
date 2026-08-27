@@ -5,6 +5,11 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-08-27
+
+### Added
+- `VivariumAgent` now passes `extra_params` to vivarium — enables `reasoning_effort` and other model-specific parameters for agentic evaluations
+
 ## [1.0.8] - 2026-08-27
 
 ### Added
