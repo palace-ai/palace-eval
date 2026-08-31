@@ -341,12 +341,14 @@ class Evaluation:
                 json_tasks.extend(data)
             else:
                 json_tasks.append(data)
+        objective_template = tasklist_info.get("objective_template", "{{objective}}")
         tasks: list[Task] = [
             Task.from_dict(
                 task
                 | {
                     "task_type": tasklist_info["task_type"],
                     "task_type_fields": tasklist_info.get("task_type_fields", {}) | task.get("task_type_fields", {}),
+                    "_objective_template": objective_template,
                 }
             )
             for task in json_tasks

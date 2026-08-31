@@ -25,7 +25,7 @@ The `tasks.json` file contains an array of tasks to evaluate. Each task has an o
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | string | Yes | Unique task identifier |
-| `objective` | string | Yes | The prompt sent to the model |
+| `objective` | string or dict | Yes | The prompt sent to the model. String for simple templates, dict for multi-placeholder templates. |
 | `expected` | string | Depends | Reference answer (required for QA, Criteria Evaluation) |
 | `difficulty` | string | No | Difficulty level for analysis |
 | `attachments` | array | No | List of file paths relative to `task_files/` (images, audio, text, etc.) |
@@ -155,6 +155,25 @@ The prompt sent to the model. Can be multi-line:
 ```json
 {"objective": "Consider the following scenario:\n\nA user asks...\n\nWhat should the response be?"}
 ```
+
+### objective (dict form)
+
+When `info.json` defines an `objective_template` with multiple placeholders, use a dict:
+
+```json
+{
+    "id": "swe_001",
+    "objective": {
+        "problem": "The email validation is broken",
+        "hints": "Check the regex in validators.py"
+    }
+}
+```
+
+The dict keys must match the placeholders in `objective_template`. Extra keys are allowed
+(for metadata) but missing keys cause a validation error.
+
+See [info.json Reference](info-json.md#objective_template) for template syntax.
 
 ### expected
 

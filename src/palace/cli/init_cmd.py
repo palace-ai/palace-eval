@@ -145,6 +145,7 @@ def _create_scaffold(
         "task_type": task_type,
         "input_modalities": ["text"],
         "output_modalities": ["text"],
+        "# objective_template": "{{objective}}  (optional: template for wrapping task objectives)",
     }
 
     # Add task_type_fields based on type

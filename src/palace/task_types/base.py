@@ -14,8 +14,43 @@
 
 """Base classes for tasks and task verification."""
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Protocol, Self
+
+
+def _resolve_objective(raw_objective: str | dict, template: str) -> str:
+    """Resolve objective template with task data.
+
+    Args:
+        raw_objective: Task objective as string or dict of placeholder values.
+        template: Template string with {{placeholder}} markers.
+
+    Returns:
+        Resolved string with all placeholders filled.
+
+    Raises:
+        ValueError: If required placeholders are missing from objective.
+    """
+    placeholders = set(re.findall(r"\{\{(\w+)\}\}", template))
+
+    if isinstance(raw_objective, str):
+        values = {"objective": raw_objective}
+    else:
+        values = dict(raw_objective)
+
+    missing = placeholders - set(values.keys())
+    if missing:
+        raise ValueError(
+            f"Objective missing required placeholder(s): {', '.join(sorted(missing))}. "
+            f"Template requires: {', '.join(sorted(placeholders))}"
+        )
+
+    result = template
+    for key, value in values.items():
+        result = result.replace(f"{{{{{key}}}}}", str(value))
+
+    return result
 
 
 class ExecutionEnvironment(Protocol):
@@ -208,7 +243,11 @@ class Task:
         subclass = task_type_map[task_type_name]
         task = subclass.__new__(subclass)
         task.id = data["id"]
-        task.objective = data["objective"]
+        objective_template = data.get("_objective_template", "{{objective}}")
+        try:
+            task.objective = _resolve_objective(data["objective"], objective_template)
+        except ValueError as e:
+            raise ValueError(f"Task '{data['id']}': {e}") from e
         task.expected = data.get("expected")
         task.references = data.get("references")
         task.difficulty = data.get("difficulty")

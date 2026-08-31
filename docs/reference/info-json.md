@@ -25,6 +25,7 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 | `task_type_fields` | object | `{}` | Task-type-specific configuration |
 | `input_modalities` | array | `["text"]` | Input data types in tasks: `"text"`, `"image"`, `"video"`, `"audio"`. Auto-detected by `palace download` from task attachments. |
 | `output_modalities` | array | `["text"]` | Expected output data types: `"text"`, `"image"`, `"video"`, `"audio"`. Defaults to `["text"]`. |
+| `objective_template` | string | `"{{objective}}"` | Template for wrapping task objectives. Uses `{{placeholder}}` syntax. |
 
 ## Minimal Example
 
@@ -151,6 +152,44 @@ Determines how tasks are evaluated. Must be one of:
 ### task_type_fields
 
 Configuration specific to the task type. See [Task Type Fields Reference](task-type-fields.md) for complete documentation.
+
+### objective_template
+
+Template for wrapping task objectives. Default is `"{{objective}}"` (passthrough).
+
+Placeholders use double-brace syntax: `{{placeholder_name}}`. The template is applied
+to each task's objective before task-type-specific processing.
+
+**String objective (backward compatible):**
+```json
+{
+    "objective_template": "Consider this problem:\n\n{{objective}}\n\nProvide a solution."
+}
+```
+With task `"objective": "What is 2+2?"` → resolved to `"Consider this problem:\n\nWhat is 2+2?\n\nProvide a solution."`
+
+**Dict objective (multi-placeholder):**
+```json
+{
+    "objective_template": "Repository: {{repo}}\n\nIssue: {{issue}}\n\nHints: {{hints}}"
+}
+```
+With task:
+```json
+{
+    "id": "task_001",
+    "objective": {
+        "repo": "/app/myproject",
+        "issue": "Fix the login bug",
+        "hints": "Check auth.py"
+    }
+}
+```
+→ resolved to `"Repository: /app/myproject\n\nIssue: Fix the login bug\n\nHints: Check auth.py"`
+
+!!! note "Validation"
+    PALACE validates that each task's objective provides all placeholders required by the template.
+    String objectives only provide `{{objective}}`. Dict objectives provide their keys as placeholders.
 
 ## Task Type Defaults
 

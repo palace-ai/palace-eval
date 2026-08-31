@@ -15,6 +15,7 @@
 """Full tasklist validation with errors/warnings separation."""
 
 import json
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -212,6 +213,39 @@ class Validator:
                     field="task_type",
                 )
             )
+
+        # Validate objective_template
+        objective_template = info_data.get("objective_template")
+        if objective_template is not None:
+            if not isinstance(objective_template, str):
+                errors.append(
+                    ValidationIssue(
+                        severity=Severity.ERROR,
+                        message=f"objective_template must be a string, got {type(objective_template).__name__}",
+                        path="info.json",
+                        field="objective_template",
+                    )
+                )
+            elif not objective_template.strip():
+                errors.append(
+                    ValidationIssue(
+                        severity=Severity.ERROR,
+                        message="objective_template cannot be empty",
+                        path="info.json",
+                        field="objective_template",
+                    )
+                )
+            else:
+                placeholders = re.findall(r"\{\{(\w+)\}\}", objective_template)
+                if not placeholders:
+                    warnings.append(
+                        ValidationIssue(
+                            severity=Severity.WARNING,
+                            message="objective_template has no {{placeholders}} - template will be used literally",
+                            path="info.json",
+                            field="objective_template",
+                        )
+                    )
 
         # Validate category
         category = info_data.get("category")
@@ -422,6 +456,17 @@ class Validator:
                         path="tasks.json",
                     )
                 )
+            else:
+                # Check objective type
+                objective = task.get("objective")
+                if objective is not None and not isinstance(objective, (str, dict)):
+                    errors.append(
+                        ValidationIssue(
+                            severity=Severity.ERROR,
+                            message=f"Task {task_id or i} 'objective' must be string or dict, got {type(objective).__name__}",
+                            path="tasks.json",
+                        )
+                    )
 
         return errors, warnings, tasks_data
 
@@ -438,6 +483,39 @@ class Validator:
         """
         errors: list[ValidationIssue] = []
         warnings: list[ValidationIssue] = []
+
+        # Validate objective_template compatibility with task objectives
+        objective_template = info_data.get("objective_template", "{{objective}}")
+        # Skip if template is invalid type (already reported in _validate_info)
+        if not isinstance(objective_template, str):
+            objective_template = "{{objective}}"
+        required_placeholders = set(re.findall(r"\{\{(\w+)\}\}", objective_template))
+
+        for i, task in enumerate(tasks_data):
+            task_id = task.get("id", str(i))
+            objective = task.get("objective")
+            if objective is None:
+                continue  # Already reported in _validate_tasks
+
+            # Determine available placeholders
+            if isinstance(objective, str):
+                available = {"objective"}
+            elif isinstance(objective, dict):
+                available = set(objective.keys())
+            else:
+                continue  # Invalid type already reported
+
+            # Check for missing placeholders
+            missing = required_placeholders - available
+            if missing:
+                errors.append(
+                    ValidationIssue(
+                        severity=Severity.ERROR,
+                        message=f"Task {task_id} objective missing required placeholder(s): {', '.join(sorted(missing))}",
+                        path="tasks.json",
+                        field=f"task[{task_id}].objective",
+                    )
+                )
 
         task_type = info_data.get("task_type")
 
