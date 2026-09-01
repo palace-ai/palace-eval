@@ -20,7 +20,7 @@ from pathlib import Path
 import click
 
 from palace.cli.validation import Validator
-from palace.download import resolve_local_path
+from palace.utils.paths import resolve_local_path
 from palace.utils.printing import print
 
 

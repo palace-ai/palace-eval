@@ -27,7 +27,6 @@ import pandas as pd
 from palace.agents import Agent
 from palace.analyzers import CitationVerifier
 from palace.analyzers.fetch import get_fetch_fn
-from palace.download import resolve_local_path
 from palace.evaluation.dispatch import dispatch_tasks
 from palace.evaluation.judge_config import JudgeConfig
 from palace.evaluation.renderers import select_renderer
@@ -41,6 +40,7 @@ from palace.utils.paths import (
     LOGS_PATH,
     RESULTS_PATH,
     TASKLISTS_PATH,
+    resolve_local_path,
 )
 from palace.utils.printing import print
 
