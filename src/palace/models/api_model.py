@@ -236,6 +236,11 @@ class APIModel(Model):
         """Generate text based on the input messages."""
         return await self._generate_with_retry(messages, **kwargs)
 
+    async def close(self) -> None:
+        """Close the underlying HTTP client. Call this when done with the model."""
+        if hasattr(self.client, "close"):
+            await self.client.close()
+
     @abstractmethod
     async def _call_api(self, messages: list[Message]) -> str:
         """Provider-specific API call. Receives agnostic messages, returns text."""

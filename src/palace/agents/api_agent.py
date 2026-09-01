@@ -146,3 +146,7 @@ class APIAgent(Agent):
             if text:
                 prompt = f"Start of text attachment >>>\n{text}\n<<< End of text attachment\n\n{prompt}"
         return prompt
+
+    async def on_tasklist_end(self) -> None:
+        """Close the API client to prevent async generator cleanup errors."""
+        await self._model.close()

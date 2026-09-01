@@ -5,6 +5,18 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2026-09-01
+
+### Fixed
+- Fixed async generator cleanup error on exit ("generator didn't stop after athrow()") by properly closing API clients
+- `APIAgent` now closes its underlying HTTP client in `on_tasklist_end()`
+
+## [1.0.12] - 2026-09-01
+
+### Fixed
+- Fixed circular import error when importing `palace.entrypoints.download.palace_download`
+- Moved `resolve_local_path()` from `palace.download` to `palace.utils.paths` (re-exported for backward compatibility)
+
 ## [1.0.11] - 2026-09-01
 
 ### Improved
