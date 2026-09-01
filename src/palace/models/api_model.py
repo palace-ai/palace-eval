@@ -182,6 +182,56 @@ class APIModel(Model):
                 return cleaned
         return text
 
+    @staticmethod
+    def _extract_text_from_content(content) -> str | None:
+        """Extract text from delta.content, handling both string and structured list formats.
+
+        Mistral's API returns delta.content as a list of structured parts when reasoning
+        is enabled: [{'type': 'thinking', ...}, {'type': 'text', 'text': '...'}].
+        Other providers return a plain string. This method normalizes both to a string,
+        extracting only 'text' parts and skipping 'thinking' parts.
+        """
+        if isinstance(content, str):
+            return content if content else None
+        if isinstance(content, list):
+            texts = []
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
+                    texts.append(part["text"])
+            return "".join(texts) if texts else None
+        return None
+
+    async def _collect_openai_stream(self, stream) -> str:
+        """Collect text from an OpenAI-compatible stream with diagnostics on empty response."""
+        collected: list[str] = []
+        chunk_count = 0
+        finish_reason: str | None = None
+        reasoning_chars = 0
+        usage: dict | None = None
+        async for chunk in stream:
+            chunk_count += 1
+            if chunk.usage:
+                usage = {"prompt": chunk.usage.prompt_tokens, "completion": chunk.usage.completion_tokens}
+            if chunk.choices:
+                choice = chunk.choices[0]
+                if choice.finish_reason:
+                    finish_reason = choice.finish_reason
+                delta = choice.delta
+                if delta.content:
+                    text = self._extract_text_from_content(delta.content)
+                    if text:
+                        collected.append(text)
+                # Track reasoning_content (vLLM/DeepSeek/Qwen3 reasoning models)
+                reasoning = getattr(delta, "reasoning_content", None)
+                if reasoning:
+                    reasoning_chars += len(reasoning)
+        if not collected:
+            diag = f"finish_reason={finish_reason!r}, chunks={chunk_count}, reasoning_chars={reasoning_chars}"
+            if usage:
+                diag += f", usage={usage}"
+            raise ValueError(f"Empty API response: no content returned ({diag})")
+        return "".join(collected)
+
     async def generate(self, messages: list[Message], **kwargs) -> str:
         """Generate text based on the input messages."""
         return await self._generate_with_retry(messages, **kwargs)
@@ -237,28 +287,8 @@ class OpenAIModel(APIModel):
                 parts.append(part)
         return parts
 
-    @staticmethod
-    def _extract_text_from_content(content) -> str | None:
-        """Extract text from delta.content, handling both string and structured list formats.
-
-        Mistral's API returns delta.content as a list of structured parts when reasoning
-        is enabled: [{'type': 'thinking', ...}, {'type': 'text', 'text': '...'}].
-        Other providers return a plain string. This method normalizes both to a string,
-        extracting only 'text' parts and skipping 'thinking' parts.
-        """
-        if isinstance(content, str):
-            return content if content else None
-        if isinstance(content, list):
-            texts = []
-            for part in content:
-                if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
-                    texts.append(part["text"])
-            return "".join(texts) if texts else None
-        return None
-
     async def _call_api(self, messages: list[Message]) -> str:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
-        collected: list[str] = []
         kwargs = {
             "model": self.model_id,
             "messages": formatted,
@@ -267,14 +297,7 @@ class OpenAIModel(APIModel):
         }
         kwargs.update(self.extra_params)
         stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
-        async for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                text = self._extract_text_from_content(chunk.choices[0].delta.content)
-                if text:
-                    collected.append(text)
-        if not collected:
-            raise ValueError("Empty API response: no content returned")
-        return "".join(collected)
+        return await self._collect_openai_stream(stream)
 
 
 class AzureOpenAIModel(APIModel):
@@ -321,7 +344,6 @@ class AzureOpenAIModel(APIModel):
 
     async def _call_api(self, messages: list[Message]) -> str:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
-        collected: list[str] = []
         kwargs = {
             "model": self.model_id,
             "messages": formatted,
@@ -330,14 +352,7 @@ class AzureOpenAIModel(APIModel):
         }
         kwargs.update(self.extra_params)
         stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
-        async for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                text = OpenAIModel._extract_text_from_content(chunk.choices[0].delta.content)
-                if text:
-                    collected.append(text)
-        if not collected:
-            raise ValueError("Empty API response: no content returned")
-        return "".join(collected)
+        return await self._collect_openai_stream(stream)
 
 
 class AnthropicModel(APIModel):
@@ -400,5 +415,13 @@ class AnthropicModel(APIModel):
             async for text in stream.text_stream:
                 collected.append(text)
         if not collected:
-            raise ValueError("Empty API response: no content returned")
+            # Get final message for diagnostics
+            try:
+                final = await stream.get_final_message()
+                stop = final.stop_reason
+                usage = {"input": final.usage.input_tokens, "output": final.usage.output_tokens}
+                diag = f"stop_reason={stop!r}, usage={usage}"
+            except Exception:
+                diag = "no final message available"
+            raise ValueError(f"Empty API response: no content returned ({diag})")
         return "".join(collected)

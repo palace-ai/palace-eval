@@ -5,6 +5,15 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-09-01
+
+### Improved
+- Empty API response errors now include diagnostic details: `finish_reason`, `chunks`, `reasoning_chars`, and `usage` (when available)
+- Helps diagnose reasoning model failures (e.g., token budget exhaustion during thinking phase)
+
+### Changed
+- Refactored `APIModel` streaming logic: extracted `_collect_openai_stream()` and `_extract_text_from_content()` to base class for DRY
+
 ## [1.0.10] - 2026-08-31
 
 ### Added
