@@ -415,8 +415,8 @@ class AnthropicModel(APIModel):
             "max_tokens": 32768,
             "system": system_prompt if system_prompt is not None else omit,
         }
-        kwargs.update(self.extra_params)
-        async with self.client.messages.stream(**kwargs) as stream:  # type: ignore
+        # SDK 1.x: extra params (temperature, thinking, etc.) go via extra_body
+        async with self.client.messages.stream(**kwargs, extra_body=self.extra_params or None) as stream:  # type: ignore
             async for text in stream.text_stream:
                 collected.append(text)
         if not collected:

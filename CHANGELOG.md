@@ -5,6 +5,12 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2026-09-02
+
+### Changed
+- Migrated to Anthropic SDK v1.x (`anthropic>=1.0.0`)
+- Extra params (`temperature`, `thinking`, etc.) now passed via `extra_body` instead of kwargs
+
 ## [1.0.13] - 2026-09-01
 
 ### Fixed
