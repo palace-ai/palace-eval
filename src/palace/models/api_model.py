@@ -39,7 +39,6 @@ from openai import (
 )
 from tenacity import (
     retry,
-    retry_if_exception_type,
     stop_after_delay,
 )
 
@@ -62,6 +61,22 @@ _RETRYABLE_EXCEPTIONS = (
     AnthropicTimeoutError,
     AnthropicConnectionError,
 )
+
+# Connection errors that indicate permanent failure (wrong host/port/config), not worth retrying.
+_PERMANENT_CONNECTION_ERRORS = (ConnectionRefusedError,)
+
+
+def _is_permanent_connection_error(exc: Exception) -> bool:
+    """Check if exception chain contains a permanent connection error."""
+    while exc:
+        if isinstance(exc, _PERMANENT_CONNECTION_ERRORS):
+            return True
+        # Check args[0] for nested exceptions (httpcore wraps errors this way)
+        if hasattr(exc, "args") and exc.args and isinstance(exc.args[0], Exception):
+            if _is_permanent_connection_error(exc.args[0]):
+                return True
+        exc = exc.__cause__
+    return False
 
 
 def _log_retry(retry_state):
@@ -251,7 +266,10 @@ class APIModel(Model):
         wait=lambda retry_state: APIModel._WAIT_SEQUENCE[
             min(retry_state.attempt_number - 1, len(APIModel._WAIT_SEQUENCE) - 1)
         ],
-        retry=retry_if_exception_type(_RETRYABLE_EXCEPTIONS),
+        retry=lambda rs: (
+            isinstance(rs.outcome.exception(), _RETRYABLE_EXCEPTIONS)
+            and not _is_permanent_connection_error(rs.outcome.exception())
+        ),
         before_sleep=lambda retry_state: _log_retry(retry_state),
     )
     async def _generate_with_retry(self, messages: list[Message], **_) -> str:
