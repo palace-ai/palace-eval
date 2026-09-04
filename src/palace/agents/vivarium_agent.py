@@ -390,17 +390,59 @@ class VivariumAgent(Agent):
         for d in self._task_files_dirs:
             target = d / task.id
             if target.is_dir() and any(target.iterdir()):
-                return _tar_gz(target)
+                # Task files should include ALL files (no excludes)
+                return _tar_gz(target, exclude_files=frozenset(), exclude_dirs=frozenset())
         return None
 
 
-def _tar_gz(directory: Path) -> bytes:
-    """Create a tar.gz archive of a directory's contents."""
+# Files/directories to exclude from spec archive sent to vivarium.
+# These are palace-eval evaluation concerns (verification, seeding) that run locally,
+# not runtime concerns that vivarium needs.
+# Update this set if evaluation file conventions change.
+_SPEC_ARCHIVE_EXCLUDE_FILES = frozenset({"verify.py", "seed.py"})  # Exact filename match
+_SPEC_ARCHIVE_EXCLUDE_DIRS = frozenset({"verify_files"})  # Top-level directory match
+
+
+def _should_exclude(relative_path: Path, exclude_files: frozenset[str], exclude_dirs: frozenset[str]) -> bool:
+    """Check if a file should be excluded from archive.
+
+    Args:
+        relative_path: Path relative to archive root.
+        exclude_files: Filenames to exclude (exact match on filename only).
+        exclude_dirs: Directory names to exclude (match at any level in path).
+    """
+    # Exclude exact filename matches (e.g., "verify.py" at any level)
+    if relative_path.name in exclude_files:
+        return True
+    # Exclude files inside excluded directories (e.g., anything under "verify_files/")
+    if exclude_dirs and any(part in exclude_dirs for part in relative_path.parts[:-1]):
+        return True
+    return False
+
+
+def _tar_gz(
+    directory: Path,
+    exclude_files: frozenset[str] = _SPEC_ARCHIVE_EXCLUDE_FILES,
+    exclude_dirs: frozenset[str] = _SPEC_ARCHIVE_EXCLUDE_DIRS,
+) -> bytes:
+    """Create a tar.gz archive of a directory's contents.
+
+    Args:
+        directory: Directory to archive.
+        exclude_files: Filenames to exclude (exact match). Default excludes verify.py, seed.py.
+        exclude_dirs: Directory names to exclude (files inside are excluded). Default excludes verify_files/.
+
+    Excludes verification files by default which are palace-eval concerns, not needed by vivarium.
+    Pass empty frozensets to include all files.
+    """
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for f in directory.rglob("*"):
             if f.is_file():
-                tar.add(f, arcname=str(f.relative_to(directory)))
+                relative_path = f.relative_to(directory)
+                if _should_exclude(relative_path, exclude_files, exclude_dirs):
+                    continue
+                tar.add(f, arcname=str(relative_path))
     return buf.getvalue()
 
 
