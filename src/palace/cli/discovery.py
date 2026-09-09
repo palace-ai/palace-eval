@@ -15,6 +15,7 @@
 """Discovery commands: list, search, info."""
 
 import json
+from pathlib import Path
 
 import click
 
@@ -309,7 +310,7 @@ def info(name: str) -> None:
             if (local_path / "info.json").exists():
                 try:
                     info_data = json.loads((local_path / "info.json").read_text())
-                    _display_info(tl.id, info_data, source="local")
+                    _display_info(tl.id, info_data, source="local", tasklist_path=local_path)
                     return
                 except Exception as e:
                     print(f"[red]Error reading local info.json: {e}[/]")
@@ -383,7 +384,7 @@ def info(name: str) -> None:
     print("[dim]Try 'palace list' to see available tasklists.[/]")
 
 
-def _display_info(ref: str, info_data: dict, source: str) -> None:
+def _display_info(ref: str, info_data: dict, source: str, tasklist_path: Path | None = None) -> None:
     """Display formatted info.json contents."""
     name = info_data.get("name", ref.split("/")[-1] if "/" in ref else ref)
 
@@ -424,15 +425,47 @@ def _display_info(ref: str, info_data: dict, source: str) -> None:
         for key, value in task_type_fields.items():
             print(f"  {key}: {value}")
 
-    # Agentic env
-    if "env" in info_data:
-        env = info_data["env"]
+    # Agentic environment (spec.json for new format, info["env"] for legacy)
+    if info_data.get("task_type") == "Agentic":
         print()
         print("  [bold]Agentic environment:[/]")
-        if "image" in env:
-            print(f"    Image: {env['image']}")
-        if "tools" in env:
-            print(f"    Tools: {', '.join(env['tools'])}")
+
+        # Try spec.json first (new format)
+        spec_shown = False
+        if tasklist_path:
+            env_dir = tasklist_path / "environment"
+            spec_file = env_dir / "spec.json"
+            if spec_file.exists():
+                try:
+                    spec = json.loads(spec_file.read_text())
+                    if "image" in spec:
+                        print(f"    Image: {spec['image']}")
+                    if "tools" in spec:
+                        print(f"    Tools: {', '.join(spec['tools'])}")
+                    print("    [dim](from environment/spec.json)[/]")
+                    spec_shown = True
+                except (json.JSONDecodeError, OSError):
+                    print("    [dim](spec.json unreadable)[/]")
+            else:
+                # Check for multi-env
+                multi_specs = (
+                    [d for d in env_dir.iterdir() if d.is_dir() and (d / "spec.json").exists()]
+                    if env_dir.is_dir()
+                    else []
+                )
+                if multi_specs:
+                    print(f"    Environments: {', '.join(d.name for d in multi_specs)}")
+                    print("    [dim](multi-environment spec.json)[/]")
+                    spec_shown = True
+
+        # Fallback to legacy info["env"]
+        if not spec_shown and "env" in info_data:
+            env = info_data["env"]
+            if "image" in env:
+                print(f"    Image: {env['image']}")
+            if "tools" in env:
+                print(f"    Tools: {', '.join(env['tools'])}")
+            print("    [dim](from info.json - consider migrating to spec.json)[/]")
 
     # Download hint for remote sources
     if source != "local":

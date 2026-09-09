@@ -164,15 +164,76 @@ def _create_scaffold(
                 }
             ]
         }
-    elif task_type == "Agentic" or agentic:
-        info["env"] = {
-            "image": env_image or "python:3.11-slim",
-            "# comment": "Specify Docker image and optional tools for agentic execution",
-        }
+    # Note: Agentic no longer adds env to info.json - spec.json is created separately
 
     # Write info.json with comments
     info_content = json.dumps(info, indent=4, ensure_ascii=False)
     (dest / "info.json").write_text(info_content)
+
+    # Create environment/ directory with spec.json for Agentic tasklists
+    if task_type == "Agentic" or agentic:
+        env_dir = dest / "environment"
+        env_dir.mkdir(exist_ok=True)
+
+        # Create spec.json (vivarium runtime spec)
+        spec = {
+            "image": env_image or "python:3.11-slim",
+            "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
+        }
+        (env_dir / "spec.json").write_text(json.dumps(spec, indent=2))
+
+        # Create seed.py template
+        seed_content = '''"""Seed script — sets up initial environment state for each task.
+
+Called by palace-eval before the agent runs. Use this to create files,
+populate databases, or configure the environment.
+"""
+
+
+def seed(args: dict | None, env) -> None:
+    """Seed the environment for a task.
+
+    Args:
+        args: The task's seed_args from tasks.json (can be None)
+        env: Vivarium environment with exec/read/write methods
+    """
+    # Example: create initial files
+    # if args and "initial_content" in args:
+    #     env.write("/workspace/input.txt", args["initial_content"])
+    pass
+'''
+        (env_dir / "seed.py").write_text(seed_content)
+
+        # Create verify.py template
+        verify_content = '''"""Verify script — checks if the task was completed correctly.
+
+Called by palace-eval after the agent finishes. Inspect the environment
+state and return whether the task succeeded.
+"""
+
+
+def verify(expected: dict, answer: str, env) -> bool | dict:
+    """Verify the task outcome.
+
+    Args:
+        expected: The task's expected_outcome from tasks.json
+        answer: The agent's final response
+        env: Vivarium environment to inspect final state
+
+    Returns:
+        bool: True if correct, False otherwise
+        dict: {"is_correct": bool, "reasoning": str, "metrics": dict}
+    """
+    # Example: check if expected file exists with correct content
+    # try:
+    #     actual = env.read(expected["file_path"])
+    #     return actual.strip() == expected["content"].strip()
+    # except Exception as e:
+    #     return {"is_correct": False, "reasoning": f"File not found: {e}"}
+
+    return True  # Replace with actual verification logic
+'''
+        (env_dir / "verify.py").write_text(verify_content)
 
     # Build tasks.json template
     if task_type == "QA":

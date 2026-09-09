@@ -312,53 +312,40 @@ class Validator:
 
         # Agentic-specific validation
         if task_type == "Agentic":
-            if "env" not in info_data:
+            # Check for spec.json (new format) or info["env"] (legacy)
+            env_dir = tasklist_path / "environment"
+            has_single_spec = env_dir.is_dir() and (env_dir / "spec.json").exists()
+            has_multi_spec = env_dir.is_dir() and any(
+                (d / "spec.json").exists() for d in env_dir.iterdir() if d.is_dir()
+            )
+            has_spec = has_single_spec or has_multi_spec
+            has_legacy = "env" in info_data
+
+            if has_single_spec and has_multi_spec:
                 errors.append(
                     ValidationIssue(
                         severity=Severity.ERROR,
-                        message="Agentic tasklists require 'env' configuration",
+                        message="Ambiguous environment structure: found both environment/spec.json and environment/*/spec.json",
+                        path="environment/",
+                    )
+                )
+            elif not has_spec and not has_legacy:
+                errors.append(
+                    ValidationIssue(
+                        severity=Severity.ERROR,
+                        message="Agentic tasklists require environment/spec.json (or environment/*/spec.json for multi-env)",
+                        path="environment/spec.json",
+                    )
+                )
+            elif has_legacy and not has_spec:
+                warnings.append(
+                    ValidationIssue(
+                        severity=Severity.WARNING,
+                        message="Deprecated: 'env' in info.json. Move to environment/spec.json",
                         path="info.json",
                         field="env",
                     )
                 )
-            else:
-                env = info_data["env"]
-                # Handle both single-env and multi-env formats:
-                # Single-env: {"image": "...", "tools": [...]}
-                # Multi-env: {"default": {"image": "...", "tools": [...]}, "other": {...}}
-                if "image" in env:
-                    # Single-env format - valid
-                    pass
-                elif isinstance(env, dict) and env:
-                    # Multi-env format - check that all named envs have image
-                    for env_name, env_config in env.items():
-                        if not isinstance(env_config, dict):
-                            errors.append(
-                                ValidationIssue(
-                                    severity=Severity.ERROR,
-                                    message=f"Agentic env '{env_name}' must be a configuration object",
-                                    path="info.json",
-                                    field=f"env.{env_name}",
-                                )
-                            )
-                        elif "image" not in env_config:
-                            errors.append(
-                                ValidationIssue(
-                                    severity=Severity.ERROR,
-                                    message=f"Agentic env '{env_name}' requires 'image' field",
-                                    path="info.json",
-                                    field=f"env.{env_name}.image",
-                                )
-                            )
-                else:
-                    errors.append(
-                        ValidationIssue(
-                            severity=Severity.ERROR,
-                            message="Agentic env must specify 'image' or named environment configurations",
-                            path="info.json",
-                            field="env",
-                        )
-                    )
 
         return errors, warnings, info_data
 

@@ -360,14 +360,39 @@ class Evaluation:
 
         # Set verify_fn on AgenticTasks
         if tasklist_info["task_type"] == "Agentic":
-            env_configs = tasklist_info.get("env", {})
+            # Discover environments via spec.json (new format) or info["env"] (legacy)
+            env_dir = tasklist_path / "environment"
+            env_paths: dict[str, Path] = {}
+
+            # Check for spec.json files
+            if env_dir.is_dir():
+                # Multi-env: environment/*/spec.json
+                multi_envs = {d.name: d for d in env_dir.iterdir() if d.is_dir() and (d / "spec.json").exists()}
+                # Single-env: environment/spec.json
+                single_env = (env_dir / "spec.json").exists()
+
+                if multi_envs:
+                    env_paths = multi_envs
+                elif single_env:
+                    env_paths = {"default": env_dir}
+
+            # Fallback to legacy info["env"]
+            if not env_paths:
+                env_configs = tasklist_info.get("env", {})
+                for env_name, env_config in env_configs.items():
+                    path_str = env_config.get("path", "environment") if isinstance(env_config, dict) else "environment"
+                    env_paths[env_name] = tasklist_path / path_str
+                if not env_paths:
+                    env_paths = {"default": env_dir}
+
             verify_fns: dict[str, object] = {}
             for task in tasks:
-                env_name = task.custom_fields.get("env") or next(iter(env_configs), None)
-                env_path = env_configs.get(env_name, {}).get("path", "environment") if env_name else "environment"
-                if env_path not in verify_fns:
-                    verify_fns[env_path] = _load_verify_fn(tasklist_path / env_path / "verify.py")
-                task._verify_fn = verify_fns[env_path]  # type: ignore[attr-defined]
+                env_name = task.custom_fields.get("env") or next(iter(env_paths), "default")
+                env_path = env_paths.get(env_name, env_dir)
+                env_path_str = str(env_path)
+                if env_path_str not in verify_fns:
+                    verify_fns[env_path_str] = _load_verify_fn(env_path / "verify.py")
+                task._verify_fn = verify_fns[env_path_str]  # type: ignore[attr-defined]
                 task._tasklist_path = tasklist_path  # type: ignore[attr-defined]
 
         # Limit tasks

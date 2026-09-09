@@ -57,11 +57,61 @@ MyAgenticBenchmark/
 ├── info.json           # task_type: "Agentic"
 ├── tasks.json          # Tasks with seed_args and expected_outcome
 └── environment/
+    ├── spec.json       # Vivarium runtime spec (image, tools, resources)
     ├── seed.py         # Sets up initial state for each task
     ├── verify.py       # Verifies correctness after execution
+    ├── Dockerfile      # Optional: custom image build
     └── verify_files/   # Optional: tamper-proof files copied at verify time
         └── task_001/
             └── expected.txt
+```
+
+### spec.json
+
+The vivarium runtime specification defines the Docker image, available tools, and resource limits:
+
+```json
+{
+    "image": "python:3.11-slim",
+    "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
+    "resources": {
+        "memory": "4g",
+        "cpus": 2
+    }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `image` | string | Docker image name or `./Dockerfile` for custom build |
+| `tools` | array | Vivarium tools to enable (bash, read, write, edit, grep, glob, ls, web_search, web_fetch) |
+| `resources` | object | Optional resource limits: `memory`, `cpus`, `network` (bool) |
+
+For custom images, place a `Dockerfile` in the environment directory and set `"image": "./Dockerfile"`.
+
+### Multi-Environment Tasklists
+
+For benchmarks with multiple distinct environments (e.g., SWE-bench Pro with per-repository images):
+
+```
+SWE-bench-Pro/
+├── info.json
+├── tasks.json
+└── environment/
+    ├── nodebb/
+    │   ├── spec.json
+    │   └── Dockerfile
+    ├── ansible/
+    │   ├── spec.json
+    │   └── Dockerfile
+    ├── seed.py         # Shared across environments
+    └── verify.py       # Shared across environments
+```
+
+Tasks specify which environment to use via the `"env"` field:
+
+```json
+{"id": "nodebb_123", "env": "nodebb", "objective": "..."}
 ```
 
 ### info.json
@@ -76,6 +126,8 @@ MyAgenticBenchmark/
     "subcategory": "Tool Use"
 }
 ```
+
+Note: Runtime configuration (image, tools) is in `spec.json`, not `info.json`.
 
 ### tasks.json
 

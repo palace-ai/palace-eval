@@ -19,6 +19,7 @@ import base64
 import importlib.util
 import inspect
 import io
+import json
 import logging
 import os
 import tarfile
@@ -138,30 +139,63 @@ class VivariumAgent(Agent):
         task_files_path = info.get("task_files_path", "task_files")
         self._task_files_dirs = sorted(d for d in tasklist_path.glob(task_files_path) if d.is_dir())
 
-        # Store environment configurations for lazy registration
-        if "env" in info:
-            self._env_configs = info["env"]
+        # Discover environments via spec.json (new format) or info["env"] (legacy)
+        discovered_envs = _discover_environments(tasklist_path)
+
+        if discovered_envs:
+            # New format: spec.json files found
+            self._env_configs = {}
+            self._env_paths: dict[str, Path] = {}  # env_name → directory path
+            for env_name, env_path in discovered_envs.items():
+                spec_file = env_path / "spec.json"
+                try:
+                    spec_json = json.loads(spec_file.read_text())
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON in {spec_file}: {e}") from e
+                except OSError as e:
+                    raise ValueError(f"Cannot read {spec_file}: {e}") from e
+                self._env_configs[env_name] = spec_json
+                self._env_paths[env_name] = env_path
+            _logger.info(f"Discovered {len(discovered_envs)} environment(s) via spec.json")
+        elif "env" in info:
+            # Legacy format: info.json["env"]
+            _logger.warning("DEPRECATED: 'env' in info.json. Move to environment/spec.json")
+            legacy_env = info["env"]
+            if not isinstance(legacy_env, dict):
+                raise ValueError(
+                    f"info.json['env'] must be a dict mapping env names to configs, got {type(legacy_env).__name__}"
+                )
+            self._env_configs = legacy_env
+            # Build env_paths from legacy config
+            self._env_paths = {}
+            for env_name, env_config in self._env_configs.items():
+                if not isinstance(env_config, dict):
+                    raise ValueError(
+                        f"info.json['env']['{env_name}'] must be a dict, got {type(env_config).__name__}: {env_config!r}"
+                    )
+                env_path_str = env_config.get("path", "environment")
+                self._env_paths[env_name] = tasklist_path / env_path_str
         else:
-            # No env key — use vivarium's built-in default spec.
+            # No environment defined — use vivarium's built-in default spec.
             # Vivarium registers "default" at startup; if missing, the 404 at
             # create_environment time is a clear enough error.
             self._env_configs = {"default": {}}
+            self._env_paths = {"default": tasklist_path / "environment"}
             self._spec_ids["default"] = "default"
 
         # Pre-load seed functions and archives per unique environment path
         self._seed_fns: dict[str, object] = {}
         self._archives: dict[str, bytes | None] = {}
-        for env_name, env_config in self._env_configs.items():
-            env_path = env_config.get("path", "environment")
-            if env_path not in self._archives:
-                env_dir = tasklist_path / env_path
-                if env_dir.is_dir():
-                    seed_path = env_dir / "seed.py"
+        for env_name, env_path in self._env_paths.items():
+            env_path_str = str(env_path.relative_to(tasklist_path))
+            if env_path_str not in self._archives:
+                if env_path.is_dir():
+                    seed_path = env_path / "seed.py"
                     if seed_path.exists():
-                        self._seed_fns[env_path] = _load_fn(seed_path, "seed")
-                    self._archives[env_path] = _tar_gz(env_dir)
+                        self._seed_fns[env_path_str] = _load_fn(seed_path, "seed")
+                    self._archives[env_path_str] = _tar_gz(env_path)
                 else:
-                    self._archives[env_path] = None
+                    self._archives[env_path_str] = None
 
         _logger.info(f"Loaded {len(self._env_configs)} environment config(s) (lazy registration)")
 
@@ -186,14 +220,15 @@ class VivariumAgent(Agent):
         # Lazy spec registration: register on first use
         if env_name not in self._spec_ids:
             spec_json = self._env_configs[env_name]
-            env_path = spec_json.get("path", "environment")
+            env_path = self._env_paths[env_name]
+            env_path_str = str(env_path.relative_to(self._tasklist_path))
             image = spec_json.get("image")
             _logger.info(f"Registering spec '{env_name}' (first use, image: {image})")
 
             # Retry on transient errors (503 disk pressure, 429, 5xx, connection issues)
             while True:
                 try:
-                    spec_id = await self._client.register_spec(spec_json, self._archives.get(env_path))
+                    spec_id = await self._client.register_spec(spec_json, self._archives.get(env_path_str))
                     break
                 except (httpx.HTTPStatusError, *_TRANSIENT_NETWORK_ERRORS) as e:
                     if _is_transient_http(e):
@@ -231,11 +266,18 @@ class VivariumAgent(Agent):
 
         self._envs[task.id] = env
 
-        env_path = self._env_configs[env_name].get("path", "environment")
-        seed_fn = self._seed_fns.get(env_path)
+        env_path = self._env_paths[env_name]
+        env_path_str = str(env_path.relative_to(self._tasklist_path))
+        seed_fn = self._seed_fns.get(env_path_str)
         if seed_fn:
             _logger.info(f"Seeding environment for {task.id}")
             seed_args = task.custom_fields.get("seed_args")
+            # Handle JSON-encoded seed_args (legacy format)
+            if isinstance(seed_args, str):
+                try:
+                    seed_args = json.loads(seed_args)
+                except json.JSONDecodeError:
+                    _logger.warning(f"seed_args is a string but not valid JSON: {seed_args!r}")
             result = seed_fn(seed_args, env)
             if inspect.isawaitable(result):
                 await result
@@ -401,6 +443,41 @@ class VivariumAgent(Agent):
 # Update this set if evaluation file conventions change.
 _SPEC_ARCHIVE_EXCLUDE_FILES = frozenset({"verify.py", "seed.py"})  # Exact filename match
 _SPEC_ARCHIVE_EXCLUDE_DIRS = frozenset({"verify_files"})  # Top-level directory match
+
+
+def _discover_environments(tasklist_path: Path) -> dict[str, Path]:
+    """Discover environment directories containing spec.json.
+
+    Returns dict mapping env_name → env_directory_path.
+
+    Single-env: environment/spec.json exists → {"default": environment/}
+    Multi-env: environment/*/spec.json exists → {subdir_name: subdir_path, ...}
+
+    Raises ValueError if both patterns exist (ambiguous structure).
+    Returns empty dict if no spec.json found (legacy or default spec).
+    """
+    env_dir = tasklist_path / "environment"
+    if not env_dir.is_dir():
+        return {}
+
+    # Check for multi-env: subdirectories with spec.json
+    multi_envs = {d.name: d for d in env_dir.iterdir() if d.is_dir() and (d / "spec.json").exists()}
+
+    # Check for single-env: spec.json directly in environment/
+    single_env = (env_dir / "spec.json").exists()
+
+    if multi_envs and single_env:
+        raise ValueError(
+            "Ambiguous environment structure: found both environment/spec.json "
+            "and environment/*/spec.json. Use one or the other."
+        )
+
+    if multi_envs:
+        return multi_envs
+    elif single_env:
+        return {"default": env_dir}
+    else:
+        return {}
 
 
 def _should_exclude(relative_path: Path, exclude_files: frozenset[str], exclude_dirs: frozenset[str]) -> bool:

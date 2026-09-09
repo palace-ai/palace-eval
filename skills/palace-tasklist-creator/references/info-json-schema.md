@@ -225,18 +225,25 @@ When multiple envs exist, each task MUST have `"env": "env-name"` pointing to it
 }
 ```
 
-### Agentic with Custom Tools
+### Agentic Tasklist
+
+info.json (evaluation metadata only):
 ```json
 {
   "name": "My-Agent-Bench",
   "task_type": "Agentic",
-  "category": "Tool Use",
-  "env": {
-    "default": {
-      "tools": [],
-      "custom_tools": ["tools/query_db.py", "tools/send_email.py"],
-      "agent_instructions": "You are a customer service agent. Use the tools to help users."
-    }
-  }
+  "category": "Tool Use"
 }
 ```
+
+environment/spec.json (runtime configuration):
+```json
+{
+  "image": "python:3.11-slim",
+  "tools": ["bash", "read", "write", "edit"],
+  "custom_tools": ["tools/query_db.py", "tools/send_email.py"],
+  "resources": {"memory": "4g", "cpus": 2}
+}
+```
+
+Note: Runtime configuration is in `environment/spec.json`, not in `info.json`.

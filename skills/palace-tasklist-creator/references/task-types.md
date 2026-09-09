@@ -188,14 +188,18 @@ An LLM agent acts inside a sandboxed container. A custom `verify.py` script chec
   "task_type": "Agentic",
   "category": "Code Generation",
   "input_modalities": ["text"],
-  "output_modalities": ["text"],
-  "env": {
-    "default": {
-      "image": "python:3.11-slim",
-      "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-      "resources": {"memory": "4g", "cpus": 2.0, "network": false}
-    }
-  }
+  "output_modalities": ["text"]
+}
+```
+
+Note: Runtime configuration is in `environment/spec.json`, not `info.json`.
+
+### environment/spec.json
+```json
+{
+  "image": "python:3.11-slim",
+  "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
+  "resources": {"memory": "4g", "cpus": 2.0, "network": false}
 }
 ```
 

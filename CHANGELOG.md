@@ -5,6 +5,22 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-09
+
+### Added
+- **Runtime spec separation**: Vivarium runtime configuration now lives in `environment/spec.json` instead of `info.json["env"]`
+- Support for multi-environment tasklists via `environment/*/spec.json` pattern
+- `palace init --agentic` now generates `spec.json`, `seed.py`, and `verify.py` templates
+- `palace info` displays spec.json contents for agentic tasklists
+
+### Changed
+- `info.json["env"]` is deprecated (still works with warning) — migrate to `environment/spec.json`
+- spec.json is opaque to palace-eval; vivarium owns the format entirely
+
+### Improved
+- Better error messages for malformed spec.json files
+- Validator now checks for spec.json existence instead of validating env structure
+
 ## [1.0.15] - 2026-09-02
 
 ### Fixed
