@@ -596,7 +596,7 @@ def download_tasklist(
     def _match_glob(pattern: str) -> list[str]:
         return [f for f in _all_repo_files if fnmatch(f, pattern)]
 
-    # Download environment + companions directories
+    # Download environment + machines directories
     # For Agentic tasklists, always download environment/ directory
     # This works for both new format (spec.json) and legacy format (info["env"])
     env_dirs = set()
@@ -608,8 +608,8 @@ def download_tasklist(
                 env_dirs.add(cfg.get("path", "environment"))
     for env_path in env_dirs:
         _download_repo_files(_list_repo_path(env_path))
-        companions_path = str(Path(env_path).parent / "companions")
-        _download_repo_files(_list_repo_path(companions_path))
+        machines_path = str(Path(env_path).parent / "machines")
+        _download_repo_files(_list_repo_path(machines_path))
 
     # Download task_files
     task_files_path = _info.get("task_files_path", "task_files")

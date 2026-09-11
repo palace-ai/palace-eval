@@ -53,8 +53,8 @@ content = await container.read("/data/config.json")
 # Write a file to container (takes bytes)
 await container.write("/data/db.json", json.dumps(data).encode())
 
-# Start a companion container (for tasks needing server processes)
-await container.start_companion(image="my-server:latest", hostname="server", memory="512m")
+# Start an additional machine (for tasks needing server processes)
+await container.start_machine(image="my-server:latest", hostname="server", memory="512m")
 ```
 
 ### Common Patterns
@@ -79,14 +79,14 @@ async def seed(seed_args, container):
     await container.write("/data/scenario.json", json.dumps(seed_args.get("scenario", {})).encode())
 ```
 
-**Start companion containers:**
+**Start additional machines:**
 ```python
 async def seed(seed_args, container):
-    for companion in seed_args.get("companions", []):
-        await container.start_companion(
-            image=companion["image"], hostname=companion["hostname"], memory=companion.get("memory", "512m")
+    for machine in seed_args.get("machines", []):
+        await container.start_machine(
+            image=machine["image"], hostname=machine["hostname"], memory=machine.get("memory", "512m")
         )
-    # Now the agent can reach companion at http://hostname:port
+    # Now the agent can reach machine at http://hostname:port
 ```
 
 ## verify.py
@@ -386,7 +386,7 @@ For tasks needing server processes (e.g., web servers, databases):
 ```json
 {
   "seed_args": {
-    "companions": [
+    "machines": [
       {"image": "my-server:latest", "hostname": "webserver", "memory": "512m"},
       {"image": "postgres:15", "hostname": "db", "memory": "256m"}
     ]
@@ -398,10 +398,8 @@ For tasks needing server processes (e.g., web servers, databases):
 
 ```python
 async def seed(seed_args, container):
-    for comp in seed_args.get("companions", []):
-        await container.start_companion(
-            image=comp["image"], hostname=comp["hostname"], memory=comp.get("memory", "512m")
-        )
+    for m in seed_args.get("machines", []):
+        await container.start_machine(image=m["image"], hostname=m["hostname"], memory=m.get("memory", "512m"))
 ```
 
-The agent can then reach companions by hostname (e.g., `curl http://webserver:8080`).
+The agent can then reach machines by hostname (e.g., `curl http://webserver:8080`).

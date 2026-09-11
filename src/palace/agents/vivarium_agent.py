@@ -81,7 +81,7 @@ class VivariumAgent(Agent):
         token: str | None,
         vivarium_url: str | None = None,
         timeout_seconds: int = 7200,
-        max_steps: int = 200,
+        max_steps: int = 500,
         extra_params: dict | None = None,
     ):
         self._name = name

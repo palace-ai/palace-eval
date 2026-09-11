@@ -105,7 +105,7 @@ For **Agentic tasklists**, also run the smoke test to verify the infrastructure 
 python .kiro/skills/palace-tasklist-creator/scripts/smoke_test_tasklist.py /path/to/your/tasklist --task-limit 2
 ```
 
-The smoke test registers specs, builds/pulls images, creates environments, runs seed.py, and attempts verify.py — all without needing an LLM. It catches Dockerfile errors, broken seed scripts, missing files, and unreachable companions.
+The smoke test registers specs, builds/pulls images, creates environments, runs seed.py, and attempts verify.py — all without needing an LLM. It catches Dockerfile errors, broken seed scripts, missing files, and unreachable machines.
 
 Fix any reported errors, then your tasklist is ready for evaluation with `palace-run`.
 

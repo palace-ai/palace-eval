@@ -386,12 +386,21 @@ class Evaluation:
                     env_paths = {"default": env_dir}
 
             verify_fns: dict[str, object] = {}
+            # For multi-env, verify.py may be in environment/ root (shared) or per-env subdir
+            shared_verify_path = env_dir / "verify.py"
+            shared_verify_fn = _load_verify_fn(shared_verify_path) if shared_verify_path.exists() else None
+
             for task in tasks:
                 env_name = task.custom_fields.get("env") or next(iter(env_paths), "default")
                 env_path = env_paths.get(env_name, env_dir)
                 env_path_str = str(env_path)
                 if env_path_str not in verify_fns:
-                    verify_fns[env_path_str] = _load_verify_fn(env_path / "verify.py")
+                    # Check per-env verify.py first, fall back to shared
+                    per_env_verify = env_path / "verify.py"
+                    if per_env_verify.exists():
+                        verify_fns[env_path_str] = _load_verify_fn(per_env_verify)
+                    else:
+                        verify_fns[env_path_str] = shared_verify_fn
                 task._verify_fn = verify_fns[env_path_str]  # type: ignore[attr-defined]
                 task._tasklist_path = tasklist_path  # type: ignore[attr-defined]
 
