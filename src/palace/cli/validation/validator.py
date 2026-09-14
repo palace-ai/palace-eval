@@ -312,14 +312,13 @@ class Validator:
 
         # Agentic-specific validation
         if task_type == "Agentic":
-            # Check for spec.json (new format) or info["env"] (legacy)
+            # Check for spec.json
             env_dir = tasklist_path / "environment"
             has_single_spec = env_dir.is_dir() and (env_dir / "spec.json").exists()
             has_multi_spec = env_dir.is_dir() and any(
                 (d / "spec.json").exists() for d in env_dir.iterdir() if d.is_dir()
             )
             has_spec = has_single_spec or has_multi_spec
-            has_legacy = "env" in info_data
 
             if has_single_spec and has_multi_spec:
                 errors.append(
@@ -329,21 +328,12 @@ class Validator:
                         path="environment/",
                     )
                 )
-            elif not has_spec and not has_legacy:
+            elif not has_spec:
                 errors.append(
                     ValidationIssue(
                         severity=Severity.ERROR,
                         message="Agentic tasklists require environment/spec.json (or environment/*/spec.json for multi-env)",
                         path="environment/spec.json",
-                    )
-                )
-            elif has_legacy and not has_spec:
-                warnings.append(
-                    ValidationIssue(
-                        severity=Severity.WARNING,
-                        message="Deprecated: 'env' in info.json. Move to environment/spec.json",
-                        path="info.json",
-                        field="env",
                     )
                 )
 

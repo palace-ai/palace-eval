@@ -425,25 +425,29 @@ def _display_info(ref: str, info_data: dict, source: str, tasklist_path: Path | 
         for key, value in task_type_fields.items():
             print(f"  {key}: {value}")
 
-    # Agentic environment (spec.json for new format, info["env"] for legacy)
+    # Agentic environment (spec.json)
     if info_data.get("task_type") == "Agentic":
         print()
         print("  [bold]Agentic environment:[/]")
 
-        # Try spec.json first (new format)
-        spec_shown = False
         if tasklist_path:
             env_dir = tasklist_path / "environment"
             spec_file = env_dir / "spec.json"
             if spec_file.exists():
                 try:
                     spec = json.loads(spec_file.read_text())
-                    if "image" in spec:
+                    # Show machine info from declarative format
+                    if "machines" in spec:
+                        machines = spec["machines"]
+                        for name, config in machines.items():
+                            if "image" in config:
+                                print(f"    Machine '{name}': {config['image']}")
+                    elif "image" in spec:
+                        # Fallback for simpler format
                         print(f"    Image: {spec['image']}")
                     if "tools" in spec:
                         print(f"    Tools: {', '.join(spec['tools'])}")
                     print("    [dim](from environment/spec.json)[/]")
-                    spec_shown = True
                 except (json.JSONDecodeError, OSError):
                     print("    [dim](spec.json unreadable)[/]")
             else:
@@ -456,16 +460,8 @@ def _display_info(ref: str, info_data: dict, source: str, tasklist_path: Path | 
                 if multi_specs:
                     print(f"    Environments: {', '.join(d.name for d in multi_specs)}")
                     print("    [dim](multi-environment spec.json)[/]")
-                    spec_shown = True
-
-        # Fallback to legacy info["env"]
-        if not spec_shown and "env" in info_data:
-            env = info_data["env"]
-            if "image" in env:
-                print(f"    Image: {env['image']}")
-            if "tools" in env:
-                print(f"    Tools: {', '.join(env['tools'])}")
-            print("    [dim](from info.json - consider migrating to spec.json)[/]")
+                else:
+                    print("    [dim](no spec.json found)[/]")
 
     # Download hint for remote sources
     if source != "local":

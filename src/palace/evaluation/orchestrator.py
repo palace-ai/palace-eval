@@ -360,7 +360,7 @@ class Evaluation:
 
         # Set verify_fn on AgenticTasks
         if tasklist_info["task_type"] == "Agentic":
-            # Discover environments via spec.json (new format) or info["env"] (legacy)
+            # Discover environments via spec.json
             env_dir = tasklist_path / "environment"
             env_paths: dict[str, Path] = {}
 
@@ -375,14 +375,8 @@ class Evaluation:
                     env_paths = multi_envs
                 elif single_env:
                     env_paths = {"default": env_dir}
-
-            # Fallback to legacy info["env"]
-            if not env_paths:
-                env_configs = tasklist_info.get("env", {})
-                for env_name, env_config in env_configs.items():
-                    path_str = env_config.get("path", "environment") if isinstance(env_config, dict) else "environment"
-                    env_paths[env_name] = tasklist_path / path_str
-                if not env_paths:
+                else:
+                    # No spec.json — use vivarium's default spec
                     env_paths = {"default": env_dir}
 
             verify_fns: dict[str, object] = {}

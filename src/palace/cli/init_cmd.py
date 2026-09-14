@@ -175,9 +175,10 @@ def _create_scaffold(
         env_dir = dest / "environment"
         env_dir.mkdir(exist_ok=True)
 
-        # Create spec.json (vivarium runtime spec)
+        # Create spec.json (vivarium runtime spec, declarative format)
         spec = {
-            "image": env_image or "python:3.11-slim",
+            "machines": {"agent": {"image": env_image or "vivarium-env", "networks": ["internal"], "idle": True}},
+            "networks": {"internal": {"internet": False}},
             "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
         }
         (env_dir / "spec.json").write_text(json.dumps(spec, indent=2))

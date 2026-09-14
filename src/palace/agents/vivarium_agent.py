@@ -139,11 +139,11 @@ class VivariumAgent(Agent):
         task_files_path = info.get("task_files_path", "task_files")
         self._task_files_dirs = sorted(d for d in tasklist_path.glob(task_files_path) if d.is_dir())
 
-        # Discover environments via spec.json (new format) or info["env"] (legacy)
+        # Discover environments via spec.json
         discovered_envs = _discover_environments(tasklist_path)
 
         if discovered_envs:
-            # New format: spec.json files found
+            # spec.json files found
             self._env_configs = {}
             self._env_paths: dict[str, Path] = {}  # env_name → directory path
             for env_name, env_path in discovered_envs.items():
@@ -157,24 +157,6 @@ class VivariumAgent(Agent):
                 self._env_configs[env_name] = spec_json
                 self._env_paths[env_name] = env_path
             _logger.info(f"Discovered {len(discovered_envs)} environment(s) via spec.json")
-        elif "env" in info:
-            # Legacy format: info.json["env"]
-            _logger.warning("DEPRECATED: 'env' in info.json. Move to environment/spec.json")
-            legacy_env = info["env"]
-            if not isinstance(legacy_env, dict):
-                raise ValueError(
-                    f"info.json['env'] must be a dict mapping env names to configs, got {type(legacy_env).__name__}"
-                )
-            self._env_configs = legacy_env
-            # Build env_paths from legacy config
-            self._env_paths = {}
-            for env_name, env_config in self._env_configs.items():
-                if not isinstance(env_config, dict):
-                    raise ValueError(
-                        f"info.json['env']['{env_name}'] must be a dict, got {type(env_config).__name__}: {env_config!r}"
-                    )
-                env_path_str = env_config.get("path", "environment")
-                self._env_paths[env_name] = tasklist_path / env_path_str
         else:
             # No environment defined — use vivarium's built-in default spec.
             # Vivarium registers "default" at startup; if missing, the 404 at
@@ -272,12 +254,6 @@ class VivariumAgent(Agent):
         if seed_fn:
             _logger.info(f"Seeding environment for {task.id}")
             seed_args = task.custom_fields.get("seed_args")
-            # Handle JSON-encoded seed_args (legacy format)
-            if isinstance(seed_args, str):
-                try:
-                    seed_args = json.loads(seed_args)
-                except json.JSONDecodeError:
-                    _logger.warning(f"seed_args is a string but not valid JSON: {seed_args!r}")
             result = seed_fn(seed_args, env)
             if inspect.isawaitable(result):
                 await result
