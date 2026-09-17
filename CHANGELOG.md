@@ -5,6 +5,16 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-09-17
+
+### Added
+- **Harness selection**: Choose agent harness for Vivarium execution via `--harness` / `-h` CLI flag
+  - `builtin`: Standard ReAct agent loop (default)
+  - `pi`: Pi-style agent (https://pi.dev/)
+- `harness` parameter added to `Evaluation` class, `evaluate()` function, and `VivariumAgent`
+- Interactive wizard now prompts for harness selection when agentic mode is enabled
+- Vivarium SDK `run()` method now accepts `sandbox_harness` parameter
+
 ## [1.1.0] - 2026-09-09
 
 ### Added

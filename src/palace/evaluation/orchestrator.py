@@ -158,6 +158,7 @@ class Evaluation:
         report_detail: str = "default",
         concurrency: int | None = None,
         judge_config: JudgeConfig | None = None,
+        harness: str | None = None,
     ):
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
@@ -199,6 +200,8 @@ class Evaluation:
         if enable_citation_verifier:
             self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
 
+        self.harness = harness
+
     def _create_agent(self, model: str, tasklist_type: str, extra_params: dict | None = None) -> Agent:
         """Construct the appropriate agent for a model.
 
@@ -211,7 +214,12 @@ class Evaluation:
             from palace.agents.vivarium_agent import VivariumAgent
 
             return VivariumAgent(
-                name=model, url=self.url, token=self.token, vivarium_url=self.vivarium_url, extra_params=extra_params
+                name=model,
+                url=self.url,
+                token=self.token,
+                vivarium_url=self.vivarium_url,
+                extra_params=extra_params,
+                harness=self.harness,
             )
         if self.endpoint_type == "mcp":
             from palace.agents.mcp_agent import MCPAgent
@@ -506,8 +514,13 @@ def evaluate(
     concurrency: int | None = None,
     vivarium_url: str | None = None,
     judge_config: JudgeConfig | None = None,
+    harness: str | None = None,
 ):
-    """Evaluate a model on tasklists. Convenience function wrapping Evaluation class."""
+    """Evaluate a model on tasklists. Convenience function wrapping Evaluation class.
+
+    Args:
+        harness: Agent harness for vivarium execution ("builtin", "pi"). Default: "builtin".
+    """
     output_path = Path(output_folder) if output_folder else RESULTS_PATH
     evaluation = Evaluation(
         name=run_name,
@@ -525,6 +538,7 @@ def evaluate(
         report_detail=report_detail,
         concurrency=concurrency,
         judge_config=judge_config,
+        harness=harness,
     )
     tasklist_list = [tasklist] if isinstance(tasklist, str) else tasklist
     return evaluation.evaluate_all([name], tasklist_list)

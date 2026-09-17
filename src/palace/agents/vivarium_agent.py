@@ -70,6 +70,7 @@ class VivariumAgent(Agent):
         timeout_seconds: Max time per agent run.
         max_steps: Max agent loop iterations per task.
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
+        harness: Agent harness to use ("builtin", "pi"). Default: "builtin".
     """
 
     agentic: bool = True
@@ -83,6 +84,7 @@ class VivariumAgent(Agent):
         timeout_seconds: int = 7200,
         max_steps: int = 500,
         extra_params: dict | None = None,
+        harness: str | None = None,
     ):
         self._name = name
         self._url = url
@@ -90,6 +92,7 @@ class VivariumAgent(Agent):
         self._timeout = timeout_seconds
         self._max_steps = max_steps
         self._extra_params = extra_params
+        self._harness = harness
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
         self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
         self._env_configs: dict[str, dict] = {}  # env_name → spec config (lazy)
@@ -121,7 +124,8 @@ class VivariumAgent(Agent):
     async def on_tasklist_start(self, tasklist_path: Path, info: dict) -> None:
         """Store environment configs. Specs registered lazily on first use."""
         started = " (auto-started)" if self._auto_started else ""
-        print(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url}{started}[/]")
+        harness_name = self._harness or "default"
+        print(f"[blue]:whale: Agentic mode — Vivarium @ {self._client._url} (harness: {harness_name}){started}[/]")
 
         # Fail fast if vivarium is unreachable
         try:
@@ -286,6 +290,7 @@ class VivariumAgent(Agent):
                     max_steps=self._max_steps,
                     attachments=encoded_attachments,
                     model_extra_params=self._extra_params,
+                    sandbox_harness=self._harness,
                 )
                 break
             except (

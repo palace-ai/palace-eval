@@ -91,6 +91,13 @@ def run():
         help="Force agentic execution via Vivarium for all tasklists (sandboxed environment with tools).",
     )
     argparser.add_argument(
+        "--harness",
+        type=str,
+        default=None,
+        choices=["builtin", "pi"],
+        help="Agent harness for Vivarium execution. 'builtin': standard ReAct loop. 'pi': Pi-style verification-first loop.",
+    )
+    argparser.add_argument(
         "-c",
         "--concurrency",
         type=int,
@@ -153,6 +160,7 @@ def run():
             report_detail=args.report_detail,
             concurrency=args.concurrency,
             model_extra_params=model_extra_params,
+            harness=args.harness,
         )
         evaluation.evaluate_all([args.name], tasklists=args.tasklist)
     except FileNotFoundError as e:

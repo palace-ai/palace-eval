@@ -99,6 +99,7 @@ def run_wizard() -> None:
         sys.exit(130)
 
     vivarium_url = None
+    harness = None
     if agentic:
         viv = questionary.text(
             "Vivarium URL:",
@@ -107,6 +108,17 @@ def run_wizard() -> None:
         if viv is None:
             sys.exit(130)
         vivarium_url = viv or None
+
+        harness = questionary.select(
+            "Agent harness:",
+            choices=[
+                questionary.Choice("builtin", value="builtin"),
+                questionary.Choice("pi (https://pi.dev/)", value="pi"),
+            ],
+            default="builtin",
+        ).ask()
+        if harness is None:
+            sys.exit(130)
 
     # --- Tasklist selection ---
     available_tasklists = _load_local_tasklists()
@@ -168,11 +180,16 @@ def run_wizard() -> None:
     run_name = run_name or "eval"
 
     # --- Summary ---
+    agentic_str = "no"
+    if agentic:
+        agentic_str = f"yes ({harness})"
+        if vivarium_url:
+            agentic_str += f" @ {vivarium_url}"
     print(f"""
 [bold]Ready to run:[/bold]
   Models:      {", ".join(models)}
   Tasklists:   {", ".join(tasklists)}
-  Agentic:     {"yes" if agentic else "no"}{f" ({vivarium_url})" if vivarium_url else ""}
+  Agentic:     {agentic_str}
   Limit:       {task_limit if task_limit is not None else "unlimited"} tasks
   Concurrency: {concurrency}
   Runs:        {runs}
@@ -199,6 +216,7 @@ def run_wizard() -> None:
             task_amount_limit=task_limit,
             runs_per_configuration=runs,
             concurrency=concurrency,
+            harness=harness,
         )
         evaluation.evaluate_all(models, tasklists=tasklists)
 

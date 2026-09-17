@@ -83,6 +83,20 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
     if agentic is None:
         return
 
+    # --- Harness selection (only relevant for agentic mode) ---
+    harness = None
+    if agentic:
+        harness = questionary.select(
+            "Agent harness:",
+            choices=[
+                questionary.Choice("builtin - Standard ReAct loop", value="builtin"),
+                questionary.Choice("pi - Pi-style verification-first loop", value="pi"),
+            ],
+            default="builtin",
+        ).ask()
+        if harness is None:
+            return
+
     # --- Configure endpoint and select models/agents ---
     if endpoint_type == "mcp":
         url, token, mcp_server = _select_mcp_server()
@@ -191,6 +205,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         agentic=True if agentic else None,
         task_amount_limit=task_limit,
         runs_per_configuration=runs,
+        harness=harness,
     )
     try:
         evaluation.evaluate_all(selected, tasklists=tasklists)

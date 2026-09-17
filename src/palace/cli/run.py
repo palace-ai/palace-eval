@@ -44,6 +44,13 @@ def _parse_param_value(value: str):
 @click.option("--runs", "-r", type=int, default=1, help="Number of runs per configuration.")
 @click.option("--output", "-o", default=None, help="Output folder for results.")
 @click.option("--agentic", "-a", is_flag=True, help="Force agentic execution via Vivarium.")
+@click.option(
+    "--harness",
+    "-h",
+    type=click.Choice(["builtin", "pi"]),
+    default=None,
+    help="Agent harness for Vivarium. pi: https://pi.dev/",
+)
 @click.option("--concurrency", "-c", type=int, default=None, help="Number of concurrent tasks.")
 @click.option("--name", "-n", "run_name", default="eval", help="Name for this evaluation run.")
 @click.option(
@@ -75,6 +82,7 @@ def run(
     runs: int,
     output: str | None,
     agentic: bool,
+    harness: str | None,
     concurrency: int | None,
     run_name: str,
     endpoint_type: str | None,
@@ -217,6 +225,7 @@ def run(
             output_path=output_path,
             concurrency=concurrency,
             model_extra_params=model_extra_params,
+            harness=harness,
         )
 
         evaluation.evaluate_all([model], tasklists=[benchmark])
