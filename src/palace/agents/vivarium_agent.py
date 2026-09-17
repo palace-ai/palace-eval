@@ -319,8 +319,8 @@ class VivariumAgent(Agent):
             ) as e:
                 if _is_transient_http(e):
                     consecutive_failures += 1
-                    if consecutive_failures > 60:
-                        _logger.error(f"Vivarium unreachable for {consecutive_failures} consecutive polls")
+                    if consecutive_failures > 15:  # ~30 seconds of failures
+                        _logger.error(f"Vivarium unreachable for {consecutive_failures} consecutive polls, aborting")
                         return AgentResult(outcome="error", reason="vivarium_unreachable")
                     _logger.debug(f"Transient poll error ({consecutive_failures}): {e}")
                     await asyncio.sleep(2)
@@ -349,12 +349,12 @@ class VivariumAgent(Agent):
                 "tokens_out": data.metrics.output_tokens,
                 "duration_seconds": data.metrics.elapsed_seconds,
             }
-            return AgentResult(answer=data.answer, metrics=metrics)
+            return AgentResult(answer=data.answer, metrics=metrics, debug_logs=data.harness_stderr)
 
         error = data.error if data else "unknown"
         if self.verbose:
             print(f"  [red]⚠ Run failed: {error}[/]")
-        return AgentResult(outcome="error", reason="agent_error")
+        return AgentResult(outcome="error", reason="agent_error", debug_logs=data.harness_stderr if data else None)
 
     async def on_task_end(self, task: Task) -> None:
         """Destroy the environment container."""

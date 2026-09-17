@@ -142,6 +142,9 @@ class VerboseRenderer(_LogMixin):
             self._log_line(f"[{i + 1}/{self.total}] AGENT_SKIP reason={result.skip_reason}")
         else:
             self._log_line(f"[{i + 1}/{self.total}] AGENT_OK len={len(result.answer or '')}")
+        # Show debug logs first (if present), then answer
+        if result.debug_logs:
+            print(result.debug_logs, box=True, box_title=":scroll: Debug Logs")
         if result.answer is not None:
             print(result.answer, box=True, box_title=":left_speech_bubble: Agent Answer")
 

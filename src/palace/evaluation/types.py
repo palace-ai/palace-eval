@@ -68,6 +68,7 @@ class AgentResult:
     outcome: str = "success"  # "success", "error", "unsupported"
     reason: str | None = None
     elapsed: float = 0.0
+    debug_logs: str | None = None  # Optional debug output (e.g., harness stderr)
 
     @property
     def is_skipped(self) -> bool:

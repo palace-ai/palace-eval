@@ -445,6 +445,18 @@ class Validator:
                         )
                     )
 
+            # Check seed_args type (must be object, not JSON string)
+            seed_args = task.get("seed_args")
+            if seed_args is not None and not isinstance(seed_args, dict):
+                errors.append(
+                    ValidationIssue(
+                        severity=Severity.ERROR,
+                        message=f"Task {task_id or i} 'seed_args' must be an object, got {type(seed_args).__name__}",
+                        path="tasks.json",
+                        field=f"task[{task_id or i}].seed_args",
+                    )
+                )
+
         return errors, warnings, tasks_data
 
     def _validate_cross(
