@@ -137,6 +137,7 @@ class Evaluation:
         concurrency: Number of tasks to run concurrently.
         judge_config: Optional JudgeConfig with judge endpoint URL, key, model, and extra params.
             If not provided, falls back to environment variables and config file settings.
+        keep_last_env: Keep the last agentic environment alive for debugging (default: False).
     """
 
     def __init__(
@@ -159,6 +160,7 @@ class Evaluation:
         concurrency: int | None = None,
         judge_config: JudgeConfig | None = None,
         harness: str | None = None,
+        keep_last_env: bool = False,
     ):
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
@@ -201,6 +203,7 @@ class Evaluation:
             self.analyzers.append(CitationVerifier(fetch_fn=get_fetch_fn()))
 
         self.harness = harness
+        self.keep_last_env = keep_last_env
 
     def _create_agent(self, model: str, tasklist_type: str, extra_params: dict | None = None) -> Agent:
         """Construct the appropriate agent for a model.
@@ -220,6 +223,7 @@ class Evaluation:
                 vivarium_url=self.vivarium_url,
                 extra_params=extra_params,
                 harness=self.harness,
+                keep_last_env=self.keep_last_env,
             )
         if self.endpoint_type == "mcp":
             from palace.agents.mcp_agent import MCPAgent

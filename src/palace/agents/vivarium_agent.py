@@ -71,6 +71,7 @@ class VivariumAgent(Agent):
         max_steps: Max agent loop iterations per task.
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
         harness: Agent harness to use ("builtin", "pi"). Default: "builtin".
+        keep_last_env: Keep the last environment alive for debugging (default: False).
     """
 
     agentic: bool = True
@@ -85,6 +86,7 @@ class VivariumAgent(Agent):
         max_steps: int = 500,
         extra_params: dict | None = None,
         harness: str | None = None,
+        keep_last_env: bool = False,
     ):
         self._name = name
         self._url = url
@@ -93,6 +95,8 @@ class VivariumAgent(Agent):
         self._max_steps = max_steps
         self._extra_params = extra_params
         self._harness = harness
+        self._keep_last_env = keep_last_env
+        self._last_kept_env: Any = None  # env kept for debugging
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
         self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
         self._env_configs: dict[str, dict] = {}  # env_name → spec config (lazy)
@@ -362,13 +366,24 @@ class VivariumAgent(Agent):
         return AgentResult(outcome="error", reason="agent_error", debug_logs=data.harness_stderr if data else None)
 
     async def on_task_end(self, task: Task) -> None:
-        """Destroy the environment container."""
+        """Destroy the environment container (or keep for debugging)."""
         env = self._envs.pop(task.id, None)
         if env:
-            await env.destroy()
+            if self._keep_last_env:
+                # Destroy previous kept env, keep this one
+                if self._last_kept_env:
+                    await self._last_kept_env.destroy()
+                self._last_kept_env = env
+                print(f"[yellow]🔍 Kept env for debugging: {env.id}[/]")
+            else:
+                await env.destroy()
 
     async def on_tasklist_end(self) -> None:
         """Cleanup specs and stop vivarium if auto-started."""
+        # Clean up last kept env if any
+        if self._last_kept_env:
+            await self._last_kept_env.destroy()
+            self._last_kept_env = None
         for spec_id in self._spec_ids.values():
             if spec_id == "default":
                 continue  # don't delete vivarium's built-in default spec

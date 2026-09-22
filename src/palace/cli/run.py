@@ -72,6 +72,7 @@ def _parse_param_value(value: str):
 @click.option(
     "--vivarium-url", default=None, help="Vivarium service URL. Defaults to vivarium_url config/VIVARIUM_URL env."
 )
+@click.option("--keep-last-env", is_flag=True, help="Keep the last agentic environment alive for debugging.")
 def run(
     name: str | None,
     model: str | None,
@@ -88,6 +89,7 @@ def run(
     endpoint_type: str | None,
     params: tuple[str, ...],
     vivarium_url: str | None,
+    keep_last_env: bool,
 ) -> None:
     """Run evaluation on a benchmark.
 
@@ -226,6 +228,7 @@ def run(
             concurrency=concurrency,
             model_extra_params=model_extra_params,
             harness=harness,
+            keep_last_env=keep_last_env,
         )
 
         evaluation.evaluate_all([model], tasklists=[benchmark])
