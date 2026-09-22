@@ -82,6 +82,14 @@ class _LogMixin:
         if self._log:
             self._log.close()
 
+    def _log_verification_details(self, result: "TaskResult") -> None:
+        """Log verification reasoning for debugging."""
+        if not self._log:
+            return
+        if result.verification.reasoning:
+            for line in result.verification.reasoning.strip().split("\n"):
+                self._log_line(f"    {line}")
+
 
 class VerboseRenderer(_LogMixin):
     """Rich output with boxes, spinners, and reasoning. For concurrency=1 + tty."""
@@ -185,7 +193,10 @@ class VerboseRenderer(_LogMixin):
                 f"[{i + 1}/{self.total}] {result.verification.outcome.upper()} task={result.task_id} reason={reason} elapsed={elapsed:.1f}s"
             )
         else:
-            self._log_line(f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
+            self._log_line(
+                f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={result.verification.is_correct}"
+            )
+        self._log_verification_details(result)
 
     def on_all_finished(self) -> None:
         if self._loading_ctx is not None:
@@ -266,7 +277,10 @@ class CompactRenderer(_LogMixin):
             reason = vr.skip_reason or "unknown"
             self._log_line(f"[{i + 1}/{self.total}] SKIP task={result.task_id} reason={reason} elapsed={elapsed:.1f}s")
         else:
-            self._log_line(f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s")
+            self._log_line(
+                f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={vr.is_correct}"
+            )
+        self._log_verification_details(result)
         self._render()
 
     def on_all_finished(self) -> None:
@@ -364,6 +378,7 @@ class PlainRenderer(_LogMixin):
             self._log_line(
                 f"[{i + 1}/{self.total}] DONE task={result.task_id} elapsed={elapsed:.1f}s correct={vr.is_correct}"
             )
+        self._log_verification_details(result)
 
     def on_all_finished(self) -> None:
         self._close_log()
