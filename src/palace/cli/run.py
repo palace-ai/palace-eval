@@ -47,7 +47,7 @@ def _parse_param_value(value: str):
 @click.option(
     "--harness",
     "-h",
-    type=click.Choice(["builtin", "pi"]),
+    type=click.Choice(["builtin", "pi", "omp"]),
     default=None,
     help="Agent harness for Vivarium. pi: https://pi.dev/",
 )

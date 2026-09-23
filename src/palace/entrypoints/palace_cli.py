@@ -91,6 +91,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
             choices=[
                 questionary.Choice("builtin - Standard ReAct loop", value="builtin"),
                 questionary.Choice("pi - Pi-style verification-first loop", value="pi"),
+                questionary.Choice("omp - oh-my-pi with native MCP", value="omp"),
             ],
             default="builtin",
         ).ask()

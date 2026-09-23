@@ -114,6 +114,7 @@ def run_wizard() -> None:
             choices=[
                 questionary.Choice("builtin", value="builtin"),
                 questionary.Choice("pi (https://pi.dev/)", value="pi"),
+                questionary.Choice("omp (oh-my-pi)", value="omp"),
             ],
             default="builtin",
         ).ask()

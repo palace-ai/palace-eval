@@ -31,6 +31,7 @@ import httpx
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
 from palace.task_types.base import ExecutionEnvironment, Task
+from palace.utils.paths import LOGS_PATH
 from palace.utils.printing import print
 
 if TYPE_CHECKING:
@@ -70,7 +71,7 @@ class VivariumAgent(Agent):
         timeout_seconds: Max time per agent run.
         max_steps: Max agent loop iterations per task.
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
-        harness: Agent harness to use ("builtin", "pi"). Default: "builtin".
+        harness: Agent harness to use ("builtin", "pi", "omp"). Default: "builtin".
         keep_last_env: Keep the last environment alive for debugging (default: False).
     """
 
@@ -97,6 +98,8 @@ class VivariumAgent(Agent):
         self._harness = harness
         self._keep_last_env = keep_last_env
         self._last_kept_env: Any = None  # env kept for debugging
+        self._trace_dir: Path | None = None  # directory for trace logs
+        self._trace_file: Any = None  # current trace file handle
         self._vivarium_url = vivarium_url or os.getenv("VIVARIUM_URL") or None
         self._spec_ids: dict[str, str] = {}  # env_name → vivarium spec_id
         self._env_configs: dict[str, dict] = {}  # env_name → spec config (lazy)
@@ -121,6 +124,24 @@ class VivariumAgent(Agent):
         self._client = Client(url=self._vivarium_url, auto_start=auto_start)
         self._auto_started = auto_start
 
+    def _log_trace_entry(self, task_id: str, entry: dict) -> None:
+        """Write a trace entry to the task's trace log file."""
+        if self._trace_dir is None:
+            return
+        # Lazily open trace file for this task
+        if self._trace_file is None:
+            safe_id = task_id.replace("/", "_")[:100]
+            trace_path = self._trace_dir / f"{safe_id}_trace.jsonl"
+            self._trace_file = open(trace_path, "w", encoding="utf-8")
+        self._trace_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        self._trace_file.flush()
+
+    def _close_trace_file(self) -> None:
+        """Close the current trace file if open."""
+        if self._trace_file:
+            self._trace_file.close()
+            self._trace_file = None
+
     @property
     def name(self) -> str:
         return self._name
@@ -142,6 +163,10 @@ class VivariumAgent(Agent):
             ) from e
 
         self._tasklist_path = tasklist_path
+
+        # Set up trace directory for this run
+        self._trace_dir = LOGS_PATH / "traces"
+        self._trace_dir.mkdir(parents=True, exist_ok=True)
 
         # Resolve task_files search directories
         task_files_path = info.get("task_files_path", "task_files")
@@ -337,18 +362,20 @@ class VivariumAgent(Agent):
                 raise
             if data.status != "running":
                 break
-            if self.verbose:
-                for entry in data.tool_trace[prev_tc:]:
+            for entry in data.trace[prev_tc:]:
+                if self.verbose:
                     print(f"  {_format_trace_line(entry)}")
-            prev_tc = len(data.tool_trace)
+                self._log_trace_entry(task_id, entry)
+            prev_tc = len(data.trace)
             await asyncio.sleep(1)
         else:
             return AgentResult(outcome="error", reason="timeout")
 
-        # Print remaining trace
-        if self.verbose:
-            for entry in data.tool_trace[prev_tc:]:
+        # Print and log remaining trace
+        for entry in data.trace[prev_tc:]:
+            if self.verbose:
                 print(f"  {_format_trace_line(entry)}")
+            self._log_trace_entry(task_id, entry)
 
         if data and data.status == "completed":
             metrics = {
@@ -367,6 +394,7 @@ class VivariumAgent(Agent):
 
     async def on_task_end(self, task: Task) -> None:
         """Destroy the environment container (or keep for debugging)."""
+        self._close_trace_file()  # Close trace file for this task
         env = self._envs.pop(task.id, None)
         if env:
             if self._keep_last_env:
@@ -380,10 +408,10 @@ class VivariumAgent(Agent):
 
     async def on_tasklist_end(self) -> None:
         """Cleanup specs and stop vivarium if auto-started."""
-        # Clean up last kept env if any
+        # If keep_last_env, leave it alive for debugging (don't destroy)
         if self._last_kept_env:
-            await self._last_kept_env.destroy()
-            self._last_kept_env = None
+            print(f"[yellow]🔍 Environment kept for debugging: {self._last_kept_env.id}[/]")
+            self._last_kept_env = None  # Clear reference but don't destroy
         for spec_id in self._spec_ids.values():
             if spec_id == "default":
                 continue  # don't delete vivarium's built-in default spec
@@ -520,31 +548,42 @@ def _tar_gz(
 
 
 def _format_trace_line(entry: dict) -> str:
-    """Format a tool trace entry as a clean one-liner."""
-    tool = entry["tool"]
+    """Format a trace entry (thinking or tool) as a clean one-liner."""
+    entry_type = entry.get("type", "tool")
+
+    # Handle thinking entries
+    if entry_type == "thinking":
+        content = entry.get("content", "")
+        t = content.replace("\n", " ").strip()
+        if len(t) > 300:
+            t = t[:300] + "…"
+        # Format token count as (15k) or (900)
+        input_tokens = entry.get("input_tokens")
+        if input_tokens:
+            if input_tokens >= 1000:
+                token_str = f"{input_tokens // 1000}k"
+            else:
+                token_str = str(input_tokens)
+            return f"[yellow]({token_str})[/yellow] [italic]💭 {t}[/]"
+        return f"[italic]💭 {t}[/]"
+
+    # Handle tool entries
+    tool = entry.get("tool", "unknown")
     args = entry.get("args", {})
     result = entry.get("result", "")
-    thought = entry.get("thought", "")
-    # Format thought
-    prefix = ""
-    if thought:
-        t = thought.replace("\n", " ").strip()
-        if len(t) > 200:
-            t = t[:200] + "…"
-        prefix = f"[dim italic]💭 {t}[/]\n  "
     # Format args
     parts = []
     for k, v in args.items():
         val = v if isinstance(v, str) else str(v)
-        if len(val) > 80:
-            val = val[:80] + "…"
-        parts.append(f"[dim]{k}=[/][dim blue]{val}[/]")
+        if len(val) > 100:
+            val = val[:100] + "…"
+        parts.append(f"[dim]{k}=[/][blue]{val}[/]")
     formatted_args = " ".join(parts)
     # Format result
     res = str(result).replace("\n", " ").strip()
-    if len(res) > 200:
-        res = res[:200] + "…"
-    return f"{prefix}[bold]{tool}[/] {formatted_args}\n    [dim]→ {res}[/]"
+    if len(res) > 300:
+        res = res[:300] + "…"
+    return f"[bold]{tool}[/] {formatted_args}\n    [dim]→ {res}[/]"
 
 
 def _load_fn(path: Path, fn_name: str):
