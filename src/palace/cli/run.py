@@ -49,7 +49,7 @@ def _parse_param_value(value: str):
     "-h",
     type=click.Choice(["builtin", "pi", "omp"]),
     default=None,
-    help="Agent harness for Vivarium. pi: https://pi.dev/",
+    help="Agent harness for Vivarium.",
 )
 @click.option("--concurrency", "-c", type=int, default=None, help="Number of concurrent tasks.")
 @click.option("--name", "-n", "run_name", default="eval", help="Name for this evaluation run.")
