@@ -199,15 +199,21 @@ class VivariumAgent(Agent):
             self._spec_ids["default"] = "default"
 
         # Pre-load seed functions and archives per unique environment path
+        # For multi-env, seed.py may be in environment/ root (shared) or per-env subdir
         self._seed_fns: dict[str, object] = {}
         self._archives: dict[str, bytes | None] = {}
+        shared_seed_path = tasklist_path / "environment" / "seed.py"
+        shared_seed_fn = _load_fn(shared_seed_path, "seed") if shared_seed_path.exists() else None
         for env_name, env_path in self._env_paths.items():
             env_path_str = str(env_path.relative_to(tasklist_path))
             if env_path_str not in self._archives:
                 if env_path.is_dir():
-                    seed_path = env_path / "seed.py"
-                    if seed_path.exists():
-                        self._seed_fns[env_path_str] = _load_fn(seed_path, "seed")
+                    # Check per-env seed.py first, fall back to shared
+                    per_env_seed = env_path / "seed.py"
+                    if per_env_seed.exists():
+                        self._seed_fns[env_path_str] = _load_fn(per_env_seed, "seed")
+                    elif shared_seed_fn:
+                        self._seed_fns[env_path_str] = shared_seed_fn
                     self._archives[env_path_str] = _tar_gz(env_path)
                 else:
                     self._archives[env_path_str] = None
