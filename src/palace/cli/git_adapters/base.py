@@ -63,13 +63,13 @@ class GitAdapter(ABC):
     """Abstract base class for git hosting platform adapters.
 
     Implementations must provide methods to:
-    - List repositories/datasets with the palace-tasklist tag
+    - List repositories/datasets with the palace tag
     - Read metadata files (info.json)
     - Download complete tasklists
     """
 
     @abstractmethod
-    def list_by_tag(self, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_by_tag(self, tag: str = "palace") -> list[TasklistInfo]:
         """List all repos/datasets with the given tag.
 
         Args:
@@ -81,7 +81,7 @@ class GitAdapter(ABC):
         ...
 
     @abstractmethod
-    def list_org(self, org: str, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_org(self, org: str, tag: str = "palace") -> list[TasklistInfo]:
         """List repos/datasets in an org with the given tag.
 
         Args:

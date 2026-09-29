@@ -30,7 +30,7 @@ class HuggingFaceGitAdapter(GitAdapter):
     def __init__(self):
         self.api = HfApi()
 
-    def list_by_tag(self, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_by_tag(self, tag: str = "palace") -> list[TasklistInfo]:
         """List all datasets with the given tag.
 
         Args:
@@ -59,7 +59,7 @@ class HuggingFaceGitAdapter(GitAdapter):
 
         return tasklists
 
-    def list_org(self, org: str, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_org(self, org: str, tag: str = "palace") -> list[TasklistInfo]:
         """List datasets in an org with the given tag.
 
         Args:

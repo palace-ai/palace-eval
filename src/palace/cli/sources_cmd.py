@@ -41,8 +41,8 @@ def sources(ctx: click.Context) -> None:
         print("  [blue][HF][/] palace-ai ⭐")
 
         print("\n[bold]Community[/] (public, anyone can publish):")
-        print("  [blue][HF][/] public datasets with palace-tasklist tag")
-        print("  [white][GitHub][/] public repos with palace-tasklist topic")
+        print("  [blue][HF][/] public datasets with palace tag")
+        print("  [white][GitHub][/] public repos with palace topic")
 
         user_sources = manager.get_user_sources()
         if user_sources:
@@ -105,7 +105,7 @@ def add(url: str) -> None:
         if collection_slug:
             print("[dim]This will list datasets from the collection[/]")
         elif source.org:
-            print(f"[dim]This will search for repos with 'palace-tasklist' tag in {source.org}[/]")
+            print(f"[dim]This will search for repos with 'palace' tag in {source.org}[/]")
 
     except ValueError as e:
         print(f"[red]Error:[/] {e}")

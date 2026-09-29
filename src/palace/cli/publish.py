@@ -41,7 +41,7 @@ def publish(name: str, repo: str | None, org: str | None, token: str | None, pri
     1. Validate the tasklist
     2. Create a HuggingFace dataset repository (if it doesn't exist)
     3. Upload all files
-    4. Add the 'palace-tasklist' tag for discoverability
+    4. Add the 'palace' tag for discoverability
 
     \b
     Examples:
@@ -148,7 +148,7 @@ def publish(name: str, repo: str | None, org: str | None, token: str | None, pri
     print("  This will:")
     print("    • Create a new HuggingFace dataset repository (if needed)")
     print("    • Upload all files from the tasklist directory")
-    print("    • Add the 'palace-tasklist' tag for discoverability")
+    print("    • Add the 'palace' tag for discoverability")
     print()
 
     if dry_run:
@@ -205,8 +205,8 @@ def publish(name: str, repo: str | None, org: str | None, token: str | None, pri
         print(f"[red]✗ Upload failed:[/red] {e}")
         sys.exit(1)
 
-    # Add palace-tasklist tag
-    print("[dim]Adding palace-tasklist tag...[/dim]")
+    # Add palace tag
+    print("[dim]Adding palace tag...[/dim]")
 
     try:
         # Get current metadata
@@ -224,15 +224,15 @@ def publish(name: str, repo: str | None, org: str | None, token: str | None, pri
             card.data.tags = []
 
         # Add tag if not present
-        if "palace-tasklist" not in card.data.tags:
-            card.data.tags.append("palace-tasklist")
+        if "palace" not in card.data.tags:
+            card.data.tags.append("palace")
 
         # Push updated card
         card.push_to_hub(repo_id, repo_type="dataset", token=token)
         print("[green]✓ Tag added[/green]")
     except Exception as e:
         print(f"[yellow]⚠ Could not add tag automatically:[/yellow] {e}")
-        print("  Please add the 'palace-tasklist' tag manually in the dataset settings.")
+        print("  Please add the 'palace' tag manually in the dataset settings.")
 
     # Success!
     print()

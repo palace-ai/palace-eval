@@ -28,7 +28,7 @@ from palace.cli.git_adapters.base import GitAdapter, TasklistInfo
 
 
 class GitLabGitAdapter(GitAdapter):
-    """Adapter for discovering tasklists from GitLab repos with palace-tasklist topic."""
+    """Adapter for discovering tasklists from GitLab repos with palace topic."""
 
     def __init__(self, base_url: str = "https://gitlab.com"):
         from palace.utils.config import get_config_value
@@ -44,7 +44,7 @@ class GitLabGitAdapter(GitAdapter):
             headers["PRIVATE-TOKEN"] = self.token
         return headers
 
-    def list_by_tag(self, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_by_tag(self, tag: str = "palace") -> list[TasklistInfo]:
         """List all projects with the given topic.
 
         Args:
@@ -85,7 +85,7 @@ class GitLabGitAdapter(GitAdapter):
 
         return tasklists
 
-    def list_org(self, org: str, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_org(self, org: str, tag: str = "palace") -> list[TasklistInfo]:
         """List projects in a group/user with the given topic.
 
         Args:

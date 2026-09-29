@@ -27,7 +27,7 @@ from palace.cli.git_adapters.base import GitAdapter, RateLimitError, TasklistInf
 
 
 class GitHubGitAdapter(GitAdapter):
-    """Adapter for discovering tasklists from GitHub repos with palace-tasklist topic."""
+    """Adapter for discovering tasklists from GitHub repos with palace topic."""
 
     def __init__(self):
         from palace.utils.config import get_config_value
@@ -60,14 +60,14 @@ class GitHubGitAdapter(GitAdapter):
                     reset_time=reset_int,
                 )
 
-    def list_by_tag(self, tag: str = "palace-tasklist") -> list[TasklistInfo]:
-        """List all repos with the given topic.
+    def list_by_tag(self, tag: str = "palace") -> list[TasklistInfo]:
+        """List all repos with the given topic that contain info.json.
 
         Args:
             tag: Topic to search for.
 
         Returns:
-            List of discovered tasklists.
+            List of discovered tasklists (only those with info.json).
         """
         tasklists: list[TasklistInfo] = []
 
@@ -84,6 +84,10 @@ class GitHubGitAdapter(GitAdapter):
 
             data = response.json()
             for repo in data.get("items", []):
+                # Verify this is a palace tasklist by checking for info.json
+                if not self.file_exists(repo["full_name"], "info.json"):
+                    continue
+
                 tasklists.append(
                     TasklistInfo(
                         name=repo["name"],
@@ -102,15 +106,15 @@ class GitHubGitAdapter(GitAdapter):
 
         return tasklists
 
-    def list_org(self, org: str, tag: str = "palace-tasklist") -> list[TasklistInfo]:
-        """List repos in an org with the given topic.
+    def list_org(self, org: str, tag: str = "palace") -> list[TasklistInfo]:
+        """List repos in an org with the given topic that contain info.json.
 
         Args:
             org: Organization/user name.
             tag: Topic to filter by.
 
         Returns:
-            List of discovered tasklists.
+            List of discovered tasklists (only those with info.json).
         """
         tasklists: list[TasklistInfo] = []
 
@@ -127,6 +131,10 @@ class GitHubGitAdapter(GitAdapter):
 
             data = response.json()
             for repo in data.get("items", []):
+                # Verify this is a palace tasklist by checking for info.json
+                if not self.file_exists(repo["full_name"], "info.json"):
+                    continue
+
                 tasklists.append(
                     TasklistInfo(
                         name=repo["name"],

@@ -29,6 +29,10 @@ SOURCES_FILE = CONFIG_DIR / "sources.yaml"
 # Official organization on HuggingFace
 OFFICIAL_ORG = "palace-ai"
 
+# Discovery tags
+PRIMARY_TAG = "palace"
+DEPRECATED_TAG = "palace-tasklist"  # Fallback with deprecation warning
+
 
 @dataclass
 class Source:
@@ -37,7 +41,7 @@ class Source:
     type: str  # "huggingface", "github", "gitlab", "local"
     url: str | None = None
     org: str | None = None
-    tag: str = "palace-tasklist"
+    tag: str = PRIMARY_TAG
     official: bool = False
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -71,7 +75,7 @@ class SourceManager:
                         type=source_data.get("type", "unknown"),
                         url=source_data.get("url"),
                         org=source_data.get("org"),
-                        tag=source_data.get("tag", "palace-tasklist"),
+                        tag=source_data.get("tag", PRIMARY_TAG),
                         official=source_data.get("official", False),
                         extra=source_data.get("extra", {}),
                     )
@@ -107,10 +111,10 @@ class SourceManager:
         return [
             # Official palace-ai org on HuggingFace
             Source(type="huggingface", org=OFFICIAL_ORG, official=True),
-            # All HuggingFace datasets with palace-tasklist tag
-            Source(type="huggingface", tag="palace-tasklist"),
-            # All GitHub repos with palace-tasklist topic
-            Source(type="github", tag="palace-tasklist"),
+            # All HuggingFace datasets with palace tag
+            Source(type="huggingface", tag=PRIMARY_TAG),
+            # All GitHub repos with palace topic (filtered by info.json presence)
+            Source(type="github", tag=PRIMARY_TAG),
         ]
 
     def get_all_sources(self) -> list[Source]:
@@ -252,6 +256,7 @@ class SourceManager:
         """
         all_tasklists: list[TasklistInfo] = []
         seen_ids: set[str] = set()
+        deprecated_tag_ids: set[str] = set()  # Track IDs found via deprecated tag
 
         for source in self.get_all_sources():
             try:
@@ -271,6 +276,38 @@ class SourceManager:
                 if on_error:
                     on_error(source, e)
                 # Continue with other sources
+
+        # Fallback: search with deprecated tag for tasklists not found with primary tag
+        deprecated_sources = [
+            Source(type="huggingface", tag=DEPRECATED_TAG),
+            Source(type="github", tag=DEPRECATED_TAG),
+        ]
+
+        for source in deprecated_sources:
+            try:
+                tasklists = self._discover_from_source(source, refresh=refresh)
+                for tl in tasklists:
+                    # Only add if not already found via primary tag
+                    if tl.id not in seen_ids:
+                        seen_ids.add(tl.id)
+                        deprecated_tag_ids.add(tl.id)
+                        all_tasklists.append(tl)
+            except RateLimitError:
+                raise
+            except Exception as e:
+                if on_error:
+                    on_error(source, e)
+
+        # Emit deprecation warning if any tasklists found only via deprecated tag
+        if deprecated_tag_ids:
+            from palace.utils.printing import print
+
+            print(
+                f"[yellow]Warning:[/] Found {len(deprecated_tag_ids)} tasklist(s) using deprecated tag '{DEPRECATED_TAG}'. "
+                f"Please update to use the '{PRIMARY_TAG}' tag."
+            )
+            for tid in sorted(deprecated_tag_ids):
+                print(f"  [dim]• {tid}[/]")
 
         return all_tasklists
 

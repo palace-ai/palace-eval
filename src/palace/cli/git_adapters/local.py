@@ -89,7 +89,7 @@ class LocalAdapter(GitAdapter):
 
         return tasklists
 
-    def list_by_tag(self, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_by_tag(self, tag: str = "palace") -> list[TasklistInfo]:
         """List all local tasklists (tag is ignored for local).
 
         Args:
@@ -100,7 +100,7 @@ class LocalAdapter(GitAdapter):
         """
         return self.list_tasklists()
 
-    def list_org(self, org: str, tag: str = "palace-tasklist") -> list[TasklistInfo]:
+    def list_org(self, org: str, tag: str = "palace") -> list[TasklistInfo]:
         """List local tasklists (org is ignored for local).
 
         Args:
