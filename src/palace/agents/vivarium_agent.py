@@ -387,8 +387,8 @@ class VivariumAgent(Agent):
             metrics = {
                 "steps": data.metrics.steps_completed,
                 "tool_calls": data.metrics.tool_calls_completed,
-                "tokens_in": data.metrics.input_tokens,
-                "tokens_out": data.metrics.output_tokens,
+                "input_tokens": data.metrics.input_tokens,
+                "output_tokens": data.metrics.output_tokens,
                 "duration_seconds": data.metrics.elapsed_seconds,
             }
             return AgentResult(answer=data.answer, metrics=metrics, debug_logs=data.harness_stderr)

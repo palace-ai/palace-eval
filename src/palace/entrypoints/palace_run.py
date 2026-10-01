@@ -65,6 +65,12 @@ def run():
         help="The maximum number of tasks to evaluate per tasklist.",
     )
     argparser.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Number of tasks to skip from the beginning. Use with --limit for ranges (e.g., --offset 80 --limit 5 for tasks 80-84).",
+    )
+    argparser.add_argument(
         "--runs-per-configuration",
         type=int,
         default=1,
@@ -154,7 +160,8 @@ def run():
             token=args.token,
             endpoint_type=endpoint_type,
             agentic=True if args.agentic else None,
-            task_amount_limit=args.limit,
+            task_limit=args.limit,
+            task_offset=args.offset,
             runs_per_configuration=args.runs_per_configuration,
             output_path=output_path,
             report_detail=args.report_detail,

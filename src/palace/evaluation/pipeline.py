@@ -217,7 +217,6 @@ def build_report(
         "skip_reason": vr.skip_reason,
         "reason": vr.reason,
         "reasoning": vr.reasoning,
-        "elapsed_time": round(agent_result.elapsed, 2),
     }
     if detail == "full":
         entry["objective"] = task.objective
@@ -226,9 +225,26 @@ def build_report(
         entry["metrics"] = vr.metrics
     if analyzer_metrics:
         entry.setdefault("metrics", {})["analyzers"] = analyzer_metrics
+
+    # Group agent metrics into timing and tokens
     if agent_result.metrics:
-        for k, v in agent_result.metrics.items():
-            entry[k] = v
+        m = agent_result.metrics
+        entry["timing"] = {
+            "compute_seconds": round(m["compute_seconds"], 2) if m.get("compute_seconds") is not None else None,
+            "wall_seconds": round(agent_result.elapsed, 2),
+        }
+        entry["tokens"] = {
+            "input_tokens": m.get("input_tokens"),
+            "output_tokens": m.get("output_tokens"),
+        }
+        # Copy any other metrics that aren't timing/tokens (e.g., vivarium's steps, tool_calls)
+        for k, v in m.items():
+            if k not in ("input_tokens", "output_tokens", "compute_seconds"):
+                entry[k] = v
+    else:
+        # No agent metrics, just record wall time
+        entry["timing"] = {"wall_seconds": round(agent_result.elapsed, 2)}
+
     return entry
 
 

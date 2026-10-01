@@ -5,6 +5,43 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-01
+
+### Added
+- **Token usage tracking**: Comprehensive token and timing metrics for all API calls
+  - `input_tokens`, `output_tokens`, `compute_seconds` tracked per task
+  - Aggregated metrics at run level: total tokens, compute time, throughput (tok/s)
+  - Judge token usage tracked separately for LLM-as-judge evaluations
+  - Throughput calculated as `output_tokens / compute_seconds` (excludes retry wait times)
+- **Task offset**: New `--offset` CLI argument and `task_offset` parameter to skip tasks
+  - Use with `--limit` for task ranges (e.g., `--offset 80 --limit 5` for tasks 80-84)
+- Evaluation summary now displays token counts, timing, and throughput
+
+### Changed
+- Renamed `task_amount_limit` to `task_limit` for consistency
+- `model.generate()` now returns `(text, stats)` tuple instead of just `text`
+- `Judge.judge()` now returns `(parsed_result, stats)` tuple
+- Vivarium agent metrics normalized: `tokens_in`/`tokens_out` → `input_tokens`/`output_tokens`
+
+### Improved
+- `AzureOpenAIModel` now inherits from `OpenAIModel` (reduced code duplication)
+- Extracted display formatting to `_print_evaluation_summary()` method
+
+## [1.1.5] - 2026-09-29
+
+### Changed
+- Updated official HuggingFace tag for tasklist discovery from `palace-tasklist` to `palace`
+
+## [1.1.4] - 2026-09-25
+
+### Added
+- Fallback to root-level `seed.py` for multi-environment agentic tasklists
+- OMP vivarium harness option
+- `--keep-last-env` flag to preserve last vivarium environment for debugging
+
+### Improved
+- Enhanced trace logging for vivarium execution
+
 ## [1.1.3] - 2026-09-17
 
 ### Added

@@ -214,7 +214,7 @@ def run_wizard() -> None:
             token=token,
             agentic=True if agentic else None,
             vivarium_url=vivarium_url,
-            task_amount_limit=task_limit,
+            task_limit=task_limit,
             runs_per_configuration=runs,
             concurrency=concurrency,
             harness=harness,

@@ -219,8 +219,10 @@ Structure your output exactly as follows:
 Be fair and objective in your evaluation. Do not be biased towards either report A or B.
 The length of a report is not necessarily an indicator of quality - focus on the substance and how well it meets the user's needs."""
 
-    async def _judge_batch(self, batch: list[dict], prompt_AB: str, prompt_BA: str, **kwargs) -> tuple[dict, dict]:
-        """Run judge on a batch of criteria, return keyword values for AB and BA."""
+    async def _judge_batch(
+        self, batch: list[dict], prompt_AB: str, prompt_BA: str, **kwargs
+    ) -> tuple[dict, dict, dict]:
+        """Run judge on a batch of criteria, return keyword values for AB, BA, and combined stats."""
         judge_prompt = self._build_judge_prompt(batch)
         # Nested format: {criterion_name: [inner_tags]}
         output_keywords = {c["name"]: ["discussion", "best", "gap"] for c in batch}
@@ -235,7 +237,16 @@ The length of a report is not necessarily an indicator of quality - focus on the
             output_keywords=output_keywords,
             config=judge_config,
         )
-        return await verifier.judge(prompt_AB), await verifier.judge(prompt_BA)
+        result_ab, stats_ab = await verifier.judge(prompt_AB)
+        result_ba, stats_ba = await verifier.judge(prompt_BA)
+
+        # Combine stats from both calls
+        combined_stats = {
+            "input_tokens": (stats_ab.get("input_tokens") or 0) + (stats_ba.get("input_tokens") or 0),
+            "output_tokens": (stats_ab.get("output_tokens") or 0) + (stats_ba.get("output_tokens") or 0),
+            "compute_seconds": stats_ab.get("compute_seconds", 0.0) + stats_ba.get("compute_seconds", 0.0),
+        }
+        return result_ab, result_ba, combined_stats
 
     async def verify(self, answer: str, env: ExecutionEnvironment | None = None, **kwargs) -> TaskVerificationResult:
         """Verify using criteria — dispatches to pairwise or absolute mode."""
@@ -265,14 +276,18 @@ The length of a report is not necessarily an indicator of quality - focus on the
             task_type_fields = self.custom_fields.get("task_type_fields", {})
             max_per_batch = task_type_fields.get("max_criteria_per_batch", DEFAULT_MAX_CRITERIA_PER_BATCH)
 
-            # Evaluate criteria in batches
+            # Evaluate criteria in batches, accumulating judge stats
             all_results: dict[str, bool] = {}
+            total_judge_stats: dict = {"input_tokens": 0, "output_tokens": 0, "compute_seconds": 0.0}
             batches = [criteria[i : i + max_per_batch] for i in range(0, len(criteria), max_per_batch)]
             for i, batch in enumerate(batches):
                 if len(batches) > 1:
                     print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
-                batch_results = await self._judge_absolute_batch(batch, answer, **kwargs)
+                batch_results, batch_stats = await self._judge_absolute_batch(batch, answer, **kwargs)
                 all_results.update(batch_results)
+                total_judge_stats["input_tokens"] += batch_stats.get("input_tokens") or 0
+                total_judge_stats["output_tokens"] += batch_stats.get("output_tokens") or 0
+                total_judge_stats["compute_seconds"] += batch_stats.get("compute_seconds", 0.0)
 
             # Score: earned points / max possible points
             earned = 0.0
@@ -310,6 +325,7 @@ The length of a report is not necessarily an indicator of quality - focus on the
                 "normalized_score": round(score, 4),
                 "earned_points": earned,
                 "max_points": max_positive,
+                "judge": total_judge_stats,
             }
             dimension_scores: dict[str, list[float]] = {}
             for c in criteria:
@@ -332,8 +348,8 @@ The length of a report is not necessarily an indicator of quality - focus on the
                 metrics={"normalized_score": 0.0},
             )
 
-    async def _judge_absolute_batch(self, batch: list[dict], answer: str, **kwargs) -> dict[str, bool]:
-        """Judge a batch of criteria in absolute mode. Returns {name: met}."""
+    async def _judge_absolute_batch(self, batch: list[dict], answer: str, **kwargs) -> tuple[dict[str, bool], dict]:
+        """Judge a batch of criteria in absolute mode. Returns ({name: met}, stats)."""
         criteria_list = "\n".join(f"{i + 1}. *{c['name']}*: {c['description']}" for i, c in enumerate(batch))
         output_template = "\n\n".join(f"<{c['name']}>\n<met>YES or NO</met>\n</{c['name']}>" for c in batch)
 
@@ -362,8 +378,10 @@ Structure your output exactly as follows:
             output_keywords=output_keywords,
             config=judge_config,
         )
-        result = await verifier.judge(content)
-        return {c["name"]: result.get(c["name"], {}).get("met", "").strip().upper().startswith("Y") for c in batch}
+        result, stats = await verifier.judge(content)
+        return {
+            c["name"]: result.get(c["name"], {}).get("met", "").strip().upper().startswith("Y") for c in batch
+        }, stats
 
     async def _verify_pairwise(self, answer: str, **kwargs) -> TaskVerificationResult:
         """Pairwise mode: compare model output vs reference using criteria."""
@@ -394,16 +412,20 @@ Structure your output exactly as follows:
     {self.expected}
     """
 
-            # Evaluate in batches
+            # Evaluate in batches, accumulating judge stats
             batches = _create_batches(criteria, max_per_batch)
             keyword_values_AB = {}
             keyword_values_BA = {}
+            total_judge_stats: dict = {"input_tokens": 0, "output_tokens": 0, "compute_seconds": 0.0}
             for i, batch in enumerate(batches):
                 if len(batches) > 1:
                     print(f"  Judging criteria batch {i + 1}/{len(batches)} ({len(batch)} criteria)...")
-                ab, ba = await self._judge_batch(batch, prompt_AB, prompt_BA, **kwargs)
+                ab, ba, batch_stats = await self._judge_batch(batch, prompt_AB, prompt_BA, **kwargs)
                 keyword_values_AB.update(ab)
                 keyword_values_BA.update(ba)
+                total_judge_stats["input_tokens"] += batch_stats.get("input_tokens") or 0
+                total_judge_stats["output_tokens"] += batch_stats.get("output_tokens") or 0
+                total_judge_stats["compute_seconds"] += batch_stats.get("compute_seconds", 0.0)
 
             # Calculate weighted scores
             score_expected, score_provided = 0.0, 0.0
@@ -487,6 +509,7 @@ Structure your output exactly as follows:
                 "score_provided": score_provided,
                 "score_expected": score_expected,
                 "normalized_score": normalized_score,
+                "judge": total_judge_stats,
             }
 
             # Add dimension scores and nest criteria if hierarchical

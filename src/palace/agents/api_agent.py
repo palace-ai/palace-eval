@@ -124,7 +124,7 @@ class APIAgent(Agent):
             prompt = self._inline_text_attachments(prompt, attachments)
         content = build_multimodal_content(prompt, attachments)
         try:
-            output = await self._model.generate([{"role": "user", "content": content}])
+            output, stats = await self._model.generate([{"role": "user", "content": content}])
         except Exception as e:
             _logger.warning(f"Agent error: {e}")
             if self.verbose:
@@ -136,7 +136,7 @@ class APIAgent(Agent):
                 return AgentResult(outcome="unsupported", reason=f"unsupported: {e}")
             return AgentResult(outcome="error", reason=f"agent_error: {e}")
 
-        return AgentResult(answer=output, metrics={})
+        return AgentResult(answer=output, metrics=stats)
 
     @staticmethod
     def _inline_text_attachments(prompt: str, attachments: "list[Attachment]") -> str:

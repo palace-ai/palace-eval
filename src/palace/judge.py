@@ -184,15 +184,18 @@ class Judge:
             result[keyword] = self._parse_tag(content, keyword)
         return result
 
-    async def judge(self, prompt: str) -> dict:
+    async def judge(self, prompt: str) -> tuple[dict, dict]:
         """Send prompt to judge LLM and extract structured response.
 
         Args:
             prompt: The user prompt to evaluate.
 
         Returns:
-            Extracted values. Structure matches output_keywords:
-            flat dict[str, str] for list input, nested dict for dict input.
+            (parsed_result, total_stats) where:
+            - parsed_result: Extracted values. Structure matches output_keywords:
+              flat dict[str, str] for list input, nested dict for dict input.
+            - total_stats: Accumulated token and timing stats across all attempts:
+              {"input_tokens": N|null, "output_tokens": M|null, "compute_seconds": T}
 
         Raises:
             ValueError: If parsing fails after max retries (5 attempts).
@@ -203,13 +206,34 @@ class Judge:
         conversation.append({"role": "user", "content": prompt})
 
         max_attempts = 5
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_compute_seconds = 0.0
+        has_token_data = False
+
         for attempt in range(1, max_attempts + 1):
-            judge_output = await self.judge_model.generate(conversation)
+            judge_output, stats = await self.judge_model.generate(conversation)
+
+            # Accumulate stats across retries
+            if stats.get("input_tokens") is not None:
+                total_input_tokens += stats["input_tokens"]
+                has_token_data = True
+            if stats.get("output_tokens") is not None:
+                total_output_tokens += stats["output_tokens"]
+            total_compute_seconds += stats.get("compute_seconds", 0.0)
+
             try:
                 if isinstance(self.output_keywords, list):
-                    return self._parse_flat(judge_output, self.output_keywords)
+                    parsed = self._parse_flat(judge_output, self.output_keywords)
                 else:
-                    return self._parse_recursive(judge_output, self.output_keywords)
+                    parsed = self._parse_recursive(judge_output, self.output_keywords)
+
+                total_stats = {
+                    "input_tokens": total_input_tokens if has_token_data else None,
+                    "output_tokens": total_output_tokens if has_token_data else None,
+                    "compute_seconds": round(total_compute_seconds, 2),
+                }
+                return parsed, total_stats
             except ValueError as e:
                 print(f"[bold yellow]{e}. Retrying ({attempt}/{max_attempts})...")
 

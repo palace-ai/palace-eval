@@ -14,6 +14,7 @@
 
 import logging
 import re
+import time
 from abc import abstractmethod
 
 from anthropic import (
@@ -216,17 +217,21 @@ class APIModel(Model):
             return "".join(texts) if texts else None
         return None
 
-    async def _collect_openai_stream(self, stream) -> str:
-        """Collect text from an OpenAI-compatible stream with diagnostics on empty response."""
+    async def _collect_openai_stream(self, stream) -> tuple[str, dict]:
+        """Collect text from an OpenAI-compatible stream with diagnostics on empty response.
+
+        Returns:
+            (text, usage) where usage = {"input_tokens": N, "output_tokens": M} or Nones if unavailable.
+        """
         collected: list[str] = []
         chunk_count = 0
         finish_reason: str | None = None
         reasoning_chars = 0
-        usage: dict | None = None
+        usage: dict = {"input_tokens": None, "output_tokens": None}
         async for chunk in stream:
             chunk_count += 1
             if chunk.usage:
-                usage = {"prompt": chunk.usage.prompt_tokens, "completion": chunk.usage.completion_tokens}
+                usage = {"input_tokens": chunk.usage.prompt_tokens, "output_tokens": chunk.usage.completion_tokens}
             if chunk.choices:
                 choice = chunk.choices[0]
                 if choice.finish_reason:
@@ -242,13 +247,17 @@ class APIModel(Model):
                     reasoning_chars += len(reasoning)
         if not collected:
             diag = f"finish_reason={finish_reason!r}, chunks={chunk_count}, reasoning_chars={reasoning_chars}"
-            if usage:
+            if usage["input_tokens"] is not None:
                 diag += f", usage={usage}"
             raise ValueError(f"Empty API response: no content returned ({diag})")
-        return "".join(collected)
+        return "".join(collected), usage
 
-    async def generate(self, messages: list[Message], **kwargs) -> str:
-        """Generate text based on the input messages."""
+    async def generate(self, messages: list[Message], **kwargs) -> tuple[str, dict]:
+        """Generate text based on the input messages.
+
+        Returns:
+            (text, stats) where stats = {"input_tokens": N, "output_tokens": M, "compute_seconds": T}
+        """
         return await self._generate_with_retry(messages, **kwargs)
 
     async def close(self) -> None:
@@ -257,8 +266,12 @@ class APIModel(Model):
             await self.client.close()
 
     @abstractmethod
-    async def _call_api(self, messages: list[Message]) -> str:
-        """Provider-specific API call. Receives agnostic messages, returns text."""
+    async def _call_api(self, messages: list[Message]) -> tuple[str, dict]:
+        """Provider-specific API call. Receives agnostic messages, returns (text, stats).
+
+        Returns:
+            (text, stats) where stats = {"input_tokens": N, "output_tokens": M, "compute_seconds": T}
+        """
         ...
 
     @retry(
@@ -272,9 +285,15 @@ class APIModel(Model):
         ),
         before_sleep=lambda retry_state: _log_retry(retry_state),
     )
-    async def _generate_with_retry(self, messages: list[Message], **_) -> str:
-        result = await self._call_api(messages)
-        return self._strip_thinking_tags(result)
+    async def _generate_with_retry(self, messages: list[Message], **_) -> tuple[str, dict]:
+        """Generate with retry logic, accumulating compute_seconds across retries.
+
+        Note: Tenacity's retry wrapper calls this method multiple times on failure.
+        Each call is a fresh attempt, so we just return the stats from that attempt.
+        The retry wait time is NOT included in compute_seconds.
+        """
+        text, stats = await self._call_api(messages)
+        return self._strip_thinking_tags(text), stats
 
 
 class OpenAIModel(APIModel):
@@ -310,21 +329,25 @@ class OpenAIModel(APIModel):
                 parts.append(part)
         return parts
 
-    async def _call_api(self, messages: list[Message]) -> str:
+    async def _call_api(self, messages: list[Message]) -> tuple[str, dict]:
         formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
         kwargs = {
             "model": self.model_id,
             "messages": formatted,
             "max_completion_tokens": 32768,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
         kwargs.update(self.extra_params)
+        start = time.perf_counter()
         stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
-        return await self._collect_openai_stream(stream)
+        text, usage = await self._collect_openai_stream(stream)
+        compute_seconds = time.perf_counter() - start
+        return text, {**usage, "compute_seconds": compute_seconds}
 
 
-class AzureOpenAIModel(APIModel):
-    """Azure OpenAI API model using deployment-based routing and api-key auth."""
+class AzureOpenAIModel(OpenAIModel):
+    """Azure OpenAI API model. Inherits from OpenAIModel since Azure uses the same API format."""
 
     DEFAULT_API_VERSION = "2024-10-21"
 
@@ -339,7 +362,10 @@ class AzureOpenAIModel(APIModel):
         quiet: bool = True,
         extra_params: dict | None = None,
     ):
-        super().__init__(model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params)
+        # Skip OpenAIModel.__init__ to avoid creating wrong client, call APIModel.__init__ directly
+        APIModel.__init__(
+            self, model_id, url, token, strip_thinking=strip_thinking, quiet=quiet, extra_params=extra_params
+        )
         self.api_version = api_version or self.DEFAULT_API_VERSION
         self.client = AsyncAzureOpenAI(
             azure_endpoint=url,
@@ -347,35 +373,6 @@ class AzureOpenAIModel(APIModel):
             api_version=self.api_version,
             timeout=3000,
         )
-
-    @staticmethod
-    def _format_content(content):
-        """Convert agnostic content parts to OpenAI format."""
-        if not isinstance(content, list):
-            return content
-        parts = []
-        for part in content:
-            if part["type"] == "image":
-                parts.append(
-                    {"type": "image_url", "image_url": {"url": f"data:{part['media_type']};base64,{part['data']}"}}
-                )
-            elif part["type"] == "audio":
-                parts.append({"type": "input_audio", "input_audio": {"data": part["data"], "format": part["format"]}})
-            else:
-                parts.append(part)
-        return parts
-
-    async def _call_api(self, messages: list[Message]) -> str:
-        formatted = [{"role": m["role"], "content": self._format_content(m["content"])} for m in messages]
-        kwargs = {
-            "model": self.model_id,
-            "messages": formatted,
-            "max_completion_tokens": 32768,
-            "stream": True,
-        }
-        kwargs.update(self.extra_params)
-        stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
-        return await self._collect_openai_stream(stream)
 
 
 class AnthropicModel(APIModel):
@@ -419,7 +416,7 @@ class AnthropicModel(APIModel):
                 parts.append(part)
         return parts
 
-    async def _call_api(self, messages: list[Message]) -> str:
+    async def _call_api(self, messages: list[Message]) -> tuple[str, dict]:
         system_prompt = None
         msgs = messages
         if msgs and msgs[0]["role"] == "system":
@@ -433,18 +430,21 @@ class AnthropicModel(APIModel):
             "max_tokens": 32768,
             "system": system_prompt if system_prompt is not None else omit,
         }
+        usage: dict = {"input_tokens": None, "output_tokens": None}
+        start = time.perf_counter()
         # SDK 1.x: extra params (temperature, thinking, etc.) go via extra_body
         async with self.client.messages.stream(**kwargs, extra_body=self.extra_params or None) as stream:  # type: ignore
             async for text in stream.text_stream:
                 collected.append(text)
-        if not collected:
-            # Get final message for diagnostics
+            # Get final message for usage (always available after stream completes)
             try:
                 final = await stream.get_final_message()
-                stop = final.stop_reason
-                usage = {"input": final.usage.input_tokens, "output": final.usage.output_tokens}
-                diag = f"stop_reason={stop!r}, usage={usage}"
+                usage = {"input_tokens": final.usage.input_tokens, "output_tokens": final.usage.output_tokens}
             except Exception:
-                diag = "no final message available"
+                pass  # Keep None values if unavailable
+        compute_seconds = time.perf_counter() - start
+        if not collected:
+            # Diagnostics for empty response
+            diag = f"usage={usage}" if usage["input_tokens"] is not None else "no final message available"
             raise ValueError(f"Empty API response: no content returned ({diag})")
-        return "".join(collected)
+        return "".join(collected), {**usage, "compute_seconds": compute_seconds}

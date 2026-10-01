@@ -222,7 +222,7 @@ def run(
             endpoint_type=endpoint_type,
             agentic=True if agentic else None,
             vivarium_url=vivarium_url,
-            task_amount_limit=limit,
+            task_limit=limit,
             runs_per_configuration=runs,
             output_path=output_path,
             concurrency=concurrency,

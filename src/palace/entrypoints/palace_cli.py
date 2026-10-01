@@ -204,7 +204,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
         token=token,
         endpoint_type=endpoint_type,
         agentic=True if agentic else None,
-        task_amount_limit=task_limit,
+        task_limit=task_limit,
         runs_per_configuration=runs,
         harness=harness,
     )

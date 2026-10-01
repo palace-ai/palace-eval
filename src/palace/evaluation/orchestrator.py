@@ -125,7 +125,8 @@ class Evaluation:
         token: API authentication token.
         endpoint_type: "openai", "azure", "mcp", or None (auto-detect).
         vivarium_url: Vivarium server URL for agentic execution.
-        task_amount_limit: Maximum number of tasks to evaluate per tasklist.
+        task_limit: Maximum number of tasks to evaluate per tasklist.
+        task_offset: Number of tasks to skip from the beginning (default: 0).
         runs_per_configuration: Number of evaluation runs per model/tasklist pair.
         output_path: Directory for JSONL result files.
         on_task_complete: Optional callback invoked after each task with (current, total, result).
@@ -148,7 +149,8 @@ class Evaluation:
         endpoint_type: str | None = None,
         agentic: bool | None = None,
         vivarium_url: str | None = None,
-        task_amount_limit: int | None = None,
+        task_limit: int | None = None,
+        task_offset: int = 0,
         runs_per_configuration: int = 1,
         output_path: Path | None = None,
         on_task_complete: Callable[[int, int], None] | None = None,
@@ -185,7 +187,8 @@ class Evaluation:
         self.endpoint_type = endpoint_type
         self.agentic = agentic
         self.vivarium_url = vivarium_url
-        self.task_amount_limit = task_amount_limit
+        self.task_limit = task_limit
+        self.task_offset = task_offset
         self.runs_per_configuration = runs_per_configuration
         self.output_path = output_path or RESULTS_PATH
         self.on_task_complete = on_task_complete
@@ -237,6 +240,62 @@ class Evaluation:
             url=self.url, token=self.token, name=model, api_type=self.endpoint_type, extra_params=extra_params
         )
 
+    def _print_evaluation_summary(self, model: str, tasklist: str, accuracy: float, metrics: dict) -> None:
+        """Print a formatted evaluation summary box."""
+        timing = metrics.get("timing", {})
+        tokens = metrics.get("tokens", {})
+
+        # Build token/timing lines
+        lines = []
+
+        # Time line
+        if timing.get("compute_seconds"):
+            lines.append(
+                f":stopwatch: Time: [blue]{timing['compute_seconds']:.1f}s[/] compute, "
+                f"[blue]{timing['wall_seconds']:.1f}s[/] wall"
+            )
+
+        # Tokens line
+        if tokens.get("total_tokens"):
+            throughput = timing.get("throughput_tokens_per_sec")
+            throughput_str = f" @ [blue]{throughput:,.0f}[/] tok/s" if throughput else ""
+            lines.append(
+                f":1234: Tokens: [blue]{tokens['total_tokens']:,}[/] "
+                f"({tokens['input_tokens']:,} in / {tokens['output_tokens']:,} out){throughput_str}"
+            )
+        elif timing:
+            lines.append(":1234: Tokens: [dim]N/A (not supported by endpoint)[/]")
+
+        # Judge tokens line
+        judge = metrics.get("judge", {})
+        if judge.get("total_tokens"):
+            lines.append(f":scales: Judge tokens: [blue]{judge['total_tokens']:,}[/]")
+
+        # Task outcome
+        correct, evaluated = metrics["correct_count"], metrics["evaluated_count"]
+        incorrect = evaluated - correct
+        outcome = f"[green]{correct}[/] correct"
+        if incorrect > 0:
+            outcome += f", [red]{incorrect}[/] incorrect"
+        outcome += f" ([blue]{accuracy * 100:.0f}%[/] accuracy)"
+
+        # Skipped tasks
+        errors, unsupported = metrics["error_count"], metrics["unsupported_count"]
+        skipped_parts = []
+        if errors > 0:
+            skipped_parts.append(f"[yellow]{errors} errors[/]")
+        if unsupported > 0:
+            skipped_parts.append(f"[yellow]{unsupported} unsupported[/]")
+
+        # Assemble output
+        output = f"[blue]:robot: {model}[/] on :scroll: [blue]{tasklist}[/]\n\n:bar_chart: {outcome}"
+        if skipped_parts:
+            output += f"\n:warning: [dim]Skipped: {', '.join(skipped_parts)}[/]"
+        if lines:
+            output += "\n" + "\n".join(lines)
+
+        print(output, box=True, box_title="Evaluation Report")
+
     def evaluate_all(self, models: list[str], tasklists: list[str]):
         """Run evaluations for all model/tasklist combinations. Prints and writes JSONL."""
         return asyncio.run(self.evaluate_all_async(models, tasklists))
@@ -258,26 +317,14 @@ class Evaluation:
                 accuracy, metrics, report = await self.evaluate_async(model, tasklist)
 
                 print()
-                print(
-                    f"[blue]:robot: {model}[/]:\n"
-                    + f"on :scroll: [blue]{tasklist}[/]\n\n"
-                    + f"[blue]{metrics['correct_count']}[/] / [blue]{metrics['evaluated_count']}[/] ([blue]{accuracy * 100:.0f}%[/])[/] tasks completed successfully."
-                    + (
-                        f" [yellow]({metrics['error_count']} errors, {metrics['unsupported_count']} unsupported)[/]"
-                        if metrics.get("skipped_count")
-                        else ""
-                    )
-                    + f"\nTotal time: [blue]{metrics['total_time']}[/]",
-                    box=True,
-                    box_title="Evaluation Report",
-                )
+                self._print_evaluation_summary(model, tasklist, accuracy, metrics)
 
                 run_results = {
                     "model": model,
                     "tasklist": tasklist,
                     "accuracy": accuracy,
                     "metrics": metrics,
-                    "agentic": metrics.get("agent") is not None,
+                    "agentic": bool(metrics.get("agent")),  # True only if agent dict has content
                 }
                 if self.report_detail != "none":
                     run_results["detailed_report"] = report
@@ -410,9 +457,11 @@ class Evaluation:
                 task._verify_fn = verify_fns[env_path_str]  # type: ignore[attr-defined]
                 task._tasklist_path = tasklist_path  # type: ignore[attr-defined]
 
-        # Limit tasks
-        if self.task_amount_limit is not None:
-            tasks = tasks[: self.task_amount_limit]
+        # Slice tasks by offset and limit
+        if self.task_offset > 0:
+            tasks = tasks[self.task_offset :]
+        if self.task_limit is not None:
+            tasks = tasks[: self.task_limit]
 
         # Resolve adapter
         file_io_adapters = load_io_adapters()
@@ -456,7 +505,7 @@ class Evaluation:
         error_results = [r for r in verification_results if r.outcome == "error"]
         unsupported_results = [r for r in verification_results if r.outcome == "unsupported"]
         task_type_metrics = task_cls.aggregate(verification_results, penalize_unsupported=penalize_unsupported)
-        accuracy = task_type_metrics.pop("accuracy", 0)
+        accuracy = round(task_type_metrics.pop("accuracy", 0), 4)
         evaluated_report = {k: v for k, v in report.items() if not v.get("is_skipped")}
         agent_metrics = compute_agent_metrics(evaluated_report)
 
@@ -467,11 +516,77 @@ class Evaluation:
             "skipped_count": len(error_results) + len(unsupported_results),
             "error_count": len(error_results),
             "unsupported_count": len(unsupported_results),
-            "total_time": sum(t["elapsed_time"] for t in report.values()),
             "accuracy": accuracy,
             "task_type": task_type_metrics,
             "agent": agent_metrics,
         }
+
+        # Compute wall_seconds from task elapsed times
+        wall_seconds = round(sum(t.get("timing", {}).get("wall_seconds", 0) for t in report.values()), 2)
+
+        # Aggregate token and timing metrics from all tasks
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_compute_seconds = 0.0
+        judge_input_tokens = 0
+        judge_output_tokens = 0
+        judge_compute_seconds = 0.0
+        has_token_data = False
+        has_timing_data = False
+
+        for entry in report.values():
+            # Agent tokens (from entry["tokens"])
+            tokens = entry.get("tokens", {})
+            if tokens.get("input_tokens") is not None:
+                total_input_tokens += tokens["input_tokens"]
+                has_token_data = True
+            if tokens.get("output_tokens") is not None:
+                total_output_tokens += tokens["output_tokens"]
+
+            # Agent timing (from entry["timing"])
+            timing = entry.get("timing", {})
+            if timing.get("compute_seconds") is not None:
+                total_compute_seconds += timing["compute_seconds"]
+                has_timing_data = True
+
+            # Judge tokens (from verification metrics["judge"])
+            judge_stats = entry.get("metrics", {}).get("judge")
+            if judge_stats:
+                if judge_stats.get("input_tokens") is not None:
+                    judge_input_tokens += judge_stats["input_tokens"]
+                if judge_stats.get("output_tokens") is not None:
+                    judge_output_tokens += judge_stats["output_tokens"]
+                if judge_stats.get("compute_seconds") is not None:
+                    judge_compute_seconds += judge_stats["compute_seconds"]
+
+        # Add token metrics if we have data (even if tokens are 0, timing is useful)
+        if has_token_data or has_timing_data:
+            total_tokens = total_input_tokens + total_output_tokens if has_token_data else None
+            metrics["tokens"] = {
+                "input_tokens": total_input_tokens if has_token_data else None,
+                "output_tokens": total_output_tokens if has_token_data else None,
+                "total_tokens": total_tokens,
+            }
+            metrics["timing"] = {
+                "compute_seconds": round(total_compute_seconds, 2),
+                "wall_seconds": wall_seconds,
+                "throughput_tokens_per_sec": round(total_output_tokens / total_compute_seconds, 1)
+                if total_compute_seconds > 0 and total_output_tokens
+                else None,
+            }
+            # Judge stats (include even if tokens are 0/None for display purposes)
+            if judge_compute_seconds > 0 or judge_input_tokens > 0 or judge_output_tokens > 0:
+                judge_total = (
+                    judge_input_tokens + judge_output_tokens
+                    if (judge_input_tokens > 0 or judge_output_tokens > 0)
+                    else None
+                )
+                metrics["judge"] = {
+                    "input_tokens": judge_input_tokens if judge_total else None,
+                    "output_tokens": judge_output_tokens if judge_total else None,
+                    "total_tokens": judge_total,
+                    "compute_seconds": round(judge_compute_seconds, 2),
+                }
 
         # Per-group breakdown
         groups: dict[str, list] = {}

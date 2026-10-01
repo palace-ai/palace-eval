@@ -272,7 +272,7 @@ class CitationVerifier(Analyzer):
         prompt = EXTRACT_PROMPT.format(report_text=article)
 
         try:
-            response = await model.generate([{"role": "user", "content": prompt}])
+            response, _ = await model.generate([{"role": "user", "content": prompt}])
         except Exception as e:
             print(f"[bold yellow]Extract LLM call failed: {e}[/]")
             return [], True
@@ -314,7 +314,7 @@ class CitationVerifier(Analyzer):
             kept_indices: list[int] = []
             for attempt in range(MAX_RETRIES):
                 try:
-                    response = await model.generate([{"role": "user", "content": prompt}])
+                    response, _ = await model.generate([{"role": "user", "content": prompt}])
                     parsed = _parse_json_list(response)
                     if parsed and all(isinstance(x, int) for x in parsed):
                         kept_indices = parsed
@@ -369,7 +369,7 @@ class CitationVerifier(Analyzer):
             error = None
             for attempt in range(MAX_RETRIES):
                 try:
-                    response = await model.generate([{"role": "user", "content": prompt}])
+                    response, _ = await model.generate([{"role": "user", "content": prompt}])
                     validate_res = _parse_json_list(response)
                     if validate_res is not None:
                         # Adjust 1-based idx to 0-based

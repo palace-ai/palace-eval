@@ -148,7 +148,7 @@ Either Correct or Incorrect. No other text can be here.
         judge_model = (judge_config.model if judge_config else None) or get_judge_model()
 
         verifier = Judge(judge_model=judge_model, judge_prompt=judge_prompt, config=judge_config)
-        keyword_values = await verifier.judge(judge_input)
+        keyword_values, judge_stats = await verifier.judge(judge_input)
 
         judgement = keyword_values.get("judgement", "").strip()
         if judgement == "Correct":
@@ -161,5 +161,5 @@ Either Correct or Incorrect. No other text can be here.
         return TaskVerificationResult(
             is_correct=is_correct,
             reasoning=keyword_values.get("reasoning"),
-            metrics={"criterion": criterion["name"]},
+            metrics={"criterion": criterion["name"], "judge": judge_stats},
         )
