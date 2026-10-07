@@ -268,8 +268,6 @@ class VivariumAgent(Agent):
             try:
                 env = await self._client.create_environment(
                     spec_id=spec_id,
-                    task_id=task.id,
-                    task_files=task_files,
                 )
                 break
             except (
@@ -284,6 +282,14 @@ class VivariumAgent(Agent):
                     await asyncio.sleep(5)
                 else:
                     raise
+
+        # Upload per-task files if any exist, to /task_files/ in the container
+        if task_files:
+            try:
+                await env.upload_files(task_files, dest="/task_files/")
+            except Exception as e:
+                await env.destroy()
+                raise RuntimeError(f"Failed to upload task files for {task.id}: {e}") from e
 
         self._envs[task.id] = env
 
