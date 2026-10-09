@@ -416,7 +416,7 @@ class VivariumAgent(Agent):
                 "tool_calls": data.metrics.tool_calls_completed,
                 "input_tokens": data.metrics.input_tokens,
                 "output_tokens": data.metrics.output_tokens,
-                "duration_seconds": data.metrics.elapsed_seconds,
+                "compute_seconds": data.metrics.elapsed_seconds,  # vivarium wall time ≈ compute time
             }
             agent_result = AgentResult(answer=data.answer, metrics=metrics, debug_logs=data.harness_stderr)
         else:
