@@ -14,6 +14,8 @@
 
 """Vivarium agent — delegates execution to vivarium service."""
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import importlib.util
@@ -30,14 +32,17 @@ import httpx
 
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
-from palace.task_types.base import ExecutionEnvironment, Task
 from palace.utils.paths import LOGS_PATH
 from palace.utils.printing import print
 
 if TYPE_CHECKING:
     from palace.evaluation.types import Attachment
+    from palace.task_types.base import ExecutionEnvironment, Task
 
 _logger = logging.getLogger("palace.vivarium_agent")
+
+# Default paths to save in untrusted-agent mode if VERIFY_PATHS not declared.
+_DEFAULT_VERIFY_PATHS = ["/workspace"]
 
 # Transient HTTP status codes that are safe to retry.
 _TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504, 529})
@@ -73,6 +78,8 @@ class VivariumAgent(Agent):
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
         harness: Agent harness to use ("builtin", "pi", "omp"). Default: "builtin".
         keep_last_env: Keep the last environment alive for debugging (default: False).
+        untrusted_agent: Enable hardened mode — destroy agent env and recreate fresh
+            before verification. Defeats sandbox-level attacks. (default: False)
     """
 
     agentic: bool = True
@@ -88,6 +95,7 @@ class VivariumAgent(Agent):
         extra_params: dict | None = None,
         harness: str | None = None,
         keep_last_env: bool = False,
+        untrusted_agent: bool = False,
     ):
         self._name = name
         self._url = url
@@ -97,6 +105,7 @@ class VivariumAgent(Agent):
         self._extra_params = extra_params
         self._harness = harness
         self._keep_last_env = keep_last_env
+        self._untrusted_agent = untrusted_agent
         self._last_kept_env: Any = None  # env kept for debugging
         self._trace_dir: Path | None = None  # directory for trace logs
         self._trace_file: Any = None  # current trace file handle
@@ -106,7 +115,9 @@ class VivariumAgent(Agent):
         self._seed_fns: dict[str, object] = {}  # env_path → seed function
         self._archives: dict[str, bytes | None] = {}  # env_path → tar.gz bytes
         self._task_files_dirs: list[Path] = []  # resolved task_files directories
-        self._envs: dict[str, Any] = {}  # task_id → Environment
+        self._envs: dict[str, Any] = {}  # task_id → Environment (fresh env in untrusted mode)
+        self._verify_paths: dict[str, list[str]] = {}  # env_path_str → paths to save
+        self._task_env_names: dict[str, str] = {}  # task_id → env_name (for untrusted mode)
         self._client: Any = None
         self._auto_started = False
         self._tasklist_path: Path | None = None
@@ -202,8 +213,11 @@ class VivariumAgent(Agent):
         # For multi-env, seed.py may be in environment/ root (shared) or per-env subdir
         self._seed_fns: dict[str, object] = {}
         self._archives: dict[str, bytes | None] = {}
+        self._verify_paths: dict[str, list[str]] = {}
         shared_seed_path = tasklist_path / "environment" / "seed.py"
         shared_seed_fn = _load_fn(shared_seed_path, "seed") if shared_seed_path.exists() else None
+        shared_verify_paths = _load_verify_paths(tasklist_path / "environment" / "verify.py")
+
         for env_name, env_path in self._env_paths.items():
             env_path_str = str(env_path.relative_to(tasklist_path))
             if env_path_str not in self._archives:
@@ -215,8 +229,15 @@ class VivariumAgent(Agent):
                     elif shared_seed_fn:
                         self._seed_fns[env_path_str] = shared_seed_fn
                     self._archives[env_path_str] = _tar_gz(env_path)
+                    # Load VERIFY_PATHS from per-env verify.py or fall back to shared
+                    per_env_verify = env_path / "verify.py"
+                    if per_env_verify.exists():
+                        self._verify_paths[env_path_str] = _load_verify_paths(per_env_verify)
+                    else:
+                        self._verify_paths[env_path_str] = shared_verify_paths
                 else:
                     self._archives[env_path_str] = None
+                    self._verify_paths[env_path_str] = _DEFAULT_VERIFY_PATHS
 
         _logger.info(f"Loaded {len(self._env_configs)} environment config(s) (lazy registration)")
 
@@ -292,6 +313,7 @@ class VivariumAgent(Agent):
                 raise RuntimeError(f"Failed to upload task files for {task.id}: {e}") from e
 
         self._envs[task.id] = env
+        self._task_env_names[task.id] = env_name  # Track for untrusted-agent mode
 
         env_path = self._env_paths[env_name]
         env_path_str = str(env_path.relative_to(self._tasklist_path))
@@ -329,9 +351,8 @@ class VivariumAgent(Agent):
                     model_name=self._name,
                     timeout_seconds=self._timeout,
                     max_steps=self._max_steps,
-                    attachments=encoded_attachments,
                     model_extra_params=self._extra_params,
-                    sandbox_harness=self._harness,
+                    harness=self._harness,
                 )
                 break
             except (
@@ -397,16 +418,94 @@ class VivariumAgent(Agent):
                 "output_tokens": data.metrics.output_tokens,
                 "duration_seconds": data.metrics.elapsed_seconds,
             }
-            return AgentResult(answer=data.answer, metrics=metrics, debug_logs=data.harness_stderr)
+            agent_result = AgentResult(answer=data.answer, metrics=metrics, debug_logs=data.harness_stderr)
+        else:
+            error = data.error if data else "unknown"
+            if self.verbose:
+                print(f"  [red]⚠ Run failed: {error}[/]")
+            agent_result = AgentResult(
+                outcome="error", reason="agent_error", debug_logs=data.harness_stderr if data else None
+            )
 
-        error = data.error if data else "unknown"
-        if self.verbose:
-            print(f"  [red]⚠ Run failed: {error}[/]")
-        return AgentResult(outcome="error", reason="agent_error", debug_logs=data.harness_stderr if data else None)
+        # Untrusted mode: swap to fresh env before returning so verify runs clean
+        if self._untrusted_agent and agent_result.answer is not None:
+            await self._swap_to_fresh_env(task_id)
+
+        return agent_result
+
+    async def _swap_to_fresh_env(self, task_id: str) -> None:
+        """Download verify paths, destroy agent env, create fresh env, re-upload.
+
+        Called after agent run in --untrusted-agent mode. After this method returns,
+        self._envs[task_id] holds the fresh environment that verification will use.
+        The original environment has been destroyed.
+        """
+        env = self._envs.get(task_id)
+        if not env:
+            _logger.warning(f"untrusted-agent: no env found for {task_id}, skipping swap")
+            return
+
+        # Look up which env this task used (stored in on_task_start)
+        env_name = self._task_env_names.get(task_id)
+        if not env_name or env_name not in self._spec_ids:
+            _logger.warning(f"untrusted-agent: cannot determine env for {task_id}, skipping swap")
+            return
+        spec_id = self._spec_ids[env_name]
+
+        # Get verify_paths for this env
+        env_path = self._env_paths.get(env_name)
+        if env_path and self._tasklist_path:
+            env_path_str = str(env_path.relative_to(self._tasklist_path))
+            verify_paths = self._verify_paths.get(env_path_str, _DEFAULT_VERIFY_PATHS)
+        else:
+            verify_paths = _DEFAULT_VERIFY_PATHS
+
+        # Download each path from the agent env
+        saved: dict[str, bytes] = {}
+        for path in verify_paths:
+            try:
+                archive = await env.download_files(path)
+                saved[path] = archive
+                _logger.debug(f"untrusted-agent: downloaded {path} from {task_id}")
+            except Exception as e:
+                _logger.warning(f"untrusted-agent: could not download {path} from {task_id}: {e}")
+
+        # Destroy original env — triggers webhook → provisioner kills worker
+        try:
+            await env.destroy()
+        except Exception as e:
+            _logger.warning(f"untrusted-agent: error destroying agent env {task_id}: {e}")
+
+        # Create fresh environment (will be on a different worker)
+        fresh_env = await self._client.create_environment(spec_id=spec_id)
+        _logger.info(f"untrusted-agent: created fresh env {fresh_env.id} for {task_id}")
+
+        # Re-upload saved paths
+        for path, archive in saved.items():
+            try:
+                await fresh_env.upload_files(archive, dest=path)
+                _logger.debug(f"untrusted-agent: uploaded {path} to fresh env")
+            except Exception as e:
+                _logger.warning(f"untrusted-agent: could not upload {path} to fresh env: {e}")
+
+        # Replace env in _envs — verification and on_task_end will use this
+        self._envs[task_id] = fresh_env
+
+    def get_verify_env(self, task: Task) -> ExecutionEnvironment | None:
+        """Return the environment to use for verification.
+
+        In --untrusted-agent mode, returns the fresh env (now in _envs after swap).
+        In normal mode, returns None (pipeline uses the original env from on_task_start).
+        """
+        if not self._untrusted_agent:
+            return None
+        return self._envs.get(task.id)
 
     async def on_task_end(self, task: Task) -> None:
         """Destroy the environment container (or keep for debugging)."""
         self._close_trace_file()  # Close trace file for this task
+        self._task_env_names.pop(task.id, None)  # Clean up tracking
+
         env = self._envs.pop(task.id, None)
         if env:
             if self._keep_last_env:
@@ -606,3 +705,15 @@ def _load_fn(path: Path, fn_name: str):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return getattr(mod, fn_name)
+
+
+def _load_verify_paths(verify_path: Path) -> list[str]:
+    """Load VERIFY_PATHS from verify.py, or return default ["/workspace"]."""
+    if not verify_path.exists():
+        return _DEFAULT_VERIFY_PATHS
+    spec = importlib.util.spec_from_file_location("_verify", verify_path)
+    if spec is None or spec.loader is None:
+        return _DEFAULT_VERIFY_PATHS
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return getattr(mod, "VERIFY_PATHS", _DEFAULT_VERIFY_PATHS)

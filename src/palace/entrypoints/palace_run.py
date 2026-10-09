@@ -104,6 +104,12 @@ def run():
         help="Agent harness for Vivarium execution. 'builtin': standard ReAct loop. 'pi': Pi-style verification-first loop. 'omp': oh-my-pi with native MCP support.",
     )
     argparser.add_argument(
+        "--untrusted-agent",
+        action="store_true",
+        default=False,
+        help="Hardened evaluation mode: destroy agent environment and recreate fresh before verification. Use with adversarial benchmarks to defeat sandbox-level attacks.",
+    )
+    argparser.add_argument(
         "-c",
         "--concurrency",
         type=int,
@@ -168,6 +174,7 @@ def run():
             concurrency=args.concurrency,
             model_extra_params=model_extra_params,
             harness=args.harness,
+            untrusted_agent=args.untrusted_agent,
         )
         evaluation.evaluate_all([args.name], tasklists=args.tasklist)
     except FileNotFoundError as e:

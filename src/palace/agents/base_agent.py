@@ -64,3 +64,11 @@ class Agent(ABC):
     async def on_task_end(self, task: "Task") -> None:
         """Called after each task (including verify). Override for per-task cleanup."""
         pass
+
+    def get_verify_env(self, task: "Task") -> "ExecutionEnvironment | None":
+        """Return the environment to use for verification.
+
+        Override to substitute a different env than on_task_start returned.
+        Default returns None (use the original env from on_task_start).
+        """
+        return None

@@ -288,7 +288,8 @@ async def execute_task(
         # Verify
         if agent_result.answer is not None and not agent_result.is_skipped:
             renderer.on_verify_started(i)
-            vr = await verify_answer(task, agent_result.answer, env, adapter, judge_config)
+            verify_env = agent.get_verify_env(task) or env
+            vr = await verify_answer(task, agent_result.answer, verify_env, adapter, judge_config)
             renderer.on_verify_finished(i, vr)
         else:
             vr = TaskVerificationResult(

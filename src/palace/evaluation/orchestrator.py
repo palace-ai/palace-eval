@@ -163,6 +163,7 @@ class Evaluation:
         judge_config: JudgeConfig | None = None,
         harness: str | None = None,
         keep_last_env: bool = False,
+        untrusted_agent: bool = False,
     ):
         if report_detail not in ("none", "default", "full"):
             raise ValueError(f"report_detail must be 'none', 'default', or 'full', got '{report_detail}'")
@@ -207,6 +208,7 @@ class Evaluation:
 
         self.harness = harness
         self.keep_last_env = keep_last_env
+        self.untrusted_agent = untrusted_agent
 
     def _create_agent(self, model: str, tasklist_type: str, extra_params: dict | None = None) -> Agent:
         """Construct the appropriate agent for a model.
@@ -227,6 +229,7 @@ class Evaluation:
                 extra_params=extra_params,
                 harness=self.harness,
                 keep_last_env=self.keep_last_env,
+                untrusted_agent=self.untrusted_agent,
             )
         if self.endpoint_type == "mcp":
             from palace.agents.mcp_agent import MCPAgent
@@ -634,11 +637,13 @@ def evaluate(
     vivarium_url: str | None = None,
     judge_config: JudgeConfig | None = None,
     harness: str | None = None,
+    untrusted_agent: bool = False,
 ):
     """Evaluate a model on tasklists. Convenience function wrapping Evaluation class.
 
     Args:
         harness: Agent harness for vivarium execution ("builtin", "pi", "omp"). Default: "builtin".
+        untrusted_agent: Enable hardened verification mode (destroy and recreate env before verify).
     """
     output_path = Path(output_folder) if output_folder else RESULTS_PATH
     evaluation = Evaluation(
@@ -648,7 +653,7 @@ def evaluate(
         endpoint_type=endpoint_type,
         agentic=agentic,
         vivarium_url=vivarium_url,
-        task_amount_limit=limit,
+        task_limit=limit,
         runs_per_configuration=runs_per_configuration,
         output_path=output_path,
         on_task_complete=on_task_complete,
@@ -658,6 +663,7 @@ def evaluate(
         concurrency=concurrency,
         judge_config=judge_config,
         harness=harness,
+        untrusted_agent=untrusted_agent,
     )
     tasklist_list = [tasklist] if isinstance(tasklist, str) else tasklist
     return evaluation.evaluate_all([name], tasklist_list)
