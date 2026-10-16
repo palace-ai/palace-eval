@@ -55,13 +55,25 @@ _TRANSIENT_NETWORK_ERRORS = (
     httpx.RemoteProtocolError,
 )
 
+# Body substrings identifying disk-pressure rejections (e.g. vivarium returns
+# 503/422 with "Disk pressure critical: ..."). A 422 whose body matches these
+# is a transient capacity problem, not a malformed request.
+_TRANSIENT_DISK_PATTERNS = ("disk", "enospc", "no space left")
+
 
 def _is_transient_http(exc: Exception) -> bool:
     """Return True if the exception represents a transient/retryable HTTP error."""
     if isinstance(exc, _TRANSIENT_NETWORK_ERRORS):
         return True
     if isinstance(exc, httpx.HTTPStatusError):
-        return exc.response.status_code in _TRANSIENT_STATUS_CODES
+        if exc.response.status_code in _TRANSIENT_STATUS_CODES:
+            return True
+        if exc.response.status_code == 422:
+            # Disk-pressure rejections ride a 422 in some vivarium versions;
+            # the body names the cause, so retry them like any capacity error.
+            body = (exc.response.text or "").lower()
+            return any(p in body for p in _TRANSIENT_DISK_PATTERNS)
+        return False
     return False
 
 
