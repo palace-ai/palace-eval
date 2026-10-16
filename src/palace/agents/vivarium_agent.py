@@ -71,7 +71,12 @@ def _is_transient_http(exc: Exception) -> bool:
         if exc.response.status_code == 422:
             # Disk-pressure rejections ride a 422 in some vivarium versions;
             # the body names the cause, so retry them like any capacity error.
-            body = (exc.response.text or "").lower()
+            # Body may be unreadable (streaming/partial) — retrying is then
+            # safer than raising from inside an exception handler.
+            try:
+                body = (exc.response.text or "").lower()
+            except Exception:
+                return True
             return any(p in body for p in _TRANSIENT_DISK_PATTERNS)
         return False
     return False
