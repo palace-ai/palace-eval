@@ -500,8 +500,15 @@ class VivariumAgent(Agent):
         # Re-upload saved paths
         for path, archive in saved.items():
             try:
-                await fresh_env.upload_files(archive, dest=path)
-                _logger.debug(f"untrusted-agent: uploaded {path} to fresh env")
+                # download_files() returns a tar whose members are anchored at
+                # the basename of `path` (Docker get_archive semantics: a
+                # directory download yields '<basename>/...' members). Extract
+                # relative to the PARENT directory so the tree lands back at
+                # its original location; using dest=path would double-nest
+                # (e.g. /workspace/findings/findings/findings.json).
+                dest = path.rstrip("/").rsplit("/", 1)[0] or "/"
+                await fresh_env.upload_files(archive, dest=dest)
+                _logger.debug(f"untrusted-agent: uploaded {path} to fresh env (dest={dest})")
             except Exception as e:
                 _logger.warning(f"untrusted-agent: could not upload {path} to fresh env: {e}")
 
