@@ -12,7 +12,6 @@ site/
 .ruff_cache/
 **/___*
 uv.lock
-tests/
 pytest.ini
 data_utils/
 
