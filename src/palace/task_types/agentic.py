@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
+from palace.utils.infra_errors import is_infra_error
 
 
 class AgenticTask(Task):
@@ -61,6 +62,19 @@ class AgenticTask(Task):
             if inspect.isawaitable(result):
                 result = await result
         except Exception as e:
+            # Distinguish "the model failed the task" from "the harness failed
+            # the task". Verification runs exec/read/write calls against the
+            # execution environment; gateway timeouts (504), worker 5xx,
+            # connection errors and task-budget timeouts there are
+            # infrastructure failures and must be recorded as outcome="error"
+            # (excluded from scores), not as incorrect answers.
+            if is_infra_error(e):
+                return TaskVerificationResult(
+                    is_correct=False,
+                    outcome="error",
+                    reason=f"verify_infra_error: {e}",
+                    reasoning=f"Verify failed (infrastructure error, task not graded): {e}",
+                )
             return TaskVerificationResult(is_correct=False, reasoning=f"Verify failed: {e}")
 
         return _normalize_verify_result(result)

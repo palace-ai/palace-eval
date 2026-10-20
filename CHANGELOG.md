@@ -5,6 +5,20 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Verify-stage infrastructure errors no longer counted as incorrect**: exceptions
+  during agentic verification that indicate harness failure (HTTP 504/5xx gateway
+  timeouts, connection errors, read timeouts, task-budget timeouts, disk-pressure
+  422) are now recorded as `outcome: "error"` and excluded from the accuracy
+  denominator, instead of being graded as wrong answers. Previously a single
+  orchestrator 504 during the verify exec misclassified the task as failed —
+  65 of 98 failures in one SWE-bench-Pro run. Genuine verify bugs still grade
+  as `incorrect`. Classification lives in the new shared
+  `palace.utils.infra_errors.is_infra_error`, also reused by the vivarium agent
+  for retry decisions.
+
 ## [1.2.0] - 2026-10-01
 
 ### Added

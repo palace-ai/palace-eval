@@ -32,6 +32,8 @@ import httpx
 
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
+from palace.utils.infra_errors import TRANSIENT_NETWORK_ERRORS as _TRANSIENT_NETWORK_ERRORS
+from palace.utils.infra_errors import is_infra_error as _is_transient_http
 from palace.utils.paths import LOGS_PATH
 from palace.utils.printing import print
 
@@ -44,43 +46,6 @@ _logger = logging.getLogger("palace.vivarium_agent")
 # Default paths to save in untrusted-agent mode if VERIFY_PATHS not declared.
 _DEFAULT_VERIFY_PATHS = ["/workspace"]
 
-# Transient HTTP status codes that are safe to retry.
-_TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504, 529})
-
-# Network-level exceptions that indicate transient connectivity issues.
-_TRANSIENT_NETWORK_ERRORS = (
-    httpx.ConnectError,
-    httpx.TimeoutException,
-    httpx.ReadError,
-    httpx.RemoteProtocolError,
-)
-
-# Body substrings identifying disk-pressure rejections (e.g. vivarium returns
-# 503/422 with "Disk pressure critical: ..."). A 422 whose body matches these
-# is a transient capacity problem, not a malformed request.
-_TRANSIENT_DISK_PATTERNS = ("disk", "enospc", "no space left")
-
-
-def _is_transient_http(exc: Exception) -> bool:
-    """Return True if the exception represents a transient/retryable HTTP error."""
-    if isinstance(exc, _TRANSIENT_NETWORK_ERRORS):
-        return True
-    if isinstance(exc, httpx.HTTPStatusError):
-        if exc.response.status_code in _TRANSIENT_STATUS_CODES:
-            return True
-        if exc.response.status_code == 422:
-            # Disk-pressure rejections ride a 422 in some vivarium versions;
-            # the body names the cause, so retry them like any capacity error.
-            # Body may be unreadable (streaming/partial) — retrying is then
-            # safer than raising from inside an exception handler.
-            try:
-                body = (exc.response.text or "").lower()
-            except Exception:
-                return True
-            return any(p in body for p in _TRANSIENT_DISK_PATTERNS)
-        return False
-    return False
-
 
 class VivariumAgent(Agent):
     """Agent that delegates execution to vivarium's sandboxed Docker environments.
@@ -90,8 +55,8 @@ class VivariumAgent(Agent):
         url: LLM API base URL.
         token: LLM API key.
         vivarium_url: Vivarium service URL. If None, auto-starts via vivarium SDK.
-        timeout_seconds: Max time per agent run.
-        max_steps: Max agent loop iterations per task.
+        timeout_seconds: Max time per agent run (default 3 hours).
+        max_steps: Max agent loop iterations per task (default 1000).
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
         harness: Agent harness to use ("builtin", "pi", "omp"). Default: "builtin".
         keep_last_env: Keep the last environment alive for debugging (default: False).
@@ -107,8 +72,8 @@ class VivariumAgent(Agent):
         url: str,
         token: str | None,
         vivarium_url: str | None = None,
-        timeout_seconds: int = 7200,
-        max_steps: int = 500,
+        timeout_seconds: int = 10800,
+        max_steps: int = 1000,
         extra_params: dict | None = None,
         harness: str | None = None,
         keep_last_env: bool = False,

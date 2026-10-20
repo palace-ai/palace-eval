@@ -205,6 +205,21 @@ def verify(expected: dict, answer: str, container) -> bool | dict:
 | `float` (0.0–1.0) | Partial credit; ≥1.0 is correct |
 | `dict` | Full control: `is_correct`, `reasoning`, `metrics` |
 
+### Infrastructure Errors vs Incorrect Answers
+
+Exceptions raised while `verify.py` inspects the container (via
+`container.exec`/`read`/`write`) are classified automatically:
+
+- **Infrastructure failures** — HTTP 5xx (e.g. 504 gateway timeout from the
+  orchestrator), connection errors, read timeouts, and task-budget timeouts —
+  are recorded as `outcome: "error"` with `is_skipped: true`. They are
+  **excluded from the accuracy denominator**: the model never got a fair grade.
+- **Any other exception** (e.g. a parser bug inside `verify.py`) is recorded
+  as `incorrect`.
+
+This distinction matters for score integrity: without it, a single worker
+timeout inflates the failure count with tasks the model may have solved.
+
 ### Example: Partial Credit
 
 ```python
