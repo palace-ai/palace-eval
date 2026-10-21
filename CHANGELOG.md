@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-21
+
 ### Fixed
 - **Verify-stage infrastructure errors no longer counted as incorrect**: exceptions
   during agentic verification that indicate harness failure (HTTP 504/5xx gateway
@@ -18,6 +20,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as `incorrect`. Classification lives in the new shared
   `palace.utils.infra_errors.is_infra_error`, also reused by the vivarium agent
   for retry decisions.
+- **`--untrusted-agent` verification hardening**:
+  - Verification now runs in a **freshly provisioned environment** re-seeded from
+    trusted local tasklist sources (seed function + task_files), never from agent-
+    environment state — a compromised agent can no longer tamper with the verifier
+    (e.g. rewrite `parser.py` to always report PASSED). Agent deliverables (paths
+    declared in `VERIFY_PATHS`) are downloaded from the agent environment and
+    overlaid on the seeded baseline; seeding runs *before* the overlay so the
+    seed reset cannot wipe uploaded work.
+  - **Fail fast when no deliverable survives**: if none of the `VERIFY_PATHS` can
+    be downloaded from the agent environment, the task raises
+    `FatalEvaluationError` with a diagnostic listing (paths attempted + error
+    details, never blank — exception type is included when the message is empty)
+    instead of silently verifying a pristine environment, which would grade the
+    harness rather than the agent.
+  - Task files upload failure to the fresh environment is a hard error, not a
+    skipped step.
+
+### Changed
+- Default agentic agent timeout raised from 2 h (`7200 s`) to 3 h (`10800 s`).
+
+### Added
+- Test suite for infrastructure-error classification
+  (`tests/test_infra_error_classification.py`).
 
 ## [1.2.0] - 2026-10-01
 
