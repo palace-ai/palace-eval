@@ -32,6 +32,7 @@ import httpx
 
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
+from palace.utils.exceptions import FatalEvaluationError
 from palace.utils.infra_errors import TRANSIENT_NETWORK_ERRORS as _TRANSIENT_NETWORK_ERRORS
 from palace.utils.infra_errors import is_infra_error as _is_transient_http
 from palace.utils.paths import LOGS_PATH
@@ -100,6 +101,7 @@ class VivariumAgent(Agent):
         self._envs: dict[str, Any] = {}  # task_id → Environment (fresh env in untrusted mode)
         self._verify_paths: dict[str, list[str]] = {}  # env_path_str → paths to save
         self._task_env_names: dict[str, str] = {}  # task_id → env_name (for untrusted mode)
+        self._tasks: dict[str, Task] = {}  # task_id → Task (for untrusted mode re-seeding)
         self._client: Any = None
         self._auto_started = False
         self._tasklist_path: Path | None = None
@@ -296,6 +298,7 @@ class VivariumAgent(Agent):
 
         self._envs[task.id] = env
         self._task_env_names[task.id] = env_name  # Track for untrusted-agent mode
+        self._tasks[task.id] = task  # Track for untrusted-agent mode re-seeding
 
         env_path = self._env_paths[env_name]
         env_path_str = str(env_path.relative_to(self._tasklist_path))
@@ -421,6 +424,15 @@ class VivariumAgent(Agent):
         Called after agent run in --untrusted-agent mode. After this method returns,
         self._envs[task_id] holds the fresh environment that verification will use.
         The original environment has been destroyed.
+
+        Security model: only paths listed in VERIFY_PATHS (agent deliverables) are
+        carried over from the agent environment. Harness infrastructure (task_files,
+        tests, seeding) is re-provisioned from the local tasklist — trusted sources —
+        so a compromised agent cannot tamper with the verifier itself (e.g. rewrite
+        parser.py to always report PASSED).
+
+        Raises RuntimeError when no deliverable path could be saved: proceeding to
+        verify in a pristine env would grade the harness, not the agent.
         """
         env = self._envs.get(task_id)
         if not env:
@@ -444,13 +456,27 @@ class VivariumAgent(Agent):
 
         # Download each path from the agent env
         saved: dict[str, bytes] = {}
+        download_errors: list[str] = []
         for path in verify_paths:
             try:
                 archive = await env.download_files(path)
                 saved[path] = archive
                 _logger.debug(f"untrusted-agent: downloaded {path} from {task_id}")
             except Exception as e:
-                _logger.warning(f"untrusted-agent: could not download {path} from {task_id}: {e}")
+                # str(e) can be empty (e.g. httpx error with no detail) — include
+                # the exception type so the log is never blank.
+                detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+                download_errors.append(f"{path}: {detail}")
+                _logger.warning(f"untrusted-agent: could not download {path} from {task_id}: {detail}")
+
+        if not saved:
+            raise FatalEvaluationError(
+                f"untrusted-agent: none of the VERIFY_PATHS could be downloaded from the agent "
+                f"environment for {task_id}. VERIFY_PATHS={verify_paths} do not exist in this "
+                f"tasklist's containers. Errors: {'; '.join(download_errors)}. "
+                f"Fix: declare the actual agent deliverable paths in VERIFY_PATHS in the "
+                f"tasklist's environment/verify.py."
+            )
 
         # Destroy original env — triggers webhook → provisioner kills worker
         try:
@@ -462,12 +488,36 @@ class VivariumAgent(Agent):
         fresh_env = await self._client.create_environment(spec_id=spec_id)
         _logger.info(f"untrusted-agent: created fresh env {fresh_env.id} for {task_id}")
 
-        # Re-upload saved paths
+        # Re-provision trusted harness artifacts from local tasklist sources:
+        # seed (baseline repo state, test patch, env setup) and task_files
+        # (verify scripts). Never copied from the agent env — those are
+        # untrusted by definition.
+        # Order matters: seed FIRST (it resets the repo to the base commit,
+        # which would wipe uploaded deliverables), THEN overlay agent work.
+        task = self._tasks.get(task_id)
+        seed_fn = self._seed_fns.get(env_path_str) if env_path and self._tasklist_path else None
+        if task and seed_fn:
+            _logger.info(f"untrusted-agent: re-seeding fresh env for {task_id}")
+            seed_args = task.custom_fields.get("seed_args")
+            result = seed_fn(seed_args, fresh_env)
+            if inspect.isawaitable(result):
+                await result
+        if task:
+            task_files = self._package_task_files(task)
+            if task_files:
+                try:
+                    await fresh_env.upload_files(task_files, dest="/task_files/")
+                except Exception as e:
+                    raise RuntimeError(
+                        f"untrusted-agent: could not upload task_files to fresh env for {task_id}: {e}"
+                    ) from e
+
+        # Re-upload saved paths (agent deliverables) on top of the seeded baseline
         for path, archive in saved.items():
             try:
                 # download_files() returns a tar whose members are anchored at
                 # the basename of `path` (Docker get_archive semantics: a
-                # directory download yields '<basename>/...' members). Extract
+                # directory download yields '<basename>/...'). Extract
                 # relative to the PARENT directory so the tree lands back at
                 # its original location; using dest=path would double-nest
                 # (e.g. /workspace/findings/findings/findings.json).
@@ -475,7 +525,9 @@ class VivariumAgent(Agent):
                 await fresh_env.upload_files(archive, dest=dest)
                 _logger.debug(f"untrusted-agent: uploaded {path} to fresh env (dest={dest})")
             except Exception as e:
-                _logger.warning(f"untrusted-agent: could not upload {path} to fresh env: {e}")
+                raise RuntimeError(
+                    f"untrusted-agent: could not re-upload {path} to fresh env for {task_id}: {e}"
+                ) from e
 
         # Replace env in _envs — verification and on_task_end will use this
         self._envs[task_id] = fresh_env
@@ -496,6 +548,7 @@ class VivariumAgent(Agent):
         self._task_env_names.pop(task.id, None)  # Clean up tracking
 
         env = self._envs.pop(task.id, None)
+        self._tasks.pop(task.id, None)
         if env:
             if self._keep_last_env:
                 # Destroy previous kept env, keep this one
@@ -515,7 +568,13 @@ class VivariumAgent(Agent):
         for spec_id in self._spec_ids.values():
             if spec_id == "default":
                 continue  # don't delete vivarium's built-in default spec
-            await self._client.delete_spec(spec_id)
+            try:
+                await self._client.delete_spec(spec_id)
+            except Exception as e:
+                # Best-effort cleanup: a 409 (spec still used by a leaked env)
+                # or other error here must never mask the real tasklist failure
+                # that brought us into this path.
+                _logger.warning(f"untrusted-agent: could not delete spec {spec_id}: {type(e).__name__}: {e}")
         self._spec_ids = {}
         if self._auto_started:
             from vivarium import stop
