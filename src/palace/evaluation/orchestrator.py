@@ -642,7 +642,7 @@ def evaluate(
     """Evaluate a model on tasklists. Convenience function wrapping Evaluation class.
 
     Args:
-        harness: Agent harness for vivarium execution ("builtin", "pi", "omp"). Default: "builtin".
+        harness: Agent harness for vivarium execution ("builtin", "pi", "omp", "omp_next"). Default: "builtin".
         untrusted_agent: Enable hardened verification mode (destroy and recreate env before verify).
     """
     output_path = Path(output_folder) if output_folder else RESULTS_PATH

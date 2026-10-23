@@ -100,7 +100,7 @@ def run():
         "--harness",
         type=str,
         default=None,
-        choices=["builtin", "pi", "omp"],
+        choices=["builtin", "pi", "omp", "omp_next"],
         help="Agent harness for Vivarium execution. 'builtin': standard ReAct loop. 'pi': Pi-style verification-first loop. 'omp': oh-my-pi with native MCP support.",
     )
     argparser.add_argument(

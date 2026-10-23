@@ -47,9 +47,9 @@ def _parse_param_value(value: str):
 @click.option(
     "--harness",
     "-h",
-    type=click.Choice(["builtin", "pi", "omp"]),
+    type=click.Choice(["builtin", "pi", "omp", "omp_next"]),
     default=None,
-    help="Agent harness for Vivarium.",
+    help="Agent harness for Vivarium. omp_next is the omp v18.12.6 A/B candidate.",
 )
 @click.option("--concurrency", "-c", type=int, default=None, help="Number of concurrent tasks.")
 @click.option("--name", "-n", "run_name", default="eval", help="Name for this evaluation run.")
