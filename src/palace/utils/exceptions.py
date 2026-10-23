@@ -30,11 +30,27 @@ class ConvergenceError(Exception):
 class FatalEvaluationError(Exception):
     """Base class for errors that should abort the entire evaluation.
 
-    Subclass this for configuration errors, authentication failures,
-    or other issues that affect all tasks and shouldn't be retried.
+    Only errors knowable *before* any task dispatch belong here:
+    configuration errors, authentication failures, unreachable endpoints.
+    Failures encountered during a task are that task's failure and must
+    never raise this — convert them to a per-task error result instead.
 
     These exceptions will propagate through the task dispatch layer
     instead of being caught and converted to per-task errors.
+    """
+
+    pass
+
+
+class UntrustedSwapError(Exception):
+    """The --untrusted-agent env swap failed for one task.
+
+    Raised by VivariumAgent._swap_to_fresh_env when VERIFY_PATHS cannot be
+    downloaded from the agent environment (path missing after the run, or
+    transient infrastructure errors that exhausted retries). Deliberately
+    NOT a FatalEvaluationError: the agent already ran, the failure is this
+    task's outcome, and the evaluation must continue with the remaining
+    tasks. The caller converts it to AgentResult(outcome="error").
     """
 
     pass

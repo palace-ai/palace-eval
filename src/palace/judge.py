@@ -71,6 +71,40 @@ from palace.utils.exceptions import JudgeConfigurationError
 from palace.utils.printing import print
 
 
+def validate_judge_config(
+    judge_model: str | None,
+    resolved_url: str | None,
+) -> None:
+    """Validate judge configuration, raising JudgeConfigurationError if invalid.
+
+    Single source of truth for judge config validation. Called by
+    Judge.__init__ (lazy, per-task) and by the evaluation preflight
+    (before dispatch, so misconfiguration costs seconds, not a completed
+    agent run).
+
+    Args:
+        judge_model: Resolved judge model name (config/param/env).
+        resolved_url: Resolved judge API URL (config/param/env).
+
+    Raises:
+        JudgeConfigurationError: If model or URL is missing.
+    """
+    if not judge_model:
+        raise JudgeConfigurationError(
+            "judge_model is required but not set. Set via:\n"
+            "  - palace config set judge_model <model>\n"
+            "  - JUDGE_MODEL env var"
+        )
+
+    if not resolved_url:
+        raise JudgeConfigurationError(
+            "Judge API URL not configured. Set via:\n"
+            "  - palace config set judge_url <url>  (judge-specific)\n"
+            "  - palace config set url <url>  (fallback)\n"
+            "  - JUDGE_API_URL or OPENAI_LIKE_API_BASE_URL env var"
+        )
+
+
 class Judge:
     """LLM-based judge that extracts structured XML data from responses.
 
@@ -125,21 +159,9 @@ class Judge:
         resolved_token = (config.key if config else None) or token or get_judge_key()
         resolved_extra_params = (config.extra_params if config else None) or extra_params
 
-        # Check judge_model is set
-        if not model:
-            raise JudgeConfigurationError(
-                "judge_model is required but not set. Set via:\n"
-                "  - palace config set judge_model <model>\n"
-                "  - JUDGE_MODEL env var"
-            )
+        # Shared validation (also used by the evaluation preflight)
+        validate_judge_config(model, resolved_url)
 
-        if not resolved_url:
-            raise JudgeConfigurationError(
-                "Judge API URL not configured. Set via:\n"
-                "  - palace config set judge_url <url>  (judge-specific)\n"
-                "  - palace config set url <url>  (fallback)\n"
-                "  - JUDGE_API_URL or OPENAI_LIKE_API_BASE_URL env var"
-            )
         self.judge_model = create_api_model(
             model,
             resolved_url,

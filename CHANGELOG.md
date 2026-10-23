@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-23
+
+### Fixed
+- **Task failure isolation** (`--untrusted-agent` swap failures no longer abort the job):
+  a failed untrusted-agent swap (e.g. HTTP 500 while downloading `VERIFY_PATHS`)
+  now becomes a per-task error outcome (`untrusted_swap_failed: ...`, excluded
+  from the accuracy denominator) and the evaluation continues with the remaining
+  tasks. Previously one worker-side 500 raised `FatalEvaluationError` and aborted
+  the entire job — 522-task run lost after 88 completed tasks. Swap downloads
+  retry transient failures with exponential backoff (2s→60s, 5 attempts); a 404
+  gets one immediate retry (destroy/race transient), then fails the task
+  permanently (the agent deleted its own deliverable). `UntrustedSwapError` is
+  deliberately **not** a `FatalEvaluationError`.
+- **Judge misconfiguration fails in seconds, not after an agent run**: judge
+  configuration (model + URL) is validated in a preflight before task dispatch
+  for QA and Criteria Evaluation tasklists, via the new shared
+  `palace.judge.validate_judge_config` (also used by `Judge.__init__`).
+  Previously the lazy per-task `Judge` construction raised only after the first
+  task's agent had already completed — burning a full agent run to discover a
+  missing `judge_model`.
+
 ## [1.3.0] - 2026-10-21
 
 ### Fixed
@@ -29,11 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     overlaid on the seeded baseline; seeding runs *before* the overlay so the
     seed reset cannot wipe uploaded work.
   - **Fail fast when no deliverable survives**: if none of the `VERIFY_PATHS` can
-    be downloaded from the agent environment, the task raises
-    `FatalEvaluationError` with a diagnostic listing (paths attempted + error
-    details, never blank — exception type is included when the message is empty)
-    instead of silently verifying a pristine environment, which would grade the
-    harness rather than the agent.
+    be downloaded from the agent environment, the task fails with a diagnostic
+    listing (paths attempted + error details, never blank — exception type is
+    included when the message is empty) instead of silently verifying a pristine
+    environment, which would grade the harness rather than the agent.
+    *(Since 1.3.1 this is a per-task error, not a job-aborting fatal error.)*
   - Task files upload failure to the fresh environment is a hard error, not a
     skipped step.
 

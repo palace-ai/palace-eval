@@ -483,6 +483,18 @@ class Evaluation:
         if self.concurrency > 1:
             agent.verbose = False
 
+        # Judge preflight: QA and Criteria Evaluation verify via an LLM judge
+        # constructed lazily inside the first task's verify(). Validate the
+        # configuration here instead — misconfiguration then costs seconds,
+        # not one completed agent run.
+        if tasklist_info["task_type"] in ("QA", "Criteria Evaluation"):
+            from palace.judge import validate_judge_config
+
+            judge_config = self.judge_config
+            judge_model = (judge_config.model if judge_config else None) or get_judge_model()
+            judge_url = (judge_config.url if judge_config else None) or get_judge_url()
+            validate_judge_config(judge_model, judge_url)
+
         task_results = await dispatch_tasks(
             tasks=tasks,
             agent=agent,

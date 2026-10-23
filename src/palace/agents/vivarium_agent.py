@@ -32,7 +32,7 @@ import httpx
 
 from palace.agents.base_agent import Agent
 from palace.evaluation.types import AgentResult
-from palace.utils.exceptions import FatalEvaluationError
+from palace.utils.exceptions import UntrustedSwapError
 from palace.utils.infra_errors import TRANSIENT_NETWORK_ERRORS as _TRANSIENT_NETWORK_ERRORS
 from palace.utils.infra_errors import is_infra_error as _is_transient_http
 from palace.utils.paths import LOGS_PATH
@@ -46,6 +46,12 @@ _logger = logging.getLogger("palace.vivarium_agent")
 
 # Default paths to save in untrusted-agent mode if VERIFY_PATHS not declared.
 _DEFAULT_VERIFY_PATHS = ["/workspace"]
+
+# Download attempts per VERIFY_PATH during the untrusted-agent swap (excluding
+# the one immediate 404 retry). With exponential backoff 2→60s this bounds a
+# pathological outage at ~5 minutes per path — enough to ride out a worker
+# restart, short of stalling the job.
+_SWAP_DOWNLOAD_ATTEMPTS = 5
 
 
 class VivariumAgent(Agent):
@@ -63,6 +69,8 @@ class VivariumAgent(Agent):
         keep_last_env: Keep the last environment alive for debugging (default: False).
         untrusted_agent: Enable hardened mode — destroy agent env and recreate fresh
             before verification. Defeats sandbox-level attacks. (default: False)
+            A failed env swap (VERIFY_PATHS not downloadable) is a per-task
+            error outcome, not a job abort.
     """
 
     agentic: bool = True
@@ -412,9 +420,18 @@ class VivariumAgent(Agent):
                 outcome="error", reason="agent_error", debug_logs=data.harness_stderr if data else None
             )
 
-        # Untrusted mode: swap to fresh env before returning so verify runs clean
+        # Untrusted mode: swap to fresh env before returning so verify runs clean.
+        # A failed swap is this task's error outcome, never a job abort.
         if self._untrusted_agent and agent_result.answer is not None:
-            await self._swap_to_fresh_env(task_id)
+            try:
+                await self._swap_to_fresh_env(task_id)
+            except UntrustedSwapError as e:
+                _logger.error(f"untrusted-agent: swap failed for {task_id}: {e}")
+                return AgentResult(
+                    outcome="error",
+                    reason=f"untrusted_swap_failed: {e}",
+                    metrics=agent_result.metrics,
+                )
 
         return agent_result
 
@@ -431,8 +448,10 @@ class VivariumAgent(Agent):
         so a compromised agent cannot tamper with the verifier itself (e.g. rewrite
         parser.py to always report PASSED).
 
-        Raises RuntimeError when no deliverable path could be saved: proceeding to
-        verify in a pristine env would grade the harness, not the agent.
+        Raises UntrustedSwapError when no deliverable path could be saved:
+        proceeding to verify in a pristine env would grade the harness, not
+        the agent. This is a task-level failure — run() converts it to
+        AgentResult(outcome="error") and the evaluation continues.
         """
         env = self._envs.get(task_id)
         if not env:
@@ -454,24 +473,63 @@ class VivariumAgent(Agent):
         else:
             verify_paths = _DEFAULT_VERIFY_PATHS
 
-        # Download each path from the agent env
+        # Download each path from the agent env.
+        # Classification (task-level either way — the job continues):
+        #   - 404 → one immediate retry (rules out a destroy/race transient),
+        #     then give up: the agent deleted its own deliverable
+        #   - transient (5xx, connect/timeout — is_infra_error) → retried
+        #     with exponential backoff, then give up: infra failure
+        #   - anything else → treated as transient (conservative: infra until
+        #     proven otherwise)
         saved: dict[str, bytes] = {}
         download_errors: list[str] = []
         for path in verify_paths:
-            try:
-                archive = await env.download_files(path)
+            archive: bytes | None = None
+            backoff = 2.0
+            attempt = 0
+            immediate_retries_left = 1  # extra immediate attempt for 404
+            while attempt < _SWAP_DOWNLOAD_ATTEMPTS:
+                attempt += 1
+                try:
+                    archive = await env.download_files(path)
+                    break
+                except Exception as e:
+                    # str(e) can be empty (e.g. httpx error with no detail) —
+                    # include the exception type so the log is never blank.
+                    detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+                    is_404 = isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404
+                    if is_404:
+                        if immediate_retries_left > 0:
+                            immediate_retries_left -= 1
+                            attempt -= 1  # immediate retry does not consume budget
+                            _logger.warning(
+                                f"untrusted-agent: download {path} from {task_id} returned 404, "
+                                f"retrying once (possible destroy/race transient)"
+                            )
+                            continue
+                        # 404 after the immediate retry is final — the path is
+                        # genuinely gone (agent deleted its own deliverable).
+                        download_errors.append(f"{path}: {detail}")
+                        _logger.warning(f"untrusted-agent: could not download {path} from {task_id}: {detail}")
+                        break
+                    if attempt >= _SWAP_DOWNLOAD_ATTEMPTS:
+                        download_errors.append(f"{path}: {detail}")
+                        _logger.warning(f"untrusted-agent: could not download {path} from {task_id}: {detail}")
+                        break
+                    _logger.warning(
+                        f"untrusted-agent: download {path} from {task_id} failed ({detail}), "
+                        f"retrying in {backoff:.0f}s (attempt {attempt}/{_SWAP_DOWNLOAD_ATTEMPTS})"
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, 60.0)
+
+            if archive is not None:
                 saved[path] = archive
                 _logger.debug(f"untrusted-agent: downloaded {path} from {task_id}")
-            except Exception as e:
-                # str(e) can be empty (e.g. httpx error with no detail) — include
-                # the exception type so the log is never blank.
-                detail = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
-                download_errors.append(f"{path}: {detail}")
-                _logger.warning(f"untrusted-agent: could not download {path} from {task_id}: {detail}")
 
         if not saved:
-            raise FatalEvaluationError(
-                f"untrusted-agent: none of the VERIFY_PATHS could be downloaded from the agent "
+            raise UntrustedSwapError(
+                f"none of the VERIFY_PATHS could be downloaded from the agent "
                 f"environment for {task_id}. VERIFY_PATHS={verify_paths} do not exist in this "
                 f"tasklist's containers. Errors: {'; '.join(download_errors)}. "
                 f"Fix: declare the actual agent deliverable paths in VERIFY_PATHS in the "
@@ -496,38 +554,46 @@ class VivariumAgent(Agent):
         # which would wipe uploaded deliverables), THEN overlay agent work.
         task = self._tasks.get(task_id)
         seed_fn = self._seed_fns.get(env_path_str) if env_path and self._tasklist_path else None
-        if task and seed_fn:
-            _logger.info(f"untrusted-agent: re-seeding fresh env for {task_id}")
-            seed_args = task.custom_fields.get("seed_args")
-            result = seed_fn(seed_args, fresh_env)
-            if inspect.isawaitable(result):
-                await result
-        if task:
-            task_files = self._package_task_files(task)
-            if task_files:
-                try:
-                    await fresh_env.upload_files(task_files, dest="/task_files/")
-                except Exception as e:
-                    raise RuntimeError(
-                        f"untrusted-agent: could not upload task_files to fresh env for {task_id}: {e}"
-                    ) from e
+        try:
+            if task and seed_fn:
+                _logger.info(f"untrusted-agent: re-seeding fresh env for {task_id}")
+                seed_args = task.custom_fields.get("seed_args")
+                result = seed_fn(seed_args, fresh_env)
+                if inspect.isawaitable(result):
+                    await result
+            if task:
+                task_files = self._package_task_files(task)
+                if task_files:
+                    try:
+                        await fresh_env.upload_files(task_files, dest="/task_files/")
+                    except Exception as e:
+                        raise UntrustedSwapError(f"could not upload task_files to fresh env for {task_id}: {e}") from e
 
-        # Re-upload saved paths (agent deliverables) on top of the seeded baseline
-        for path, archive in saved.items():
+            # Re-upload saved paths (agent deliverables) on top of the seeded baseline
+            for path, archive in saved.items():
+                try:
+                    # download_files() returns a tar whose members are anchored at
+                    # the basename of `path` (Docker get_archive semantics: a
+                    # directory download yields '<basename>/...'). Extract
+                    # relative to the PARENT directory so the tree lands back at
+                    # its original location; using dest=path would double-nest
+                    # (e.g. /workspace/findings/findings/findings.json).
+                    dest = path.rstrip("/").rsplit("/", 1)[0] or "/"
+                    await fresh_env.upload_files(archive, dest=dest)
+                    _logger.debug(f"untrusted-agent: uploaded {path} to fresh env (dest={dest})")
+                except Exception as e:
+                    raise UntrustedSwapError(f"could not re-upload {path} to fresh env for {task_id}: {e}") from e
+        except BaseException:
+            # Failure after fresh env creation: the original env is destroyed
+            # but fresh_env was never registered in _envs — destroy it here or
+            # it leaks (and its disk reclaim with it).
             try:
-                # download_files() returns a tar whose members are anchored at
-                # the basename of `path` (Docker get_archive semantics: a
-                # directory download yields '<basename>/...'). Extract
-                # relative to the PARENT directory so the tree lands back at
-                # its original location; using dest=path would double-nest
-                # (e.g. /workspace/findings/findings/findings.json).
-                dest = path.rstrip("/").rsplit("/", 1)[0] or "/"
-                await fresh_env.upload_files(archive, dest=dest)
-                _logger.debug(f"untrusted-agent: uploaded {path} to fresh env (dest={dest})")
-            except Exception as e:
-                raise RuntimeError(
-                    f"untrusted-agent: could not re-upload {path} to fresh env for {task_id}: {e}"
-                ) from e
+                await fresh_env.destroy()
+            except Exception as cleanup_err:
+                _logger.warning(
+                    f"untrusted-agent: leaked fresh env {fresh_env.id} for {task_id} (destroy failed: {cleanup_err})"
+                )
+            raise
 
         # Replace env in _envs — verification and on_task_end will use this
         self._envs[task_id] = fresh_env
