@@ -93,7 +93,7 @@ Contact: [blue]massimiliano.altieri@ec.europa.eu[/]""",
                 questionary.Choice("pi - Pi-style verification-first loop", value="pi"),
                 questionary.Choice("omp - oh-my-pi with native MCP", value="omp"),
             ],
-            default="builtin",
+            default="omp",
         ).ask()
         if harness is None:
             return

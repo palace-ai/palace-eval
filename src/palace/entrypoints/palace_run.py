@@ -99,9 +99,9 @@ def run():
     argparser.add_argument(
         "--harness",
         type=str,
-        default=None,
+        default="omp",
         choices=["builtin", "pi", "omp"],
-        help="Agent harness for Vivarium execution. 'builtin': standard ReAct loop. 'pi': Pi-style verification-first loop. 'omp': oh-my-pi with native MCP support.",
+        help="Agent harness for Vivarium execution. 'builtin': standard ReAct loop. 'pi': Pi-style verification-first loop. 'omp': oh-my-pi with native MCP support. Defaults to omp.",
     )
     argparser.add_argument(
         "--untrusted-agent",

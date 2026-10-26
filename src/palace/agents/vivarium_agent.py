@@ -65,7 +65,7 @@ class VivariumAgent(Agent):
         timeout_seconds: Max time per agent run (default 3 hours).
         max_steps: Max agent loop iterations per task (default 1000).
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
-        harness: Agent harness to use ("builtin", "pi", "omp"). Default: "builtin".
+        harness: Agent harness to use ("builtin", "pi", "omp"). Default: "omp".
         keep_last_env: Keep the last environment alive for debugging (default: False).
         untrusted_agent: Enable hardened mode — destroy agent env and recreate fresh
             before verification. Defeats sandbox-level attacks. (default: False)
@@ -94,7 +94,7 @@ class VivariumAgent(Agent):
         self._timeout = timeout_seconds
         self._max_steps = max_steps
         self._extra_params = extra_params
-        self._harness = harness
+        self._harness = harness or "omp"
         self._keep_last_env = keep_last_env
         self._untrusted_agent = untrusted_agent
         self._last_kept_env: Any = None  # env kept for debugging
