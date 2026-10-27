@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Agentic per-task time budget raised 2h10m → 3h30m**: the dispatch-level
+  `task_timeout` (12600s) now sits *above* the agent's graceful 3 h timeout
+  (10800s) instead of below it. Previously the hard `asyncio.wait_for` fired
+  first (7800s), so tasks exceeding ~2h10m were killed with a bare
+  `TimeoutError` — no `AgentResult`, no token/step metrics, vivarium run left
+  unreconciled (job-1361: task 6/100 timed out at 2h09m mid-verification with
+  171 tool calls discarded). The agent timeout now wins the race: vivarium
+  cancels the run server-side, metrics are preserved, and dispatch headroom
+  covers seeding, the untrusted-agent swap, and verification.
+
 ## [1.3.1] - 2026-10-23
 
 ### Fixed

@@ -42,7 +42,13 @@ async def dispatch_tasks(
     renderer: Renderer,
     on_task_complete: Callable[..., None] | None,
     on_task_state: Callable[[int, str], None] | None = None,
-    task_timeout: float = 7800,
+    # Hard ceiling per task. Must stay ABOVE the agent's internal graceful
+    # timeout (VivariumAgent timeout_seconds=10800) so the agent path — which
+    # returns AgentResult(outcome="error", reason="timeout") with token/step
+    # metrics intact — wins the race. Dispatch firing first discards metrics
+    # (bare TimeoutError, no AgentResult). Headroom covers seeding, the
+    # untrusted-agent swap and verification after agent.run() returns.
+    task_timeout: float = 12600,
     judge_config: JudgeConfig | None = None,
 ) -> list[TaskResult]:
     """Dispatch all tasks with bounded concurrency. Single path for all values."""

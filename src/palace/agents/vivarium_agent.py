@@ -62,7 +62,9 @@ class VivariumAgent(Agent):
         url: LLM API base URL.
         token: LLM API key.
         vivarium_url: Vivarium service URL. If None, auto-starts via vivarium SDK.
-        timeout_seconds: Max time per agent run (default 3 hours).
+        timeout_seconds: Max time per agent run (default 3 hours). Must stay
+            below the dispatch-level task_timeout (12600s) so this graceful
+            timeout — which preserves token/step metrics — fires first.
         max_steps: Max agent loop iterations per task (default 1000).
         extra_params: Extra kwargs merged into LLM API calls (e.g., reasoning_effort).
         harness: Agent harness to use ("builtin", "pi", "omp"). Default: "omp".

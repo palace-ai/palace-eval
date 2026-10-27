@@ -220,6 +220,22 @@ Exceptions raised while `verify.py` inspects the container (via
 This distinction matters for score integrity: without it, a single worker
 timeout inflates the failure count with tasks the model may have solved.
 
+### Task Time Budget
+
+Agentic tasks run under a two-level budget:
+
+- **Agent timeout** (3 h, `VivariumAgent.timeout_seconds`): the graceful
+  limit. Vivarium cancels the agent run server-side and palace-eval returns
+  an error result *with token/step metrics preserved*.
+- **Dispatch timeout** (3.5 h, `task_timeout` in `dispatch_tasks`): the hard
+  ceiling around the whole task (agent run + seeding + untrusted-agent swap
+  + verification). Firing here discards metrics, so it only exists as a
+  safety net — it must stay above the agent timeout.
+
+Timeout outcomes are excluded from the accuracy denominator. If long-running
+tasks routinely hit the 3 h agent timeout, consider whether the tasklist's
+instances are oversized for the model rather than raising the budget.
+
 ### Example: Partial Credit
 
 ```python
