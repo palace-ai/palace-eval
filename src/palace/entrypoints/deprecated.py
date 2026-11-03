@@ -46,7 +46,7 @@ def palace_cli_deprecated() -> None:
     """Deprecated: Use 'palace' instead."""
     _show_deprecation_warning("palace-cli", "palace")
 
-    # Import and run the legacy interactive CLI
+    # Legacy CLI removed — module now prints a "removed" banner and exits
     from palace.entrypoints.palace_cli import main
 
     main()
@@ -56,7 +56,7 @@ def palace_run_deprecated() -> None:
     """Deprecated: Use 'palace run' instead."""
     _show_deprecation_warning("palace-run", "palace run <benchmark> -m <model>")
 
-    # Import and run the legacy run CLI
+    # Legacy run CLI removed — module now prints a "removed" banner and exits
     from palace.entrypoints.palace_run import run
 
     run()
@@ -67,7 +67,7 @@ def palace_download_deprecated() -> None:
     _show_deprecation_warning("palace-download", "palace download <name>")
 
     # Import and run the legacy download CLI
-    from palace.entrypoints.download.palace_download import main
+    from palace.download.engine import main
 
     main()
 

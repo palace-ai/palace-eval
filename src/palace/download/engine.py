@@ -771,7 +771,7 @@ def _build_download_list(skip_existing: bool = False, tasklists: list[str] | Non
         print("[yellow]Skipping private PALACE collection (no huggingface_token set).")
 
     # Public datasets
-    with open(Path(__file__).parent / "public_datasets_info.json") as f:
+    with open(Path(__file__).parent / "conversion_recipes.json") as f:
         public_info = json.load(f)
 
     if get_huggingface_token():

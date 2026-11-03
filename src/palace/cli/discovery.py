@@ -33,7 +33,8 @@ def _get_conversion_recipes() -> list[TasklistInfo]:
     """
     tasklists: list[TasklistInfo] = []
 
-    # Load from palace/download/conversion_recipes.json
+    # Load from palace/download/conversion_recipes.json (single source of truth,
+    # also read by the download engine)
     from importlib.resources import files
 
     try:
@@ -53,25 +54,7 @@ def _get_conversion_recipes() -> list[TasklistInfo]:
                 )
             )
     except Exception:
-        # Recipes file not found or invalid - try legacy location
-        try:
-            package_files = files("palace.entrypoints.download")
-            recipes_path = package_files / "public_datasets_info.json"
-            recipes_data = json.loads(recipes_path.read_text())
-
-            for recipe in recipes_data:
-                tasklists.append(
-                    TasklistInfo(
-                        name=recipe.get("name", recipe.get("id", "unknown")),
-                        source="convertible",
-                        id=recipe.get("id", ""),
-                        description=recipe.get("description"),
-                        category=recipe.get("category"),
-                        task_type=recipe.get("task_type"),
-                    )
-                )
-        except Exception:
-            pass
+        pass
 
     return tasklists
 

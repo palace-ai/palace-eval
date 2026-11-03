@@ -1,45 +1,5 @@
 [
   {
-    "name": "BABILong-32k",
-    "id": "RMT-team/babilong",
-    "config": "32k",
-    "split": [
-      "qa1",
-      "qa2",
-      "qa3",
-      "qa4",
-      "qa5"
-    ],
-    "column_names": {
-      "objective": "question",
-      "expected": "target",
-      "attachments": "input"
-    },
-    "inline_attachment": true,
-    "category": "Long Context",
-    "task_type": "QA"
-  },
-  {
-    "name": "BABILong-128k",
-    "id": "RMT-team/babilong",
-    "config": "128k",
-    "split": [
-      "qa1",
-      "qa2",
-      "qa3",
-      "qa4",
-      "qa5"
-    ],
-    "column_names": {
-      "objective": "question",
-      "expected": "target",
-      "attachments": "input"
-    },
-    "inline_attachment": true,
-    "category": "Long Context",
-    "task_type": "QA"
-  },
-  {
     "name": "BABILong",
     "id": "RMT-team/babilong",
     "config": ["4k", "8k", "16k", "32k", "64k", "128k"],
@@ -92,23 +52,6 @@
     "penalize_unsupported": true
   },
   {
-    "name": "CURIE-protein",
-    "id": "nhop/curie",
-    "config": "pdb",
-    "split": "train",
-    "column_names": {
-      "id": "id",
-      "objective": "prompt",
-      "expected": "gt",
-      "difficulty": "difficulty_level",
-      "attachments": "text"
-    },
-    "category": "Expert Reasoning",
-    "task_type": "QA",
-    "inline_attachment": true,
-    "custom_verificator": "def verify(pred, truth):\n    import json\n    return pred == json.loads(truth)['sequence']"
-  },
-  {
     "name": "HotpotQA",
     "id": "hotpotqa/hotpot_qa",
     "config": "fullwiki",
@@ -150,18 +93,6 @@
     "task_type": "QA"
   },
   {
-    "name": "SimpleQA-Verified",
-    "id": "google/simpleqa-verified",
-    "config": "simpleqa_verified",
-    "split": "eval",
-    "column_names": {
-      "objective": "problem",
-      "expected": "answer"
-    },
-    "category": "General Knowledge",
-    "task_type": "QA"
-  },
-  {
     "name": "AssistantBench",
     "id": "AssistantBench/AssistantBench",
     "split": "validation",
@@ -187,40 +118,6 @@
     "inline_attachment": true,
     "category": "Expert Reasoning",
     "task_type": "QA"
-  },
-  {
-    "name": "VLSBench",
-    "id": "Foreshhh/vlsbench",
-    "split": "train",
-    "column_names": {
-      "id": "instruction_id",
-      "objective": "instruction",
-      "attachments": "image_path"
-    },
-    "attachment_path": "",
-    "category": "Safety",
-    "task_type": "Classification",
-    "task_type_fields": {
-      "labels": [
-        {
-          "name": "Unsafe",
-          "description": "Whether the multimodal input (image + text) contains unsafe or harmful content.",
-          "classes": [
-            {
-              "name": "Yes",
-              "condition": "if the combined image and text request is unsafe, harmful, or promotes dangerous activities"
-            },
-            {
-              "name": "No",
-              "condition": "if the combined image and text request is safe and benign"
-            }
-          ]
-        }
-      ]
-    },
-    "default_labels": {
-      "Unsafe": "Yes"
-    }
   },
   {
     "name": "MMLU-Pro",

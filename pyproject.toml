@@ -79,8 +79,8 @@ palace-download = "palace.entrypoints.deprecated:palace_download_deprecated"
 [tool.setuptools.package-data]
 palace = [
     "prompts/*.md",
-    "entrypoints/download/*.json",
     "download/*.json",
+    "download/*.schema",
     "bundled_io_adapters.yaml",
     "bundled_model_extra_params.yaml",
 ]

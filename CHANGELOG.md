@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Download module consolidation**: the download engine moved from
+  `palace/entrypoints/download/palace_download.py` to `palace/download/engine.py`,
+  and `conversion_recipes.json` is now the single source of truth for public
+  benchmark conversion recipes (`public_datasets_info.json` deleted; its schema
+  moved alongside as `conversion_recipes.schema`). `palace.download` is now a
+  real package (API + engine + data) rather than a façade over the legacy
+  entrypoints module. Internal importers (palace-gradin) updated to
+  `palace.download.engine`. The legacy `palace-cli` and `palace-run` CLIs are
+  removed — their entrypoints are now empty shims printing a "removed" banner.
 - **Agentic per-task time budget raised 2h10m → 3h30m**: the dispatch-level
   `task_timeout` (12600s) now sits *above* the agent's graceful 3 h timeout
   (10800s) instead of below it. Previously the hard `asyncio.wait_for` fired

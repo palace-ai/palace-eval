@@ -12,176 +12,29 @@
 # You should have received a copy of the European Union Public Licence
 # along with this program. If not, see <https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12>.
 
-import argparse
-import json
-import os
+"""Deprecated: the legacy run CLI was removed.
 
-from palace.evaluation import Evaluation
-from palace.models.api_model import APIModel
+Use the unified 'palace run' command instead (palace.cli). The deprecated
+'palace-run' entrypoint shows a deprecation warning and exits.
+"""
+
 from palace.utils.printing import print
 
 
-def _parse_param_value(value: str):
-    """Parse a param value: try JSON literal (number, bool, object), fallback to string."""
-    try:
-        return json.loads(value)
-    except (json.JSONDecodeError, ValueError):
-        return value
-
-
 def run():
-    argparser = argparse.ArgumentParser(description="Run evaluation of a model/agent on PALACE tasklists.")
-    argparser.add_argument("--run-name", type=str, default="eval", help="The name of the run.")
-    argparser.add_argument(
-        "--output-folder",
-        type=str,
-        default=None,
-        help="The path to the output folder (default: ~/.cache/palace/results/).",
-    )
-    argparser.add_argument("-u", "--url", type=str, required=True, help="The URL of the OpenAI API.")
-    argparser.add_argument(
-        "-k",
-        "--token",
-        type=str,
-        default=os.environ.get("OPENAI_LIKE_API_KEY"),
-        help="The token to use for authentication. Falls back to OPENAI_LIKE_API_KEY environment variable.",
-    )
-    argparser.add_argument(
-        "-m", "--name", type=str, default=None, help="The name of the model/agent. If omitted, lists available models."
-    )
-    argparser.add_argument(
-        "-t",
-        "--tasklist",
-        type=str,
-        required=True,
-        action="append",
-        help="The tasklist(s) to evaluate on. Can be specified multiple times: -t T1 -t T2",
-    )
-    argparser.add_argument(
-        "-l",
-        "--limit",
-        type=int,
-        default=None,
-        help="The maximum number of tasks to evaluate per tasklist.",
-    )
-    argparser.add_argument(
-        "--offset",
-        type=int,
-        default=0,
-        help="Number of tasks to skip from the beginning. Use with --limit for ranges (e.g., --offset 80 --limit 5 for tasks 80-84).",
-    )
-    argparser.add_argument(
-        "--runs-per-configuration",
-        type=int,
-        default=1,
-        help="The number of evaluation runs to perform.",
-    )
-    argparser.add_argument(
-        "--endpoint-type",
-        type=str,
-        default="auto",
-        choices=["auto", "openai", "anthropic", "azure", "mcp"],
-        help="The type of endpoint. Default 'auto' detects from model name.",
-    )
-    argparser.add_argument(
-        "--report-detail",
-        type=str,
-        default="default",
-        choices=["none", "default", "full"],
-        help="Level of detail in per-task report: none (omit report), default (slimmed), full (includes task text).",
-    )
-    argparser.add_argument(
-        "--agentic",
-        action="store_true",
-        default=False,
-        help="Force agentic execution via Vivarium for all tasklists (sandboxed environment with tools).",
-    )
-    argparser.add_argument(
-        "--harness",
-        type=str,
-        default="omp",
-        choices=["builtin", "pi", "omp"],
-        help="Agent harness for Vivarium execution. 'builtin': standard ReAct loop. 'pi': Pi-style verification-first loop. 'omp': oh-my-pi with native MCP support. Defaults to omp.",
-    )
-    argparser.add_argument(
-        "--untrusted-agent",
-        action="store_true",
-        default=False,
-        help="Hardened evaluation mode: destroy agent environment and recreate fresh before verification. Use with adversarial benchmarks to defeat sandbox-level attacks.",
-    )
-    argparser.add_argument(
-        "-c",
-        "--concurrency",
-        type=int,
-        default=None,
-        help="Number of tasks to run concurrently (default: PALACE_CONCURRENCY env var, or 25).",
-    )
-    argparser.add_argument(
-        "--param",
-        action="append",
-        default=[],
-        metavar="KEY=VALUE",
-        help="Extra model parameter (e.g., --param reasoning_effort=high --param temperature=0.5). Can be specified multiple times.",
-    )
-    args = argparser.parse_args()
+    print("""[yellow]╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║  ⚠️  REMOVED                                                              ║
+║                                                                          ║
+║  The legacy run CLI has been removed.                                    ║
+║                                                                          ║
+║  Please use the new unified 'palace run' command instead:                ║
+║                                                                          ║
+║    palace run <benchmark> -m <model>                                     ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝[/yellow]""")
+    raise SystemExit(1)
 
-    # If no model specified, list available models and exit
-    if args.name is None:
-        try:
-            models = sorted(APIModel.list_models(args.url, args.token))
-            if models:
-                print("[cyan]Available models at this endpoint:[/cyan]")
-                for model in models:
-                    print(f"  - {model}")
-                print("\n[yellow]Run again with: -m <model_name>[/yellow]")
-            else:
-                print("[yellow]No models found at this endpoint.[/yellow]")
-        except Exception as e:
-            print(f"[red]Error: {e}[/red]")
-        exit(0)
 
-    try:
-        from pathlib import Path
-
-        from palace.utils.paths import RESULTS_PATH
-
-        output_path = Path(args.output_folder) if args.output_folder else RESULTS_PATH
-
-        # Parse --param flags into dict
-        model_extra_params = None
-        if args.param:
-            model_extra_params = {}
-            for item in args.param:
-                if "=" not in item:
-                    print(f"[red]Error: --param must be KEY=VALUE, got: {item}[/red]")
-                    exit(1)
-                key, value = item.split("=", 1)
-                model_extra_params[key] = _parse_param_value(value)
-
-        endpoint_type = args.endpoint_type if args.endpoint_type != "auto" else None
-
-        evaluation = Evaluation(
-            name=args.run_name,
-            url=args.url,
-            token=args.token,
-            endpoint_type=endpoint_type,
-            agentic=True if args.agentic else None,
-            task_limit=args.limit,
-            task_offset=args.offset,
-            runs_per_configuration=args.runs_per_configuration,
-            output_path=output_path,
-            report_detail=args.report_detail,
-            concurrency=args.concurrency,
-            model_extra_params=model_extra_params,
-            harness=args.harness,
-            untrusted_agent=args.untrusted_agent,
-        )
-        evaluation.evaluate_all([args.name], tasklists=args.tasklist)
-    except FileNotFoundError as e:
-        print(f"[red]Error: {e}[/red]")
-        exit(1)
-    except KeyboardInterrupt:
-        exit(130)
-    except Exception as e:
-        print(f"[red]Error: {e}[/red]")
-        exit(1)
+if __name__ == "__main__":
+    run()

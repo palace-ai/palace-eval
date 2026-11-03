@@ -37,15 +37,15 @@ Examples:
 from pathlib import Path
 from typing import Callable
 
-# Re-export from the existing download module
-from palace.entrypoints.download.palace_download import (
+# Re-export from the download engine
+from palace.download.engine import (
     DownloadEvent,
     download_all,
 )
-from palace.entrypoints.download.palace_download import (
+from palace.download.engine import (
     download_tasklist as _download_tasklist_raw,
 )
-from palace.entrypoints.download.palace_download import (
+from palace.download.engine import (
     list_downloads as _list_downloads,
 )
 from palace.utils.paths import TASKLISTS_PATH, resolve_local_path

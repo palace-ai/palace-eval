@@ -14,7 +14,7 @@ The `download_tasklist()` function:
 3. Extracts attachments (images, text files) to `task_files/`
 4. Writes `info.json` + `tasks.json` to `~/.cache/palace/tasklists/{name}/`
 
-### Configuration Format (public_datasets_info.json)
+### Configuration Format (conversion_recipes.json)
 
 Each entry in the download registry:
 

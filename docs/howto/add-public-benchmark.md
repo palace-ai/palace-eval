@@ -4,7 +4,7 @@ This guide explains how to add support for a new public HuggingFace benchmark to
 
 ## Overview
 
-PALACE can automatically convert public HuggingFace datasets into the PALACE tasklist format. The conversion is configured in `public_datasets_info.json`, which maps HuggingFace columns to PALACE task fields.
+PALACE can automatically convert public HuggingFace datasets into the PALACE tasklist format. The conversion is configured in `conversion_recipes.json`, which maps HuggingFace columns to PALACE task fields.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ Identify:
 
 ## Step 2: Create the Configuration
 
-Add an entry to `public_datasets_info.json`:
+Add an entry to `conversion_recipes.json`:
 
 ### Minimal QA Example
 
