@@ -5,6 +5,16 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-11-03
+
+### Removed
+- **Deprecated CLI entrypoints deleted**: `palace-cli`, `palace-run` and
+  `palace-download` (and the `palace/entrypoints/` package) are removed
+  outright. The v1.4.0 banner shims broke the CI "Verify CLI entrypoints"
+  check (exit 1 on `--help`); the entrypoints now no longer install at all —
+  use `palace`, `palace run`, `palace download`. CI verifies only the unified
+  entrypoints. Docs and skill references updated accordingly.
+
 ## [1.4.0] - 2026-11-03
 
 ### Changed
