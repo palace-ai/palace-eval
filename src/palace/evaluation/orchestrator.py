@@ -354,7 +354,7 @@ class Evaluation:
             available = [t.name for t in TASKLISTS_PATH.iterdir() if t.is_dir()]
             raise FileNotFoundError(
                 f"Tasklist '{tasklist}' not found. "
-                f"Available tasklists: {', '.join(sorted(available)) if available else 'none (run palace-download first)'}. "
+                f"Available tasklists: {', '.join(sorted(available)) if available else 'none (run `palace download` first)'}. "
                 f"Note: tasklist names are case-sensitive."
             )
 

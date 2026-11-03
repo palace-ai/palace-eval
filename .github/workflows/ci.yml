@@ -44,5 +44,6 @@ jobs:
 
       - name: Verify CLI entrypoints
         run: |
-          palace-run --help
-          palace-download --help
+          palace
+          palace download --help
+          palace run --help

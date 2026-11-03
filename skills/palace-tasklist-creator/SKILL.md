@@ -28,7 +28,7 @@ A directory in `~/.cache/palace/tasklists/{Name}/` containing:
 ## Step 1: Choose Your Path
 
 **Is the benchmark a simple tabular dataset on HuggingFace (columns map directly to palace fields)?**
-- YES → Use `palace-download` with column mapping. See [dataset-generation.md](references/dataset-generation.md).
+- YES → Use `column-mapping download (conversion_recipes.json)` with column mapping. See [dataset-generation.md](references/dataset-generation.md).
 - NO (complex processing needed, agentic setup, or not on HF) → Write a `create_dataset.py` script or craft `info.json` + `tasks.json` directly. See [dataset-generation.md](references/dataset-generation.md).
 
 ## Step 2: Decide the Task Type
@@ -107,7 +107,7 @@ python .kiro/skills/palace-tasklist-creator/scripts/smoke_test_tasklist.py /path
 
 The smoke test registers specs, builds/pulls images, creates environments, runs seed.py, and attempts verify.py — all without needing an LLM. It catches Dockerfile errors, broken seed scripts, missing files, and unreachable machines.
 
-Fix any reported errors, then your tasklist is ready for evaluation with `palace-run`.
+Fix any reported errors, then your tasklist is ready for evaluation with ``palace run``.
 
 ## Gotchas
 
@@ -121,7 +121,7 @@ Fix any reported errors, then your tasklist is ready for evaluation with `palace
 - **Multi-env tasklists**: When info.json has multiple `env` entries, each task MUST have `"env": "name"` field.
 - **Labels in tasks.json**: Maps `label_name → class_name` (e.g., `{"Unsafe": "Yes"}`), NOT booleans.
 - **task_type_fields merge**: Tasklist-level fields are overridden by task-level fields (task wins).
-- **palace-download column_names**: Maps palace field names to HuggingFace column names (e.g., `{"objective": "question", "expected": "answer"}`).
+- **column-mapping download (conversion_recipes.json) column_names**: Maps palace field names to HuggingFace column names (e.g., `{"objective": "question", "expected": "answer"}`).
 - **Modalities**: Declare `"input_modalities": ["image", "text"]` if tasks have image attachments.
 - **Smoke test vs structural validation**: `validate_tasklist.py` is instant (checks format). `smoke_test_tasklist.py` needs Docker (checks that images build, seed runs, verify loads). Run structural first, smoke test when ready to deliver.
 - **Custom images must be self-contained**: If info.json references a custom image name, include a `Dockerfile` in `environment/` so vivarium can build it. Otherwise use a public Docker Hub image (e.g., `python:3.11-slim`). A tasklist referencing a non-buildable, non-public image is broken.
@@ -135,7 +135,7 @@ Fix any reported errors, then your tasklist is ready for evaluation with `palace
 | Writing tasks.json (any type) | [references/tasks-json-schema.md](references/tasks-json-schema.md) |
 | Building an Agentic tasklist | [references/agentic-tasklists.md](references/agentic-tasklists.md) |
 | Need a complete example for a specific type | [references/task-types.md](references/task-types.md) |
-| Using palace-download or writing create_dataset.py | [references/dataset-generation.md](references/dataset-generation.md) |
+| Using column-mapping download (conversion_recipes.json) or writing create_dataset.py | [references/dataset-generation.md](references/dataset-generation.md) |
 
 ## Templates
 

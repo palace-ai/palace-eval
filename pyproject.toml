@@ -71,10 +71,6 @@ dev = ["ruff>=0.6.0", "pytest>=8.0.0", "pytest-asyncio>=0.24.0"]
 
 [project.scripts]
 palace = "palace.cli:main"
-# Deprecated entrypoints - show warning then invoke legacy behavior
-palace-cli = "palace.entrypoints.deprecated:palace_cli_deprecated"
-palace-run = "palace.entrypoints.deprecated:palace_run_deprecated"
-palace-download = "palace.entrypoints.deprecated:palace_download_deprecated"
 
 [tool.setuptools.package-data]
 palace = [

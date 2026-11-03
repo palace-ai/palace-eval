@@ -223,12 +223,10 @@ palace sources rm URL       # Remove a source
 
 ## Deprecated Commands
 
-The following commands are deprecated and will be removed in a future version:
+The following legacy commands were **removed** in v1.4.0:
 
-| Old Command | New Command |
-|-------------|-------------|
+| Removed Command | Use Instead |
+|-----------------|-------------|
 | `palace-cli` | `palace` |
 | `palace-run` | `palace run` |
 | `palace-download` | `palace download` |
-
-The old commands still work but display a deprecation warning.

@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moved alongside as `conversion_recipes.schema`). `palace.download` is now a
   real package (API + engine + data) rather than a façade over the legacy
   entrypoints module. Internal importers (palace-gradin) updated to
-  `palace.download.engine`. The legacy `palace-cli` and `palace-run` CLIs are
-  removed — their entrypoints are now empty shims printing a "removed" banner.
+  `palace.download.engine`. The deprecated `palace-cli`, `palace-run` and
+  `palace-download` commands are removed outright (entrypoints, shim modules
+  and the `palace/entrypoints/` package deleted) — use `palace`, `palace run`
+  and `palace download`.
 - **Agentic per-task time budget raised 2h10m → 3h30m**: the dispatch-level
   `task_timeout` (12600s) now sits *above* the agent's graceful 3 h timeout
   (10800s) instead of below it. Previously the hard `asyncio.wait_for` fired

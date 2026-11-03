@@ -2,9 +2,9 @@
 
 How to create palace tasklists from existing data sources.
 
-## Path 1: palace-download (HuggingFace Datasets)
+## Path 1: column-mapping download (conversion_recipes.json) (HuggingFace Datasets)
 
-If your benchmark is available on HuggingFace, use `palace-download` with column mapping. This is the fastest path — it handles streaming, progress, and file extraction automatically.
+If your benchmark is available on HuggingFace, use `column-mapping download (conversion_recipes.json)` with column mapping. This is the fastest path — it handles streaming, progress, and file extraction automatically.
 
 ### How It Works
 
@@ -300,7 +300,7 @@ For long documents that should be prepended to the prompt:
 
 Text extensions (`.txt`, `.md`, `.json`, `.py`, `.csv`, etc.) are read and prepended to the objective automatically.
 
-### Inline Attachment via palace-download
+### Inline Attachment via column-mapping download (conversion_recipes.json)
 
 Set `"inline_attachment": true` in the download config. The content from the specified column will be saved as individual text files in `task_files/` and referenced via `attachments`.
 

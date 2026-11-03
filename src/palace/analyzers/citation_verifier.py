@@ -38,7 +38,7 @@ Usage
 -----
 The analyzer is enabled via environment variable:
 
-    ENABLE_CITATION_VERIFIER=true palace-cli
+    ENABLE_CITATION_VERIFIER=true palace
 
 Or programmatically:
 
