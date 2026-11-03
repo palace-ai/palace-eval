@@ -22,5 +22,31 @@ jobs:
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git refs/heads/main:refs/heads/main
-          git push --force https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git --tags
+          GITLAB_URL="https://oauth2:${GITLAB_TOKEN}@code.europa.eu/palace/palace-eval.git"
+
+          # Branch: only push if remote differs from local (avoids spurious
+          # failures when two mirror runs race on the same push event)
+          local_main=$(git rev-parse refs/heads/main)
+          remote_main=$(git ls-remote "$GITLAB_URL" refs/heads/main | cut -f1)
+          if [ "$local_main" != "$remote_main" ]; then
+            git push --force "$GITLAB_URL" refs/heads/main:refs/heads/main
+          else
+            echo "main already up to date on mirror"
+          fi
+
+          # Tags: push tags whose remote ref is missing or points elsewhere.
+          # --force is safe here because we only pass tags that need updating;
+          # concurrent mirror runs can no longer collide.
+          git fetch --tags origin
+          changed=()
+          while read -r local_ref local_sha; do
+            remote_sha=$(git ls-remote "$GITLAB_URL" "$local_ref" | cut -f1)
+            if [ "$local_sha" != "$remote_sha" ]; then
+              changed+=("$local_ref:refs/tags/${local_ref#refs/tags/}")
+            fi
+          done < <(git for-each-ref refs/tags --format='%(refname) %(objectname)')
+          if [ ${#changed[@]} -gt 0 ]; then
+            git push --force "$GITLAB_URL" "${changed[@]}"
+          else
+            echo "all tags already up to date on mirror"
+          fi
