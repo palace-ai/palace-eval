@@ -245,29 +245,45 @@ class Evaluation:
 
     def _print_evaluation_summary(self, model: str, tasklist: str, accuracy: float, metrics: dict) -> None:
         """Print a formatted evaluation summary box."""
-        timing = metrics.get("timing", {})
-        tokens = metrics.get("tokens", {})
+        operational = metrics.get("operational", {})
+        timing = operational.get("timing", {})
+        throughput = operational.get("throughput", {})
+        tokens = operational.get("tokens", {})
 
         # Build token/timing lines
         lines = []
 
         # Time line
-        if timing.get("compute_seconds"):
+        if timing.get("total_seconds"):
             lines.append(
-                f":stopwatch: Time: [blue]{timing['compute_seconds']:.1f}s[/] compute, "
-                f"[blue]{timing['wall_seconds']:.1f}s[/] wall"
+                f":stopwatch: Time: [blue]{timing['total_seconds']:.1f}s[/] compute, "
+                f"[blue]{timing.get('wall_seconds', 0):.1f}s[/] wall"
             )
+        if timing.get("ttfc_seconds_mean") is not None:
+            ttfc_line = f"Time to first chunk: [blue]{timing['ttfc_seconds_mean']:.2f}s[/] mean"
+            if timing.get("ttfc_seconds_max") is not None:
+                ttfc_line += f" ([blue]{timing['ttfc_seconds_max']:.2f}s[/] max)"
+            lines.append(ttfc_line)
 
         # Tokens line
-        if tokens.get("total_tokens"):
-            throughput = timing.get("throughput_tokens_per_sec")
-            throughput_str = f" @ [blue]{throughput:,.0f}[/] tok/s" if throughput else ""
+        if tokens.get("output_tokens"):
+            gen_throughput = throughput.get("generation_cps_mean")
+            throughput_str = f" @ [blue]{gen_throughput:,.0f}[/] tok/s gen" if gen_throughput else ""
             lines.append(
-                f":1234: Tokens: [blue]{tokens['total_tokens']:,}[/] "
-                f"({tokens['input_tokens']:,} in / {tokens['output_tokens']:,} out){throughput_str}"
+                f":1234: Tokens: [blue]{tokens.get('total_tokens') or tokens['output_tokens']:,}[/] "
+                f"({tokens.get('input_tokens') or 0:,} in / {tokens['output_tokens']:,} out){throughput_str}"
             )
-        elif timing:
+        elif operational:
             lines.append(":1234: Tokens: [dim]N/A (not supported by endpoint)[/]")
+
+        # Server-reported latency line (only when the endpoint provides a checkpoint)
+        server = timing.get("server", {})
+        if server.get("engine_ttft_seconds_mean") is not None:
+            lines.append(
+                f":globe_with_meridians: Server latency: "
+                f"[blue]{server['engine_ttft_seconds_mean']:.2f}s[/] TTFT mean, "
+                f"[blue]{server.get('engine_tbt_seconds_mean', 0) * 1000:.0f} ms[/] TBT mean"
+            )
 
         # Judge tokens line
         judge = metrics.get("judge", {})
@@ -536,33 +552,67 @@ class Evaluation:
             "agent": agent_metrics,
         }
 
-        # Compute wall_seconds from task elapsed times
-        wall_seconds = round(sum(t.get("timing", {}).get("wall_seconds", 0) for t in report.values()), 2)
-
-        # Aggregate token and timing metrics from all tasks
+        # Aggregate operational metrics from all tasks
+        wall_seconds = 0.0
         total_input_tokens = 0
         total_output_tokens = 0
         total_compute_seconds = 0.0
         judge_input_tokens = 0
         judge_output_tokens = 0
         judge_compute_seconds = 0.0
+        # Client-measured per-task values
+        ttfc_values: list[float] = []
+        ttfcc_values: list[float] = []
+        # Client-derived per-task rates, keyed by throughput field name
+        _THROUGHPUT_BUCKETS: dict[str, list[float]] = {
+            "prefill_cps": [],
+            "generation_cps": [],
+            "content_cps": [],
+            "total_cps": [],
+        }
+        # Server-reported values (seconds), keyed by field name
+        _SERVER_BUCKETS: dict[str, list[float]] = {
+            "engine_ttft_seconds": [],
+            "service_ttft_seconds": [],
+            "user_visible_ttft_seconds": [],
+            "pre_inference_seconds": [],
+            "engine_tbt_seconds": [],
+            "service_tbt_seconds": [],
+            "engine_ttlt_seconds": [],
+        }
         has_token_data = False
         has_timing_data = False
 
         for entry in report.values():
-            # Agent tokens (from entry["tokens"])
-            tokens = entry.get("tokens", {})
+            # Agent tokens (from entry["operational"]["tokens"])
+            operational = entry.get("operational", {})
+            tokens = operational.get("tokens", {})
             if tokens.get("input_tokens") is not None:
                 total_input_tokens += tokens["input_tokens"]
                 has_token_data = True
             if tokens.get("output_tokens") is not None:
                 total_output_tokens += tokens["output_tokens"]
 
-            # Agent timing (from entry["timing"])
-            timing = entry.get("timing", {})
-            if timing.get("compute_seconds") is not None:
-                total_compute_seconds += timing["compute_seconds"]
+            # Agent timing (from entry["operational"]["timing"])
+            timing = operational.get("timing", {})
+            if timing.get("wall_seconds") is not None:
+                wall_seconds += timing["wall_seconds"]
+            if timing.get("total_seconds") is not None:
+                total_compute_seconds += timing["total_seconds"]
                 has_timing_data = True
+            if timing.get("ttfc_seconds") is not None:
+                ttfc_values.append(timing["ttfc_seconds"])
+            if timing.get("ttfcc_seconds") is not None:
+                ttfcc_values.append(timing["ttfcc_seconds"])
+            server = timing.get("server", {})
+            for key, bucket in _THROUGHPUT_BUCKETS.items():
+                value = operational.get("throughput", {}).get(key)
+                if value is not None:
+                    bucket.append(value)
+            for key, bucket in _SERVER_BUCKETS.items():
+                value = server.get(key)
+                if value is not None:
+                    bucket.append(value)
 
             # Judge tokens (from verification metrics["judge"])
             judge_stats = entry.get("metrics", {}).get("judge")
@@ -577,18 +627,51 @@ class Evaluation:
         # Add token metrics if we have data (even if tokens are 0, timing is useful)
         if has_token_data or has_timing_data:
             total_tokens = total_input_tokens + total_output_tokens if has_token_data else None
-            metrics["tokens"] = {
-                "input_tokens": total_input_tokens if has_token_data else None,
-                "output_tokens": total_output_tokens if has_token_data else None,
-                "total_tokens": total_tokens,
+            metrics["operational"] = {
+                "reasoning_status": next(
+                    (
+                        e.get("operational", {}).get("reasoning_status")
+                        for e in report.values()
+                        if e.get("operational", {}).get("reasoning_status") is not None
+                    ),
+                    None,
+                ),
+                "timing": {
+                    "total_seconds": round(total_compute_seconds, 2),
+                    "wall_seconds": round(wall_seconds, 2),
+                    # Client-measured aggregates (mean/min/max over per-task values)
+                    "ttfc_seconds_mean": round(sum(ttfc_values) / len(ttfc_values), 2) if ttfc_values else None,
+                    "ttfc_seconds_min": round(min(ttfc_values), 2) if ttfc_values else None,
+                    "ttfc_seconds_max": round(max(ttfc_values), 2) if ttfc_values else None,
+                    "ttfcc_seconds_mean": round(sum(ttfcc_values) / len(ttfcc_values), 2) if ttfcc_values else None,
+                    "ttfcc_seconds_min": round(min(ttfcc_values), 2) if ttfcc_values else None,
+                    "ttfcc_seconds_max": round(max(ttfcc_values), 2) if ttfcc_values else None,
+                    "server": {
+                        f"{key}{suffix}": None for key in _SERVER_BUCKETS for suffix in ("_mean", "_min", "_max")
+                    },
+                },
+                "throughput": {
+                    f"{key}{suffix}": None for key in _THROUGHPUT_BUCKETS for suffix in ("_mean", "_min", "_max")
+                },
+                "tokens": {
+                    "input_tokens": total_input_tokens if has_token_data else None,
+                    "output_tokens": total_output_tokens if has_token_data else None,
+                    "total_tokens": total_tokens,
+                },
             }
-            metrics["timing"] = {
-                "compute_seconds": round(total_compute_seconds, 2),
-                "wall_seconds": wall_seconds,
-                "throughput_tokens_per_sec": round(total_output_tokens / total_compute_seconds, 1)
-                if total_compute_seconds > 0 and total_output_tokens
-                else None,
-            }
+            for key, values in _THROUGHPUT_BUCKETS.items():
+                if values:
+                    metrics["operational"]["throughput"][f"{key}_mean"] = round(sum(values) / len(values), 1)
+                    metrics["operational"]["throughput"][f"{key}_min"] = round(min(values), 1)
+                    metrics["operational"]["throughput"][f"{key}_max"] = round(max(values), 1)
+            # Server-reported aggregates (authoritative when present; values
+            # None on endpoints without a checkpoint — identical shape everywhere)
+            for key, values in _SERVER_BUCKETS.items():
+                if values:
+                    out_server = metrics["operational"]["timing"]["server"]
+                    out_server[f"{key}_mean"] = round(sum(values) / len(values), 4)
+                    out_server[f"{key}_min"] = round(min(values), 4)
+                    out_server[f"{key}_max"] = round(max(values), 4)
             # Judge stats (include even if tokens are 0/None for display purposes)
             if judge_compute_seconds > 0 or judge_input_tokens > 0 or judge_output_tokens > 0:
                 judge_total = (

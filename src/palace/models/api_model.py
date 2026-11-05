@@ -217,40 +217,100 @@ class APIModel(Model):
             return "".join(texts) if texts else None
         return None
 
-    async def _collect_openai_stream(self, stream) -> tuple[str, dict]:
+    async def _collect_openai_stream(self, stream, request_start: float) -> tuple[str, dict, float | None]:
         """Collect text from an OpenAI-compatible stream with diagnostics on empty response.
 
+        Args:
+            stream: Async iterable of chunks from chat.completions.create(stream=True).
+            request_start: perf_counter timestamp taken just before the request was
+                sent. Used to compute time-to-first-chunk.
+
         Returns:
-            (text, usage) where usage = {"input_tokens": N, "output_tokens": M} or Nones if unavailable.
+            (text, usage, stream_stats) where usage = {"input_tokens": N, "output_tokens": M}
+            (Nones if unavailable). output_tokens counts ALL generated tokens,
+            including hidden reasoning tokens. stream_stats contains
+            client-measured chunk metrics: ttfc_seconds (request_start to first
+            output chunk — content or reasoning — None if none arrived),
+            ttfcc_seconds (request_start to first *content* chunk; equals
+            ttfc_seconds unless reasoning was streamed before the content),
+            output_chunks (number of chunks carrying output), reasoning_chunks
+            (number of chunks carrying reasoning_content), reasoning_tokens
+            (server-reported count of hidden reasoning tokens, a subset of
+            output_tokens, None when not reported), and server_latency (dict of
+            authoritative server-reported latency fields such as engine_ttft_ms
+            and engine_tbt_ms, empty when the endpoint provides none). Azure
+            APIM sends latency_checkpoint at the top level of a final stream
+            chunk; some endpoints nest it inside usage.
         """
         collected: list[str] = []
+        output_chunks = 0
         chunk_count = 0
         finish_reason: str | None = None
         reasoning_chars = 0
+        reasoning_chunks = 0
+        reasoning_tokens = None
+        ttfc_seconds: float | None = None
+        ttfcc_seconds: float | None = None
+        server_metrics: dict = {}
         usage: dict = {"input_tokens": None, "output_tokens": None}
         async for chunk in stream:
             chunk_count += 1
             if chunk.usage:
                 usage = {"input_tokens": chunk.usage.prompt_tokens, "output_tokens": chunk.usage.completion_tokens}
+                # Server-reported count of hidden reasoning tokens (a subset of
+                # completion_tokens). None when the endpoint doesn't report it.
+                details = getattr(chunk.usage, "completion_tokens_details", None)
+                rt = getattr(details, "reasoning_tokens", None) if details else None
+                if isinstance(rt, (int, float)):
+                    reasoning_tokens = rt
+            # Server-reported token-accurate latency ground truth. In
+            # non-streaming responses Azure APIM nests it inside usage; on
+            # streams it rides on a separate final chunk at the top level.
+            checkpoint = getattr(chunk, "latency_checkpoint", None)
+            if checkpoint is None and chunk.usage:
+                checkpoint = getattr(chunk.usage, "latency_checkpoint", None)
+            if checkpoint:
+                items = checkpoint.items() if isinstance(checkpoint, dict) else vars(checkpoint).items()
+                server_metrics = {k: v for k, v in items if isinstance(v, (int, float))}
             if chunk.choices:
                 choice = chunk.choices[0]
                 if choice.finish_reason:
                     finish_reason = choice.finish_reason
                 delta = choice.delta
+                has_output = False
                 if delta.content:
                     text = self._extract_text_from_content(delta.content)
                     if text:
+                        has_output = True
+                        if ttfc_seconds is None:
+                            ttfc_seconds = time.perf_counter() - request_start
+                        if ttfcc_seconds is None:
+                            ttfcc_seconds = time.perf_counter() - request_start
                         collected.append(text)
                 # Track reasoning_content (vLLM/DeepSeek/Qwen3 reasoning models)
                 reasoning = getattr(delta, "reasoning_content", None)
                 if reasoning:
+                    has_output = True
+                    reasoning_chunks += 1
+                    if ttfc_seconds is None:
+                        ttfc_seconds = time.perf_counter() - request_start
                     reasoning_chars += len(reasoning)
+                if has_output:
+                    output_chunks += 1
         if not collected:
             diag = f"finish_reason={finish_reason!r}, chunks={chunk_count}, reasoning_chars={reasoning_chars}"
             if usage["input_tokens"] is not None:
                 diag += f", usage={usage}"
             raise ValueError(f"Empty API response: no content returned ({diag})")
-        return "".join(collected), usage
+        stream_stats = {
+            "ttfc_seconds": ttfc_seconds,
+            "ttfcc_seconds": ttfcc_seconds,
+            "output_chunks": output_chunks,
+            "reasoning_chunks": reasoning_chunks,
+            "reasoning_tokens": reasoning_tokens,
+            "server_latency": server_metrics,
+        }
+        return "".join(collected), usage, stream_stats
 
     async def generate(self, messages: list[Message], **kwargs) -> tuple[str, dict]:
         """Generate text based on the input messages.
@@ -341,9 +401,9 @@ class OpenAIModel(APIModel):
         kwargs.update(self.extra_params)
         start = time.perf_counter()
         stream = await self.client.chat.completions.create(**kwargs)  # type: ignore
-        text, usage = await self._collect_openai_stream(stream)
+        text, usage, stream_stats = await self._collect_openai_stream(stream, request_start=start)
         compute_seconds = time.perf_counter() - start
-        return text, {**usage, "compute_seconds": compute_seconds}
+        return text, {**usage, "compute_seconds": compute_seconds, **stream_stats}
 
 
 class AzureOpenAIModel(OpenAIModel):
@@ -431,10 +491,22 @@ class AnthropicModel(APIModel):
             "system": system_prompt if system_prompt is not None else omit,
         }
         usage: dict = {"input_tokens": None, "output_tokens": None}
+        ttfc_seconds: float | None = None
+        # Anthropic's text_stream yields content deltas only (thinking blocks
+        # do not flow through it), so the first content chunk IS the first
+        # output chunk — ttfcc == ttfc by construction.
+        ttfcc_seconds: float | None = None
+        output_chunks = 0
+        reasoning_chunks = 0
         start = time.perf_counter()
         # SDK 1.x: extra params (temperature, thinking, etc.) go via extra_body
         async with self.client.messages.stream(**kwargs, extra_body=self.extra_params or None) as stream:  # type: ignore
             async for text in stream.text_stream:
+                if ttfc_seconds is None:
+                    ttfc_seconds = time.perf_counter() - start
+                if ttfcc_seconds is None:
+                    ttfcc_seconds = time.perf_counter() - start
+                output_chunks += 1
                 collected.append(text)
             # Get final message for usage (always available after stream completes)
             try:
@@ -447,4 +519,12 @@ class AnthropicModel(APIModel):
             # Diagnostics for empty response
             diag = f"usage={usage}" if usage["input_tokens"] is not None else "no final message available"
             raise ValueError(f"Empty API response: no content returned ({diag})")
-        return "".join(collected), {**usage, "compute_seconds": compute_seconds}
+        return "".join(collected), {
+            **usage,
+            "compute_seconds": compute_seconds,
+            "ttfc_seconds": ttfc_seconds,
+            "ttfcc_seconds": ttfcc_seconds,
+            "output_chunks": output_chunks,
+            "reasoning_chunks": reasoning_chunks,
+            "reasoning_tokens": None,
+        }

@@ -201,6 +201,20 @@ async def run_analyzers(
     return metrics
 
 
+def _rate(numerator: float | None, denominator: float | None) -> float | None:
+    """Compute a tokens-per-second rate, or None when inputs are missing/zero."""
+    if numerator is None or denominator is None or denominator <= 0 or numerator < 0:
+        return None
+    return round(numerator / denominator, 1)
+
+
+def _ms_to_s(value: float | None) -> float | None:
+    """Normalize a server-reported milliseconds value to seconds (lossless)."""
+    if value is None:
+        return None
+    return round(value / 1000, 4)
+
+
 def build_report(
     task: Task,
     agent_result: AgentResult,
@@ -226,24 +240,155 @@ def build_report(
     if analyzer_metrics:
         entry.setdefault("metrics", {})["analyzers"] = analyzer_metrics
 
-    # Group agent metrics into timing and tokens
+    # Group agent metrics into the operational bucket, nested by metric type
     if agent_result.metrics:
         m = agent_result.metrics
-        entry["timing"] = {
-            "compute_seconds": round(m["compute_seconds"], 2) if m.get("compute_seconds") is not None else None,
-            "wall_seconds": round(agent_result.elapsed, 2),
+        compute = m.get("compute_seconds")
+        ttfc = m.get("ttfc_seconds")
+        ttfcc = m.get("ttfcc_seconds")
+        input_tokens = m.get("input_tokens")
+        output_tokens = m.get("output_tokens")
+        output_chunks = m.get("output_chunks")
+        reasoning_chunks = m.get("reasoning_chunks")
+        reasoning_tokens = m.get("reasoning_tokens")
+        # Reasoning status: "streamed" (chunks on the wire), "hidden" (server
+        # reports a count > 0, nothing streamed), "none" (known empty), or
+        # None (unknown — endpoint reports neither).
+        if reasoning_chunks:
+            reasoning_status = "streamed"
+        elif reasoning_tokens:
+            reasoning_status = "hidden"
+        elif reasoning_tokens == 0:
+            reasoning_status = "none"
+        else:
+            reasoning_status = None
+        # Client latency semantics depend on the reasoning regime:
+        # - streamed: ttfc lands on the first reasoning chunk, emitted right
+        #   after prefill -> good TTFT proxy; ttfcc is the exact content onset.
+        # - absent: the first chunk IS the first content chunk -> ttfc is the
+        #   authoritative TTFT and ttfcc == ttfc.
+        # - hidden: ttfc absorbs the whole unobservable reasoning phase ->
+        #   unreliable, report None. ttfcc is still exact (by definition of
+        #   hidden, the first chunk delivered is the first content chunk).
+        # - unknown: cannot certify which case applies -> both None.
+        ttfc_reported = reasoning_status in ("streamed", "none")
+        # Server-reported latency checkpoint, normalized (ms -> seconds) into
+        # the fixed per-metric-type schema below. Any key the endpoint does
+        # not provide stays None, so the JSON shape is identical everywhere.
+        server_in = m.get("server_latency") or {}
+        entry["operational"] = {
+            "reasoning_status": reasoning_status,
+            "timing": {
+                # Client request duration: t0 to full stream consumption.
+                "total_seconds": round(compute, 2) if compute is not None else None,
+                # Whole agent run, including retry waits and failed attempts.
+                "wall_seconds": round(agent_result.elapsed, 2),
+                "ttfc_seconds": round(ttfc, 2) if ttfc is not None and ttfc_reported else None,
+                "ttfcc_seconds": (
+                    round(ttfcc, 2)
+                    if ttfcc is not None and reasoning_status in ("streamed", "hidden", "none")
+                    else None
+                ),
+                # Server-reported (authoritative when present), regime-independent.
+                "server": {
+                    "engine_ttft_seconds": _ms_to_s(server_in.get("engine_ttft_ms")),
+                    "service_ttft_seconds": _ms_to_s(server_in.get("service_ttft_ms")),
+                    "user_visible_ttft_seconds": _ms_to_s(server_in.get("user_visible_ttft_ms")),
+                    "pre_inference_seconds": _ms_to_s(server_in.get("pre_inference_ms")),
+                    "engine_tbt_seconds": _ms_to_s(server_in.get("engine_tbt_ms")),
+                    "service_tbt_seconds": _ms_to_s(server_in.get("service_tbt_ms")),
+                    "engine_ttlt_seconds": _ms_to_s(server_in.get("engine_ttlt_ms")),
+                },
+            },
+            # Client-derived rates. Vocabulary: prefill = input, generation =
+            # output (reasoning + content), total = prefill + generation.
+            "throughput": {
+                # Exact only when ttfc provably contains no generation time:
+                # reasoning streamed or known-empty. Hidden or unknown reasoning
+                # means ttfc silently absorbs reasoning time — report None.
+                # Buffered delivery (<= 2 chunks) makes ttfc meaningless as a
+                # phase boundary — report None.
+                "prefill_cps": _rate(input_tokens, ttfc)
+                if ttfc_reported and (output_chunks is None or output_chunks > 2)
+                else None,
+                # Output tokens over the full generation window (ttfc ->
+                # stream end). Exact when the window provably covers all
+                # generation: streamed (starts at the first reasoning token)
+                # or absent (no reasoning). Null in hidden mode (the window
+                # excludes the invisible reasoning time, so the rate would
+                # overestimate); null in unknown mode (window start
+                # uncertifiable).
+                "generation_cps": _rate(output_tokens, compute - ttfc)
+                if compute is not None
+                and ttfc is not None
+                and output_tokens is not None
+                and reasoning_status in ("streamed", "none")
+                and (output_chunks is None or output_chunks > 2)
+                and (compute - ttfc) >= 1.0
+                else None,
+                # Content tokens over the content window (first content chunk
+                # -> stream end). Numerator exact only when the reasoning
+                # split is certified — streamed with a reported count, hidden
+                # (by definition the split is reported), or none (count 0).
+                # In streamed mode the window starts at ttfcc; in hidden mode
+                # it starts at the first (content) chunk.
+                "content_cps": (
+                    _rate(
+                        output_tokens - reasoning_tokens if reasoning_tokens is not None else output_tokens,
+                        compute - ttfcc,
+                    )
+                    if compute is not None
+                    and ttfcc is not None
+                    and output_tokens is not None
+                    and reasoning_tokens is not None
+                    and (output_chunks is None or output_chunks > 2)
+                    and (compute - ttfcc) >= 1.0
+                    else None
+                ),
+                # Full-request rate: all tokens over t0 -> stream end. The only
+                # client rate in unknown mode — but only when the token
+                # accounting is certified (usage + a known reasoning regime);
+                # an arbitrary gateway might exclude hidden reasoning tokens
+                # from output_tokens, and in unknown mode we cannot tell.
+                "total_cps": _rate(
+                    input_tokens + output_tokens if input_tokens is not None and output_tokens is not None else None,
+                    compute,
+                )
+                if reasoning_status is not None
+                else None,
+            },
+            # Server-reported token counts, verbatim.
+            "tokens": {
+                "input_tokens": input_tokens,
+                # All generated tokens, including hidden reasoning tokens.
+                "output_tokens": output_tokens,
+                # Server-reported subset generated as (hidden) reasoning.
+                # null when the endpoint does not report it.
+                "reasoning_tokens": reasoning_tokens,
+            },
+            # Client-observed delivery granularity.
+            "chunks": {
+                "output_chunks": output_chunks,
+                "reasoning_chunks": reasoning_chunks,
+            },
         }
-        entry["tokens"] = {
-            "input_tokens": m.get("input_tokens"),
-            "output_tokens": m.get("output_tokens"),
-        }
-        # Copy any other metrics that aren't timing/tokens (e.g., vivarium's steps, tool_calls)
+        # Copy any other metrics that aren't operational (e.g., vivarium's steps)
         for k, v in m.items():
-            if k not in ("input_tokens", "output_tokens", "compute_seconds"):
+            if k not in (
+                "input_tokens",
+                "output_tokens",
+                "compute_seconds",
+                "ttfc_seconds",
+                "ttfcc_seconds",
+                "output_chunks",
+                "reasoning_chunks",
+                "reasoning_tokens",
+                "server_latency",
+            ):
                 entry[k] = v
     else:
-        # No agent metrics, just record wall time
-        entry["timing"] = {"wall_seconds": round(agent_result.elapsed, 2)}
+        # No agent metrics — no request operation to describe; wall time only.
+        entry["operational"] = {"timing": {"wall_seconds": round(agent_result.elapsed, 2)}}
 
     return entry
 

@@ -148,15 +148,136 @@ Each task in `detailed_report` is keyed by task ID and contains:
 | `is_skipped` | boolean | Whether the task was excluded from metrics due to an infrastructure failure. Always present. |
 | `skip_reason` | string\|null | Machine-readable reason for skipping. `null` for non-skipped tasks. Always present. |
 | `reasoning` | string\|null | Judge or verification explanation. `null` for skipped tasks. |
-| `elapsed_time` | float | Time taken for this task in seconds (rounded to 2 decimal places) |
+| `operational` | object | Operational metrics bucket for this task (see below) |
 | `metrics` | object | Task-type-specific per-task metrics (optional) |
 | `objective` | string | The prompt sent to the model. Only present with `--report-detail=full`. |
 | `expected` | string\|null | Expected output. Only present with `--report-detail=full`. |
 
-!!! note "Report detail levels"
-    By default, `objective` and `expected` are omitted from per-task entries to reduce file size.
-    Use `--report-detail=full` to include them, or `--report-detail=none` to omit `detailed_report` entirely.
-    The task text can always be looked up in the tasklist's `tasks.json` by task ID.
+### Per-Task Operational Metrics (`operational`)
+
+All observability metrics live in a single `operational` bucket, nested by
+**metric type**: `timing` (durations), `throughput` (rates), `tokens`
+(server-reported counts) and `chunks` (client-observed delivery facts).
+`reasoning_status` sits at the bucket root as the regime flag that conditions
+every other field. Key sets are identical on **every** endpoint — a value is
+`null` when the endpoint does not provide it *or* when the reasoning regime
+makes it unreliable, so downstream consumers can rely on a stable JSON shape:
+
+```json
+"operational": {
+  "reasoning_status": "none",
+  "timing": {
+    "total_seconds": 1.64,             // client: t0 -> full stream consumption
+    "wall_seconds": 1.7,               // whole agent run incl. retries
+    "ttfc_seconds": 1.63,              // client: time to first output chunk
+    "ttfcc_seconds": 1.63,             // client: time to first *content* chunk
+    "server": {                         // server-reported (authoritative)
+      "engine_ttft_seconds": 0.567,
+      "service_ttft_seconds": 0.786,
+      "user_visible_ttft_seconds": 0.667,
+      "pre_inference_seconds": 0.118,
+      "engine_tbt_seconds": 0.025,
+      "service_tbt_seconds": 0.031,
+      "engine_ttlt_seconds": 0.693
+    }
+  },
+  "throughput": {
+    "prefill_cps": 12.3,               // input tokens / ttfc
+    "generation_cps": 30.1,            // output tokens / generation window
+    "content_cps": 30.1,               // content tokens / content window
+    "total_cps": 14.7                  // (input+output) / full span
+  },
+  "tokens": {
+    "input_tokens": 20,
+    "output_tokens": 45,
+    "reasoning_tokens": null
+  },
+  "chunks": { "output_chunks": 1, "reasoning_chunks": 0 }
+}
+```
+
+**Vocabulary**: *prefill = input*, *generation = output = reasoning +
+content*, *total = prefill + generation* over the full request span.
+
+#### Reasoning regimes and null conditions
+
+The endpoint's reasoning behaviour determines which client-side metrics are
+trustworthy. The regime is always detectable and recorded as
+`reasoning_status`:
+
+| `reasoning_status` | Meaning | Detection |
+|---|---|---|
+| `streamed` | reasoning tokens delivered as stream chunks | `reasoning_chunks > 0` |
+| `hidden` | reasoning counted by the server, not streamed | `reasoning_tokens > 0`, no reasoning chunks |
+| `none` | no reasoning (off, or non-reasoning model) | `reasoning_tokens == 0` reported |
+| `null` | unknown — endpoint reports neither | no signal at all |
+
+Client-side metrics by regime (`✓` = reported, `null` = suppressed):
+
+| Metric | streamed | hidden | none | unknown |
+|---|---|---|---|---|
+| `timing.ttfc_seconds` | ✓ (first chunk ≈ first generated token) | **null** (absorbs invisible reasoning) | ✓ (authoritative) | **null** |
+| `timing.ttfcc_seconds` | ✓ (exact content onset) | ✓ (exact — first chunk *is* content) | ✓ (= ttfc) | **null** |
+| `throughput.prefill_cps` | ✓ | **null** | ✓ | **null** |
+| `throughput.generation_cps` | ✓ (exact) | **null** (window excludes invisible reasoning time) | ✓ (exact) | **null** |
+| `throughput.content_cps` | ✓ (exact) | ✓ (exact content-phase fallback) | ✓ (= generation_cps) | **null** |
+| `throughput.total_cps` | ✓ | ✓ | ✓ | **null** (token accounting uncertifiable) |
+
+Server-reported fields (`timing.server.*`, `tokens.*`) are
+**regime-independent**: reported whenever the endpoint provides them,
+`null` otherwise.
+
+**Rate formulas** (client clock, all in tokens/second):
+
+- `prefill_cps` = `input_tokens / ttfc`
+- `generation_cps` = `output_tokens / (total_seconds − ttfc)`
+- `content_cps` = `(output_tokens − reasoning_tokens) / (total_seconds − ttfcc)`
+- `total_cps` = `(input_tokens + output_tokens) / total_seconds`
+
+**Guards**: `prefill_cps`, `generation_cps` and `content_cps` are nulled when
+delivery is buffered (`chunks.output_chunks ≤ 2` — phase boundaries become
+meaningless) or when their window is below 1.0 s (quantisation noise).
+`total_cps` is exempt from both: its window (`t0 → stream end`) is real in
+every delivery mode.
+
+!!! note "The two 'first chunk' metrics"
+    `ttfc_seconds` (first *output* chunk) and `ttfcc_seconds` (first
+    *content* chunk) are both real and mean different things. With streamed
+    reasoning, ttfc lands on the first reasoning token (≈ model onset) and
+    ttfcc on the first visible answer token (user-perceived); their
+    difference is the visible reasoning duration. With hidden reasoning,
+    ttfc is unreliable (nulled) while ttfcc remains exact. With no
+    reasoning they are identical. Note `server.user_visible_ttft_seconds` is
+    time to the first SSE event on the wire, **not** comparable to client
+    `ttfc_seconds`, which requires an *output* chunk.
+
+!!! note "Retries and failed attempts"
+    `total_seconds` and `ttfc_seconds`/`ttfcc_seconds` reflect the successful
+    request only — a request that timed out and was retried contributes its
+    retry wait to `wall_seconds` but nothing to the timing or throughput
+    fields.
+
+#### Run-Level Aggregates (`metrics.operational`)
+
+The run-level `operational` object mirrors the per-task nesting:
+
+- `operational.timing` — `total_seconds` (summed) and `wall_seconds`
+  (summed), plus for each of `ttfc_seconds` and `ttfcc_seconds` a
+  `_mean` / `_min` / `_max` across the tasks that reported a value
+  (`null` when none did).
+- `operational.timing.server` — for each server field a `_mean` / `_min` /
+  `_max`; keys always exist, values are `null` when the endpoint does not
+  provide the checkpoint. When present, the authoritative decode rate from
+  the aggregate: `1 / engine_tbt_seconds_mean` ≈ tokens/s.
+- `operational.throughput` — for each client-derived rate (`prefill_cps`,
+  `generation_cps`, `content_cps`, `total_cps`) a `_mean` / `_min` / `_max`
+  across tasks that reported a value. Mean/min/max are over per-task values,
+  not recomputed from summed tokens — so they are insensitive to differences
+  in task duration.
+- `operational.tokens` — summed `input_tokens`, `output_tokens`,
+  `total_tokens`.
+- `operational.reasoning_status` — the regime observed on the run (first
+  non-null per-task status).
 
 ### Skip Reasons
 

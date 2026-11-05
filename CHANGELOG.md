@@ -5,6 +5,54 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-11-05
+
+### Added
+
+**Operational metrics bucket.** Per-task observability metrics now live in a
+single `operational` object, nested by metric type — `timing` (durations),
+`throughput` (rates), `tokens` (server counts), `chunks` (client-observed
+delivery facts) — with `reasoning_status` at the bucket root as the regime
+flag. Key sets are identical on every endpoint (`null` when an endpoint does
+not provide a metric or the reasoning regime makes it unreliable — the JSON
+shape is stable across OpenAI-compatible, Azure, Anthropic and vivarium
+endpoints). Vocabulary: *prefill = input*, *generation = output = reasoning +
+content*, *total = prefill + generation*.
+
+- **`operational.timing`** — `total_seconds` (client request duration, t0 to
+  full stream consumption), `wall_seconds` (whole agent run including
+  retries), `ttfc_seconds` (first output chunk — nulled when
+  reasoning is hidden or unknown, as it absorbs invisible reasoning time),
+  `ttfcc_seconds` (first *content* chunk — exact in streamed mode, exact in
+  hidden mode where the first chunk is content, `= ttfc` with no reasoning,
+  nulled in unknown mode), and a `server` sub-object with the verbatim
+  latency checkpoint (Azure APIM): `engine_ttft_seconds`,
+  `service_ttft_seconds`, `user_visible_ttft_seconds`,
+  `pre_inference_seconds`, `engine_tbt_seconds`, `service_tbt_seconds`,
+  `engine_ttlt_seconds` (normalized ms → seconds).
+- **`operational.throughput`** — client-derived `prefill_cps`
+  (input / ttfc), `generation_cps` (output / generation window),
+  `content_cps` (content / content window; the exact hidden-mode fallback),
+  `total_cps` ((input+output) / full span — the only client rate available
+  in unknown mode, and robust to buffered delivery). Phase rates carry the
+  buffered-delivery (`output_chunks ≤ 2`) and 1-second minimum-window
+  guards; `total_cps` is exempt from both.
+- **`operational.tokens`** — `input_tokens`, `output_tokens` (all generated,
+  including hidden reasoning), `reasoning_tokens` (server-reported subset,
+  `null` when not reported).
+- **`operational.chunks`** — `output_chunks`, `reasoning_chunks`.
+- **Regime-conditioned nulls**: with hidden reasoning, `ttfc_seconds`,
+  `prefill_cps` and `generation_cps` are nulled (the client window absorbs
+  invisible reasoning time); with unknown reasoning status, the entire
+  client-side timing/throughput block is nulled (better null than wrong) —
+  `total_cps` included, since the token accounting cannot be certified.
+  Server fields are regime-independent.
+- **Run-level aggregates** mirror the nesting: `metrics.operational.timing`,
+  `.throughput` and `.timing.server` carry `_mean` / `_min` / `_max` of each
+  field across tasks that reported a value (over per-task values, insensitive
+  to task-duration differences). Console summary shows client TTFC, total
+  tokens and, when available, server TTFT/TBT.
+
 ## [1.4.1] - 2026-11-03
 
 ### Removed
