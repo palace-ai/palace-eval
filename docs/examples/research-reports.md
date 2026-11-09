@@ -159,7 +159,14 @@ Results include detailed scoring. Each task in `detailed_report` is keyed by tas
     "actual": "# Generated Report...",
     "is_correct": true,
     "reasoning": "## accuracy (+2)\n...\n## Summary\n...",
-    "elapsed_time": 45.2,
+    "operational": {
+        "reasoning_status": "none",
+        "attempts": 1,
+        "timing": {"total_seconds": 44.9, "wall_seconds": 45.2},
+        "throughput": {"prefill_cps": 380.2, "generation_cps": 48.6, "content_cps": 48.6, "total_cps": 62.3},
+        "tokens": {"input_tokens": 3200, "output_tokens": 2100, "reasoning_tokens": 0},
+        "chunks": {"output_chunks": 950, "reasoning_chunks": 0, "total_chunks": 958}
+    },
     "metrics": {
         "criteria_scores": {
             "content_quality": {

@@ -107,7 +107,14 @@ Results are saved as JSONL. Each task in `detailed_report` is keyed by task ID a
     "actual": "The chemical symbol for gold is Au.",
     "is_correct": true,
     "reasoning": "The answer correctly states that Au is the chemical symbol for gold, matching the reference answer.",
-    "elapsed_time": 1.5,
+    "operational": {
+        "reasoning_status": "none",
+        "attempts": 1,
+        "timing": {"total_seconds": 1.4, "wall_seconds": 1.5},
+        "throughput": {"prefill_cps": 410.5, "generation_cps": 55.2, "content_cps": 55.2, "total_cps": 74.1},
+        "tokens": {"input_tokens": 850, "output_tokens": 120, "reasoning_tokens": 0},
+        "chunks": {"output_chunks": 118, "reasoning_chunks": 0, "total_chunks": 122}
+    },
     "metrics": {
         "criterion": "semantic equivalence"
     }

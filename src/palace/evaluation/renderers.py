@@ -186,7 +186,7 @@ class VerboseRenderer(_LogMixin):
             self._skipped += 1
         elif result.verification.is_correct:
             self._correct += 1
-        elapsed = result.report_entry.get("elapsed_time", 0)
+        elapsed = result.report_entry.get("operational", {}).get("timing", {}).get("wall_seconds", 0)
         if result.verification.is_skipped:
             reason = result.verification.reason or "unknown"
             self._log_line(
@@ -369,7 +369,7 @@ class PlainRenderer(_LogMixin):
             status = "✓"
         else:
             status = "✗"
-        elapsed = result.report_entry.get("elapsed_time", 0)
+        elapsed = result.report_entry.get("operational", {}).get("timing", {}).get("wall_seconds", 0)
         print(f"[{i + 1}/{self.total}] {result.task_id}: {status} ({elapsed:.1f}s)", builtin=True)
         if vr.is_skipped:
             reason = vr.skip_reason or "unknown"

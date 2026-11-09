@@ -102,7 +102,7 @@ async def dispatch_tasks(
                     "skip_reason": f"task_error: {error_msg}",
                     "reason": f"task_error: {error_msg}",
                     "reasoning": error_msg,
-                    "elapsed_time": 0.0,
+                    "operational": {"timing": {"wall_seconds": 0.0}},
                 }
                 result = TaskResult(task.id, entry, vr)
                 renderer.on_task_finished(i, result)

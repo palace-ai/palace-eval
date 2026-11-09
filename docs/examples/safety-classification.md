@@ -153,7 +153,14 @@ Results show per-label correctness:
     "actual": "<Unsafe>\nYes\n</Unsafe>",
     "is_correct": true,
     "reasoning": "Label-wise correctness\n✅ Unsafe",
-    "elapsed_time": 1.2,
+    "operational": {
+        "reasoning_status": "none",
+        "attempts": 1,
+        "timing": {"total_seconds": 1.1, "wall_seconds": 1.2},
+        "throughput": {"prefill_cps": 395.0, "generation_cps": 51.8, "content_cps": 51.8, "total_cps": 68.4},
+        "tokens": {"input_tokens": 760, "output_tokens": 95, "reasoning_tokens": 0},
+        "chunks": {"output_chunks": 90, "reasoning_chunks": 0, "total_chunks": 93}
+    },
     "metrics": {
         "per_label": {
             "Unsafe": {

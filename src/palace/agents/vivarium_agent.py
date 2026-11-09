@@ -35,6 +35,7 @@ from palace.evaluation.types import AgentResult
 from palace.utils.exceptions import UntrustedSwapError
 from palace.utils.infra_errors import TRANSIENT_NETWORK_ERRORS as _TRANSIENT_NETWORK_ERRORS
 from palace.utils.infra_errors import is_infra_error as _is_transient_http
+from palace.utils.infra_errors import retry_transient as _retry_transient
 from palace.utils.paths import LOGS_PATH
 from palace.utils.printing import print
 
@@ -51,6 +52,12 @@ _DEFAULT_VERIFY_PATHS = ["/workspace"]
 # the one immediate 404 retry). With exponential backoff 2→60s this bounds a
 # pathological outage at ~5 minutes per path — enough to ride out a worker
 # restart, short of stalling the job.
+_SWAP_DOWNLOAD_ATTEMPTS = 5
+
+# Swap download attempts per VERIFY_PATH (excluding the one immediate 404
+# retry). With exponential backoff 2→60s this bounds a pathological outage
+# at ~5 minutes per path — enough to ride out a worker restart, short of
+# stalling the job.
 _SWAP_DOWNLOAD_ATTEMPTS = 5
 
 
@@ -298,10 +305,15 @@ class VivariumAgent(Agent):
                 else:
                     raise
 
-        # Upload per-task files if any exist, to /task_files/ in the container
+        # Upload per-task files if any exist, to /task_files/ in the container.
+        # Transient retry: idempotent (fixed dest, files overwritten), and a
+        # failure here must not discard the just-created environment.
         if task_files:
             try:
-                await env.upload_files(task_files, dest="/task_files/")
+                await _retry_transient(
+                    lambda: env.upload_files(task_files, dest="/task_files/"),
+                    what=f"task_files upload for {task.id}",
+                )
             except Exception as e:
                 await env.destroy()
                 raise RuntimeError(f"Failed to upload task files for {task.id}: {e}") from e
@@ -316,9 +328,16 @@ class VivariumAgent(Agent):
         if seed_fn:
             _logger.info(f"Seeding environment for {task.id}")
             seed_args = task.custom_fields.get("seed_args")
-            result = seed_fn(seed_args, env)
-            if inspect.isawaitable(result):
-                await result
+
+            async def _seed_once():
+                result = seed_fn(seed_args, env)
+                if inspect.isawaitable(result):
+                    await result
+
+            # Transient retry: seed resets the repo to the base commit first,
+            # so re-running it after a mid-seed transient failure converges to
+            # the same baseline state.
+            await _retry_transient(_seed_once, what=f"seed for {task.id}")
             _logger.info(f"Seed complete for {task.id}")
 
         return env  # satisfies ExecutionEnvironment protocol (exec/read/write)
@@ -379,7 +398,18 @@ class VivariumAgent(Agent):
                 httpx.ReadError,
                 httpx.RemoteProtocolError,
             ) as e:
-                if _is_transient_http(e):
+                # A 404 on an existing run is treated as transient: the
+                # orchestrator's worker broadcast collapses any worker-side
+                # hiccup (connect error, timeout, non-200) into a 404 when
+                # only one worker is registered, so 404 cannot reliably
+                # mean "run never existed" for a run we just submitted.
+                # Bounded by consecutive_failures below, same as other
+                # transient errors.
+                if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+                    is_transient = True
+                else:
+                    is_transient = _is_transient_http(e)
+                if is_transient:
                     consecutive_failures += 1
                     if consecutive_failures > 15:  # ~30 seconds of failures
                         _logger.error(f"Vivarium unreachable for {consecutive_failures} consecutive polls, aborting")
@@ -544,8 +574,15 @@ class VivariumAgent(Agent):
         except Exception as e:
             _logger.warning(f"untrusted-agent: error destroying agent env {task_id}: {e}")
 
-        # Create fresh environment (will be on a different worker)
-        fresh_env = await self._client.create_environment(spec_id=spec_id)
+        # Create fresh environment (will be on a different worker).
+        # Transient retry: under disk pressure the env creation can require an
+        # image re-pull; a transient failure here escapes the swap unwrapped
+        # (this call predates the UntrustedSwapError wrap below) and would
+        # surface as a raw task error.
+        fresh_env = await _retry_transient(
+            lambda: self._client.create_environment(spec_id=spec_id),
+            what=f"fresh env creation for {task_id}",
+        )
         _logger.info(f"untrusted-agent: created fresh env {fresh_env.id} for {task_id}")
 
         # Re-provision trusted harness artifacts from local tasklist sources:
@@ -560,14 +597,24 @@ class VivariumAgent(Agent):
             if task and seed_fn:
                 _logger.info(f"untrusted-agent: re-seeding fresh env for {task_id}")
                 seed_args = task.custom_fields.get("seed_args")
-                result = seed_fn(seed_args, fresh_env)
-                if inspect.isawaitable(result):
-                    await result
+
+                async def _seed_once():
+                    result = seed_fn(seed_args, fresh_env)
+                    if inspect.isawaitable(result):
+                        await result
+
+                # Transient retry: seed starts by resetting the repo to the
+                # base commit, so re-running it after a mid-seed transient
+                # failure is safe (it converges to the same baseline state).
+                await _retry_transient(_seed_once, what=f"re-seeding of fresh env for {task_id}")
             if task:
                 task_files = self._package_task_files(task)
                 if task_files:
                     try:
-                        await fresh_env.upload_files(task_files, dest="/task_files/")
+                        await _retry_transient(
+                            lambda: fresh_env.upload_files(task_files, dest="/task_files/"),
+                            what=f"task_files upload to fresh env for {task_id}",
+                        )
                     except Exception as e:
                         raise UntrustedSwapError(f"could not upload task_files to fresh env for {task_id}: {e}") from e
 
@@ -581,7 +628,10 @@ class VivariumAgent(Agent):
                     # its original location; using dest=path would double-nest
                     # (e.g. /workspace/findings/findings/findings.json).
                     dest = path.rstrip("/").rsplit("/", 1)[0] or "/"
-                    await fresh_env.upload_files(archive, dest=dest)
+                    await _retry_transient(
+                        lambda: fresh_env.upload_files(archive, dest=dest),
+                        what=f"re-upload of {path} to fresh env for {task_id}",
+                    )
                     _logger.debug(f"untrusted-agent: uploaded {path} to fresh env (dest={dest})")
                 except Exception as e:
                     raise UntrustedSwapError(f"could not re-upload {path} to fresh env for {task_id}: {e}") from e
@@ -621,11 +671,22 @@ class VivariumAgent(Agent):
             if self._keep_last_env:
                 # Destroy previous kept env, keep this one
                 if self._last_kept_env:
-                    await self._last_kept_env.destroy()
+                    await _retry_transient(
+                        self._last_kept_env.destroy,
+                        what=f"destroy of kept env for {task.id}",
+                    )
                 self._last_kept_env = env
                 print(f"[yellow]🔍 Kept env for debugging: {env.id}[/]")
             else:
-                await env.destroy()
+                # Transient retry: a teardown destroy that fails on a network
+                # hiccup must not overwrite the task's real result (dispatch
+                # records exceptions escaping execute_task as task_error).
+                # Idempotent server-side (404 on missing env is tolerated),
+                # so retrying is safe.
+                await _retry_transient(
+                    env.destroy,
+                    what=f"destroy of env for {task.id}",
+                )
 
     async def on_tasklist_end(self) -> None:
         """Cleanup specs and stop vivarium if auto-started."""

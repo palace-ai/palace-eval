@@ -172,6 +172,9 @@ class APIModel(Model):
         self.quiet = quiet
         self.extra_params = extra_params or {}
         self._retry_state = {"last_error": None, "count": 0}
+        # API attempts behind the most recent successful generate() call.
+        # Incremented per attempt in _generate_with_retry, reset on success.
+        self._attempts_since_success = 0
 
     @property
     def name(self):
@@ -308,6 +311,7 @@ class APIModel(Model):
             "output_chunks": output_chunks,
             "reasoning_chunks": reasoning_chunks,
             "reasoning_tokens": reasoning_tokens,
+            "total_chunks": chunk_count,
             "server_latency": server_metrics,
         }
         return "".join(collected), usage, stream_stats
@@ -350,9 +354,25 @@ class APIModel(Model):
 
         Note: Tenacity's retry wrapper calls this method multiple times on failure.
         Each call is a fresh attempt, so we just return the stats from that attempt.
-        The retry wait time is NOT included in compute_seconds.
+        The retry wait time is NOT included in compute_seconds. The number of
+        API attempts (1 on first-try success) is reported in stats["attempts"],
+        so retry-heavy endpoints are visible in the operational metrics.
+
+        Concurrency: each attempt counts the API calls that happened on this
+        instance since the last *successful* one (`_attempts_since_success`).
+        Mutations happen synchronously between awaits, so concurrent generate()
+        calls on the same event loop never interleave mid-increment. A counter
+        is only correct for the caller that ultimately succeeds: it is reset
+        right before the successful attempt returns, so the winner reports its
+        true attempt count. Losers (those still retrying) eventually succeed on
+        their own fresh count of 1 after the winner's success — an accepted
+        approximation, since concurrent retries of the same 500 are rare and
+        the value is diagnostic, not billing.
         """
+        self._attempts_since_success += 1
         text, stats = await self._call_api(messages)
+        stats["attempts"] = self._attempts_since_success
+        self._attempts_since_success = 0
         return self._strip_thinking_tags(text), stats
 
 
@@ -498,6 +518,7 @@ class AnthropicModel(APIModel):
         ttfcc_seconds: float | None = None
         output_chunks = 0
         reasoning_chunks = 0
+        reasoning_tokens = None
         start = time.perf_counter()
         # SDK 1.x: extra params (temperature, thinking, etc.) go via extra_body
         async with self.client.messages.stream(**kwargs, extra_body=self.extra_params or None) as stream:  # type: ignore
@@ -512,6 +533,14 @@ class AnthropicModel(APIModel):
             try:
                 final = await stream.get_final_message()
                 usage = {"input_tokens": final.usage.input_tokens, "output_tokens": final.usage.output_tokens}
+                # Server-reported count of thinking tokens (a subset of
+                # output_tokens). output_tokens_details exists on SDK >= 0.69
+                # (None when thinking is off); on older SDKs the attribute
+                # access raises and the outer except keeps reasoning_tokens
+                # at its None default.
+                details = final.usage.output_tokens_details
+                if details is not None:
+                    reasoning_tokens = details.thinking_tokens
             except Exception:
                 pass  # Keep None values if unavailable
         compute_seconds = time.perf_counter() - start
@@ -526,5 +555,5 @@ class AnthropicModel(APIModel):
             "ttfcc_seconds": ttfcc_seconds,
             "output_chunks": output_chunks,
             "reasoning_chunks": reasoning_chunks,
-            "reasoning_tokens": None,
+            "reasoning_tokens": reasoning_tokens,
         }

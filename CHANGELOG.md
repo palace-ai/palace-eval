@@ -5,7 +5,37 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.2] - 2026-11-05
+## [1.4.2] - 2026-11-09
+
+### Fixed
+
+- **Vivarium lifecycle stages now retry transient infrastructure failures**:
+  the task-files upload, seed execution, untrusted-swap steps
+  (fresh-env creation, re-seeding, deliverable re-upload) and the teardown
+  `destroy()` had no retry protection — a single transient `ReadTimeout` or
+  5xx escaped as a raw `task_error` and errored the whole task (observed as
+  the `task_error: ReadTimeout` errors in SWE-bench-Pro jobs). These stages
+  now share a common `retry_transient` helper in `palace.utils.infra_errors`
+  (4 retries, 5 s interval, reusing the existing `is_infra_error`
+  classification). Seed re-runs are safe (they reset the repo to its baseline
+  first); destroys are idempotent server-side. Error semantics are
+  unchanged when the budget is exhausted.
+- **Run-poll 404 treated as transient**: the vivarium orchestrator collapses
+  any worker-side hiccup (connect error, timeout, non-200) into a 404 when
+  only one worker is registered, so polling an existing run could abort the
+  task with `agent_error: 404` for a run that completed server-side. The
+  poll loop now counts a 404 like any other transient error (bounded by the
+  existing consecutive-failure budget).
+- **Verify-file injection retry**: `_inject_verify_files` sat outside
+  `verify()`'s try block, so a transient error there escaped unclassified as
+  `task_error` instead of `verify_infra_error`. It now applies the same
+  retry budget before that classification is reached.
+- **Per-task progress lines showed `elapsed=0.0s`**: renderers read
+  `report_entry["elapsed_time"]`, a field removed when the `operational`
+  bucket was introduced (1.4.2). They now read
+  `operational.timing.wall_seconds`. The dispatch error-path entry also
+  emits `operational` (same shape as normal entries) instead of the stale
+  `elapsed_time` key — restoring the documented identical-key-set guarantee.
 
 ### Added
 
@@ -48,10 +78,37 @@ content*, *total = prefill + generation*.
   `total_cps` included, since the token accounting cannot be certified.
   Server fields are regime-independent.
 - **Run-level aggregates** mirror the nesting: `metrics.operational.timing`,
-  `.throughput` and `.timing.server` carry `_mean` / `_min` / `_max` of each
-  field across tasks that reported a value (over per-task values, insensitive
-  to task-duration differences). Console summary shows client TTFC, total
-  tokens and, when available, server TTFT/TBT.
+  `.throughput` and `.timing.server` carry `_mean` / `_min` / `_p50` / `_p95`
+  / `_max` of each field across tasks that reported a value (over per-task
+  values, insensitive to task-duration differences; nearest-rank percentiles,
+  `_p95` surfaces tail latency the mean hides). Console summary shows client
+  TTFC (p95), total tokens and, when available, server TTFT/TBT.
+
+### Changed
+
+- **Run-level aggregates add p50/p95**: `ttfc_seconds`, `ttfcc_seconds`,
+  `throughput.*` and `timing.server.*` aggregates now carry
+  `_mean` / `_min` / `_p50` / `_p95` / `_max` (nearest-rank percentiles;
+  `_p95` surfaces tail latency that the mean hides). Summary line for
+  time-to-first-chunk shows p95 instead of max.
+- **Retry visibility**: per-task `operational.attempts` counts the API calls
+  behind the successful request (1 = no retry; from the OpenAI-compatible
+  transport layer). Run-level `operational.attempts` aggregates `total` and
+  `max`. Vivarium agents report `null`.
+- **`operational.chunks.total_chunks`**: all stream frames, including
+  role/usage-only ones — makes gateway buffering directly visible (large gap
+  vs `output_chunks`, the condition the buffered-delivery guard detects).
+
+### Improved
+
+- **Anthropic `reasoning_tokens` no longer always null**: read from
+  `usage.output_tokens_details.thinking_tokens` in the final message
+  (SDK ≥ 0.69). `reasoning_status` now correctly resolves to `hidden`/`none`
+  instead of `unknown` for thinking-enabled Claude runs; hidden-mode
+  suppression rules apply as documented.
+- **Docs**: reference examples (`metrics.md`, quickstart, examples,
+  evaluation-pipeline concepts page) updated to the `operational` schema —
+  removed stale `total_time` / `elapsed_time` fields.
 
 ## [1.4.1] - 2026-11-03
 

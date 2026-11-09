@@ -136,14 +136,29 @@ Each evaluation run produces a JSON object with:
         "evaluated_count": 10,
         "correct_count": 8,
         "skipped_count": 0,
-        "total_time": 45.2
+        "accuracy": 0.8,
+        "task_type": {},
+        "agent": {},
+        "operational": {
+            "reasoning_status": "none",
+            "timing": {"total_seconds": 44.8, "wall_seconds": 45.2},
+            "tokens": {"input_tokens": 4210, "output_tokens": 1015, "total_tokens": 5225},
+            "attempts": {"total": 10, "max": 1}
+        }
     },
     "detailed_report": {
         "SimpleQA_0": {
             "actual": "Paris",
             "is_correct": true,
             "reasoning": "Semantically equivalent to reference answer",
-            "elapsed_time": 1.2
+            "operational": {
+                "reasoning_status": "none",
+                "attempts": 1,
+                "timing": {"total_seconds": 1.1, "wall_seconds": 1.2},
+                "throughput": {"prefill_cps": 410.5, "generation_cps": 55.2, "content_cps": 55.2, "total_cps": 74.1},
+                "tokens": {"input_tokens": 850, "output_tokens": 120, "reasoning_tokens": 0},
+                "chunks": {"output_chunks": 118, "reasoning_chunks": 0, "total_chunks": 122}
+            }
         }
     }
 }

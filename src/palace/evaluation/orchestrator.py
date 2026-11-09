@@ -45,6 +45,32 @@ from palace.utils.paths import (
 from palace.utils.printing import print
 
 
+def _stats_suffixes(values: list[float], ndigits: int) -> dict[str, float | None]:
+    """Aggregate per-task values into _mean/_min/_p50/_p95/_max suffixed stats.
+
+    Empty input yields all-None values (stable JSON shape). Percentiles use
+    nearest-rank on the sorted list — deterministic, no numpy dependency:
+    p50 is the median, p95 the nearest-rank 95th (tail-latency proxy for
+    TTFT-style metrics where the mean hides slow outliers).
+    """
+    if not values:
+        return {suffix: None for suffix in ("_mean", "_min", "_p50", "_p95", "_max")}
+    ordered = sorted(values)
+    n = len(ordered)
+
+    def _nearest_rank(pct: float) -> float:
+        rank = max(1, -(-pct * n // 100))  # ceil(pct/100 * n), min 1
+        return ordered[rank - 1]
+
+    return {
+        "_mean": round(sum(ordered) / n, ndigits),
+        "_min": round(ordered[0], ndigits),
+        "_p50": round(_nearest_rank(50), ndigits),
+        "_p95": round(_nearest_rank(95), ndigits),
+        "_max": round(ordered[-1], ndigits),
+    }
+
+
 def compute_agent_metrics(report: dict[str, dict]) -> dict[str, float]:
     """Compute agent-execution metrics from an evaluation report.
 
@@ -261,8 +287,8 @@ class Evaluation:
             )
         if timing.get("ttfc_seconds_mean") is not None:
             ttfc_line = f"Time to first chunk: [blue]{timing['ttfc_seconds_mean']:.2f}s[/] mean"
-            if timing.get("ttfc_seconds_max") is not None:
-                ttfc_line += f" ([blue]{timing['ttfc_seconds_max']:.2f}s[/] max)"
+            if timing.get("ttfc_seconds_p95") is not None:
+                ttfc_line += f" ([blue]{timing['ttfc_seconds_p95']:.2f}s[/] p95)"
             lines.append(ttfc_line)
 
         # Tokens line
@@ -582,6 +608,7 @@ class Evaluation:
         }
         has_token_data = False
         has_timing_data = False
+        attempt_values: list[int] = []
 
         for entry in report.values():
             # Agent tokens (from entry["operational"]["tokens"])
@@ -592,6 +619,8 @@ class Evaluation:
                 has_token_data = True
             if tokens.get("output_tokens") is not None:
                 total_output_tokens += tokens["output_tokens"]
+            if operational.get("attempts") is not None:
+                attempt_values.append(operational["attempts"])
 
             # Agent timing (from entry["operational"]["timing"])
             timing = operational.get("timing", {})
@@ -627,6 +656,10 @@ class Evaluation:
         # Add token metrics if we have data (even if tokens are 0, timing is useful)
         if has_token_data or has_timing_data:
             total_tokens = total_input_tokens + total_output_tokens if has_token_data else None
+            # Percentiles add tail visibility to mean/min/max; nearest-rank
+            # over per-task values, same population as the other suffixes.
+            ttfc_stats = _stats_suffixes(ttfc_values, 2)
+            ttfcc_stats = _stats_suffixes(ttfcc_values, 2)
             metrics["operational"] = {
                 "reasoning_status": next(
                     (
@@ -639,39 +672,45 @@ class Evaluation:
                 "timing": {
                     "total_seconds": round(total_compute_seconds, 2),
                     "wall_seconds": round(wall_seconds, 2),
-                    # Client-measured aggregates (mean/min/max over per-task values)
-                    "ttfc_seconds_mean": round(sum(ttfc_values) / len(ttfc_values), 2) if ttfc_values else None,
-                    "ttfc_seconds_min": round(min(ttfc_values), 2) if ttfc_values else None,
-                    "ttfc_seconds_max": round(max(ttfc_values), 2) if ttfc_values else None,
-                    "ttfcc_seconds_mean": round(sum(ttfcc_values) / len(ttfcc_values), 2) if ttfcc_values else None,
-                    "ttfcc_seconds_min": round(min(ttfcc_values), 2) if ttfcc_values else None,
-                    "ttfcc_seconds_max": round(max(ttfcc_values), 2) if ttfcc_values else None,
+                    # Client-measured aggregates (mean/min/p50/p95/max over
+                    # per-task values)
+                    **{f"ttfc_seconds{k}": v for k, v in ttfc_stats.items()},
+                    **{f"ttfcc_seconds{k}": v for k, v in ttfcc_stats.items()},
                     "server": {
-                        f"{key}{suffix}": None for key in _SERVER_BUCKETS for suffix in ("_mean", "_min", "_max")
+                        f"{key}{suffix}": None
+                        for key in _SERVER_BUCKETS
+                        for suffix in ("_mean", "_min", "_p50", "_p95", "_max")
                     },
                 },
                 "throughput": {
-                    f"{key}{suffix}": None for key in _THROUGHPUT_BUCKETS for suffix in ("_mean", "_min", "_max")
+                    f"{key}{suffix}": None
+                    for key in _THROUGHPUT_BUCKETS
+                    for suffix in ("_mean", "_min", "_p50", "_p95", "_max")
                 },
                 "tokens": {
                     "input_tokens": total_input_tokens if has_token_data else None,
                     "output_tokens": total_output_tokens if has_token_data else None,
                     "total_tokens": total_tokens,
                 },
+                # Retry visibility: attempts per task summed/maxed across the
+                # run. 1 × task_count means a retry-free run; max > 1 flags
+                # retry-heavy endpoints. Null when no task reported it.
+                "attempts": {
+                    "total": sum(attempt_values) if attempt_values else None,
+                    "max": max(attempt_values) if attempt_values else None,
+                },
             }
             for key, values in _THROUGHPUT_BUCKETS.items():
                 if values:
-                    metrics["operational"]["throughput"][f"{key}_mean"] = round(sum(values) / len(values), 1)
-                    metrics["operational"]["throughput"][f"{key}_min"] = round(min(values), 1)
-                    metrics["operational"]["throughput"][f"{key}_max"] = round(max(values), 1)
+                    stats = _stats_suffixes(values, 1)
+                    metrics["operational"]["throughput"].update({f"{key}{k}": v for k, v in stats.items()})
             # Server-reported aggregates (authoritative when present; values
             # None on endpoints without a checkpoint — identical shape everywhere)
             for key, values in _SERVER_BUCKETS.items():
                 if values:
+                    stats = _stats_suffixes(values, 4)
                     out_server = metrics["operational"]["timing"]["server"]
-                    out_server[f"{key}_mean"] = round(sum(values) / len(values), 4)
-                    out_server[f"{key}_min"] = round(min(values), 4)
-                    out_server[f"{key}_max"] = round(max(values), 4)
+                    out_server.update({f"{key}{k}": v for k, v in stats.items()})
             # Judge stats (include even if tokens are 0/None for display purposes)
             if judge_compute_seconds > 0 or judge_input_tokens > 0 or judge_output_tokens > 0:
                 judge_total = (

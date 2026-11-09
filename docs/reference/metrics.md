@@ -157,15 +157,17 @@ Each task in `detailed_report` is keyed by task ID and contains:
 
 All observability metrics live in a single `operational` bucket, nested by
 **metric type**: `timing` (durations), `throughput` (rates), `tokens`
-(server-reported counts) and `chunks` (client-observed delivery facts).
-`reasoning_status` sits at the bucket root as the regime flag that conditions
-every other field. Key sets are identical on **every** endpoint — a value is
-`null` when the endpoint does not provide it *or* when the reasoning regime
-makes it unreliable, so downstream consumers can rely on a stable JSON shape:
+(server-reported counts), `chunks` (client-observed delivery facts) and
+`attempts` (API retries). `reasoning_status` sits at the bucket root as the
+regime flag that conditions every other field. Key sets are identical on
+**every** endpoint — a value is `null` when the endpoint does not provide it
+*or* when the reasoning regime makes it unreliable, so downstream consumers
+can rely on a stable JSON shape:
 
 ```json
 "operational": {
   "reasoning_status": "none",
+  "attempts": 1,                      // API attempts for the successful request (1 = no retry)
   "timing": {
     "total_seconds": 1.64,             // client: t0 -> full stream consumption
     "wall_seconds": 1.7,               // whole agent run incl. retries
@@ -192,7 +194,11 @@ makes it unreliable, so downstream consumers can rely on a stable JSON shape:
     "output_tokens": 45,
     "reasoning_tokens": null
   },
-  "chunks": { "output_chunks": 1, "reasoning_chunks": 0 }
+  "chunks": {
+    "output_chunks": 1,                // chunks carrying output (content or reasoning)
+    "reasoning_chunks": 0,             // chunks carrying reasoning_content
+    "total_chunks": 4                  // all stream frames incl. role/usage-only
+  }
 }
 ```
 
@@ -226,6 +232,13 @@ Client-side metrics by regime (`✓` = reported, `null` = suppressed):
 Server-reported fields (`timing.server.*`, `tokens.*`) are
 **regime-independent**: reported whenever the endpoint provides them,
 `null` otherwise.
+
+**Attempts**: `operational.attempts` counts the API calls behind the task's
+successful request — `1` means first-try success; `> 1` means the transport
+layer retried (rate limits, 5xx, timeouts). Retry wait time appears only in
+`timing.wall_seconds`, never in `total_seconds`, so
+`wall_seconds ≫ total_seconds` together with `attempts > 1` identifies a
+retry-heavy run.
 
 **Rate formulas** (client clock, all in tokens/second):
 
@@ -263,21 +276,28 @@ The run-level `operational` object mirrors the per-task nesting:
 
 - `operational.timing` — `total_seconds` (summed) and `wall_seconds`
   (summed), plus for each of `ttfc_seconds` and `ttfcc_seconds` a
-  `_mean` / `_min` / `_max` across the tasks that reported a value
-  (`null` when none did).
+  `_mean` / `_min` / `_p50` / `_p95` / `_max` across the tasks that
+  reported a value (`null` when none did).
 - `operational.timing.server` — for each server field a `_mean` / `_min` /
-  `_max`; keys always exist, values are `null` when the endpoint does not
-  provide the checkpoint. When present, the authoritative decode rate from
-  the aggregate: `1 / engine_tbt_seconds_mean` ≈ tokens/s.
+  `_p50` / `_p95` / `_max`; keys always exist, values are `null` when the
+  endpoint does not provide the checkpoint. When present, the authoritative
+  decode rate from the aggregate: `1 / engine_tbt_seconds_mean` ≈ tokens/s.
 - `operational.throughput` — for each client-derived rate (`prefill_cps`,
-  `generation_cps`, `content_cps`, `total_cps`) a `_mean` / `_min` / `_max`
-  across tasks that reported a value. Mean/min/max are over per-task values,
-  not recomputed from summed tokens — so they are insensitive to differences
-  in task duration.
+  `generation_cps`, `content_cps`, `total_cps`) a `_mean` / `_min` / `_p50` /
+  `_p95` / `_max` across tasks that reported a value. Aggregates are over
+  per-task values, not recomputed from summed tokens — so they are
+  insensitive to differences in task duration. The `_p95` suffix surfaces
+  tail latency (the mean hides the slow outliers users actually feel).
 - `operational.tokens` — summed `input_tokens`, `output_tokens`,
   `total_tokens`.
+- `operational.attempts` — `total` (summed API attempts) and `max` (worst
+  single task). `total == task_count` means a retry-free run; a large `max`
+  flags an endpoint that needed many retries on individual tasks. `null`
+  when no task reported attempts (e.g. vivarium agent).
 - `operational.reasoning_status` — the regime observed on the run (first
   non-null per-task status).
+
+Percentiles use the nearest-rank method over the sorted per-task values.
 
 ### Skip Reasons
 
@@ -290,6 +310,10 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 | `verification_error` | The verification pipeline failed — for example, the judge could not parse its own output after multiple retries, or returned an invalid judgement value. |
 | `unsupported_attachment` | The task has an attachment that is neither text nor a recognized image format. |
 | `custom_verificator_error` | The task's custom verification function raised an exception. |
+| `task_error` | An infrastructure exception escaped a lifecycle stage outside the agent run itself (setup, seed, verification, or teardown). These stages retry transient failures first; the reason records the last error (e.g. `task_error: ReadTimeout`). |
+| `verify_infra_error` | Verification failed on a transient infrastructure error after retries were exhausted — the task could not be graded, so it is excluded from scores rather than marked incorrect. |
+| `untrusted_swap_failed` | In `--untrusted-agent` mode, the swap to a fresh verification environment failed after retries (e.g. the deliverable could not be re-uploaded). |
+| `vivarium_unreachable` | The vivarium service was unreachable for the whole consecutive-failure poll budget (including 404s caused by worker-broadcast hiccups); the run's server-side fate is unknown. |
 
 ### Per-Task Metrics by Task Type
 
@@ -309,7 +333,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 
 ```json
 {
-    "agent": "gpt-4o",
+    "model": "gpt-4o",
     "tasklist": "SimpleQA",
     "accuracy": 0.9,
     "metrics": {
@@ -317,10 +341,59 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
         "evaluated_count": 10,
         "correct_count": 9,
         "skipped_count": 0,
-        "total_time": 15.3,
+        "error_count": 0,
+        "unsupported_count": 0,
         "accuracy": 0.9,
         "task_type": {},
-        "agent": {}
+        "agent": {},
+        "operational": {
+            "reasoning_status": "none",
+            "timing": {
+                "total_seconds": 14.8,
+                "wall_seconds": 15.3,
+                "ttfc_seconds_mean": 0.62,
+                "ttfc_seconds_min": 0.41,
+                "ttfc_seconds_p50": 0.58,
+                "ttfc_seconds_p95": 1.02,
+                "ttfc_seconds_max": 1.02,
+                "ttfcc_seconds_mean": 0.62,
+                "ttfcc_seconds_min": 0.41,
+                "ttfcc_seconds_p50": 0.58,
+                "ttfcc_seconds_p95": 1.02,
+                "ttfcc_seconds_max": 1.02,
+                "server": {
+                    "engine_ttft_seconds_mean": null,
+                    "engine_ttft_seconds_min": null,
+                    "engine_ttft_seconds_p50": null,
+                    "engine_ttft_seconds_p95": null,
+                    "engine_ttft_seconds_max": null
+                }
+            },
+            "throughput": {
+                "prefill_cps_mean": 311.2,
+                "prefill_cps_min": 184.0,
+                "prefill_cps_p50": 291.7,
+                "prefill_cps_p95": 402.1,
+                "prefill_cps_max": 402.1,
+                "generation_cps_mean": 68.4,
+                "generation_cps_min": 52.3,
+                "generation_cps_p50": 66.1,
+                "generation_cps_p95": 88.9,
+                "generation_cps_max": 88.9,
+                "content_cps_mean": 68.4,
+                "content_cps_min": 52.3,
+                "content_cps_p50": 66.1,
+                "content_cps_p95": 88.9,
+                "content_cps_max": 88.9,
+                "total_cps_mean": 91.7,
+                "total_cps_min": 74.2,
+                "total_cps_p50": 89.3,
+                "total_cps_p95": 120.5,
+                "total_cps_max": 120.5
+            },
+            "tokens": {"input_tokens": 4210, "output_tokens": 1015, "total_tokens": 5225},
+            "attempts": {"total": 10, "max": 1}
+        }
     }
 }
 ```
@@ -329,7 +402,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 
 ```json
 {
-    "agent": "gpt-4o",
+    "model": "gpt-4o",
     "tasklist": "GuardBench-EN",
     "accuracy": 0.85,
     "metrics": {
@@ -337,7 +410,8 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
         "evaluated_count": 20,
         "correct_count": 17,
         "skipped_count": 0,
-        "total_time": 30.5,
+        "error_count": 0,
+        "unsupported_count": 0,
         "accuracy": 0.85,
         "task_type": {
             "per_label": {
@@ -353,7 +427,13 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
             "macro": {"precision": 0.9, "recall": 0.82, "f1": 0.858, "fpr": 0.1, "fnr": 0.18},
             "micro": {"precision": 0.9, "recall": 0.82, "f1": 0.858, "fpr": 0.1, "fnr": 0.18}
         },
-        "agent": {}
+        "agent": {},
+        "operational": {
+            "reasoning_status": "none",
+            "timing": {"total_seconds": 30.0, "wall_seconds": 30.5},
+            "tokens": {"input_tokens": 8400, "output_tokens": 2030, "total_tokens": 10430},
+            "attempts": {"total": 20, "max": 1}
+        }
     }
 }
 ```
@@ -362,7 +442,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 
 ```json
 {
-    "agent": "gpt-4o",
+    "model": "gpt-4o",
     "tasklist": "DeepResearchBench-Test",
     "accuracy": 1.0,
     "metrics": {
@@ -370,7 +450,8 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
         "evaluated_count": 5,
         "correct_count": 5,
         "skipped_count": 0,
-        "total_time": 250.3,
+        "error_count": 0,
+        "unsupported_count": 0,
         "accuracy": 1.0,
         "task_type": {
             "avg_normalized_score": 0.72,
@@ -380,7 +461,13 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
                 "writing": {"clarity": 2.1, "structure": 1.5}
             }
         },
-        "agent": {}
+        "agent": {},
+        "operational": {
+            "reasoning_status": "none",
+            "timing": {"total_seconds": 248.9, "wall_seconds": 250.3},
+            "tokens": {"input_tokens": 15200, "output_tokens": 8900, "total_tokens": 24100},
+            "attempts": {"total": 5, "max": 1}
+        }
     }
 }
 ```
@@ -389,7 +476,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 
 ```json
 {
-    "agent": "gpt-4o",
+    "model": "gpt-4o",
     "tasklist": "GAIA",
     "accuracy": 0.75,
     "metrics": {
@@ -397,10 +484,17 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
         "evaluated_count": 8,
         "correct_count": 6,
         "skipped_count": 2,
-        "total_time": 120.5,
+        "error_count": 2,
+        "unsupported_count": 0,
         "accuracy": 0.75,
         "task_type": {},
-        "agent": {}
+        "agent": {},
+        "operational": {
+            "reasoning_status": "streamed",
+            "timing": {"total_seconds": 118.4, "wall_seconds": 120.5},
+            "tokens": {"input_tokens": 45200, "output_tokens": 31200, "total_tokens": 76400},
+            "attempts": {"total": 13, "max": 4}
+        }
     },
     "detailed_report": {
         "task_001": {
@@ -409,7 +503,14 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
             "is_skipped": false,
             "skip_reason": null,
             "reasoning": "The answer matches the reference.",
-            "elapsed_time": 2.3
+            "operational": {
+                "reasoning_status": "streamed",
+                "attempts": 1,
+                "timing": {"total_seconds": 2.1, "wall_seconds": 2.3},
+                "throughput": {"prefill_cps": 410.5, "generation_cps": 55.2, "content_cps": 55.2, "total_cps": 74.1},
+                "tokens": {"input_tokens": 850, "output_tokens": 120, "reasoning_tokens": 0},
+                "chunks": {"output_chunks": 118, "reasoning_chunks": 0, "total_chunks": 122}
+            }
         },
         "task_002": {
             "actual": null,
@@ -417,7 +518,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
             "is_skipped": true,
             "skip_reason": "no_response",
             "reasoning": null,
-            "elapsed_time": 45.0
+            "operational": {"timing": {"wall_seconds": 45.0}}
         }
     }
 }

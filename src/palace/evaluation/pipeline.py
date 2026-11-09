@@ -251,6 +251,8 @@ def build_report(
         output_chunks = m.get("output_chunks")
         reasoning_chunks = m.get("reasoning_chunks")
         reasoning_tokens = m.get("reasoning_tokens")
+        total_chunks = m.get("total_chunks")
+        attempts = m.get("attempts")
         # Reasoning status: "streamed" (chunks on the wire), "hidden" (server
         # reports a count > 0, nothing streamed), "none" (known empty), or
         # None (unknown — endpoint reports neither).
@@ -368,9 +370,18 @@ def build_report(
             },
             # Client-observed delivery granularity.
             "chunks": {
+                # Chunks carrying output (content or reasoning).
                 "output_chunks": output_chunks,
+                # Chunks carrying reasoning_content.
                 "reasoning_chunks": reasoning_chunks,
+                # All stream chunks, including role/usage-only frames — the
+                # gateway buffering diagnostic (large gap vs output_chunks).
+                "total_chunks": total_chunks,
             },
+            # API attempts for this task's successful request (1 = no retry).
+            # Exposed at the bucket root: it is a request-level fact, not a
+            # timing/token/chunk measurement.
+            "attempts": attempts,
         }
         # Copy any other metrics that aren't operational (e.g., vivarium's steps)
         for k, v in m.items():
@@ -383,7 +394,9 @@ def build_report(
                 "output_chunks",
                 "reasoning_chunks",
                 "reasoning_tokens",
+                "total_chunks",
                 "server_latency",
+                "attempts",
             ):
                 entry[k] = v
     else:

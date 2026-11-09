@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from palace.task_types.base import ExecutionEnvironment, Task, TaskVerificationResult
-from palace.utils.infra_errors import is_infra_error
+from palace.utils.infra_errors import is_infra_error, retry_transient
 
 
 class AgenticTask(Task):
@@ -92,8 +92,15 @@ class AgenticTask(Task):
         for f in task_dir.rglob("*"):
             if f.is_file():
                 dest = f"/verify_files/{f.relative_to(task_dir)}"
-                await env.exec(f"mkdir -p $(dirname {shlex.quote(dest)})")
-                await env.write(dest, f.read_bytes())
+
+                async def _inject_once():
+                    await env.exec(f"mkdir -p $(dirname {shlex.quote(dest)})")
+                    await env.write(dest, f.read_bytes())
+
+                # Transient retry: mkdir -p and overwrite-by-write are
+                # idempotent, so re-running the pair after a mid-injection
+                # failure is safe.
+                await retry_transient(_inject_once, what=f"verify file injection {dest}")
 
     @classmethod
     def aggregate(cls, results: list[TaskVerificationResult], penalize_unsupported: bool = False) -> dict[str, Any]:

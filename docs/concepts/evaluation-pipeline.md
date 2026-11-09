@@ -176,7 +176,7 @@ Results are saved as JSONL. Each line is a complete evaluation run:
     "agent": "gpt-4o",
     "tasklist": "GuardBench-EN",
     "accuracy": 0.85,
-    "metrics": {"task_count": 20, "evaluated_count": 20, "correct_count": 17, "skipped_count": 0, "total_time": 120.5, "task_type": {}, "agent": {}},
+    "metrics": {"task_count": 20, "evaluated_count": 20, "correct_count": 17, "skipped_count": 0, "task_type": {}, "agent": {}, "operational": {"reasoning_status": "none", "timing": {"total_seconds": 120.0, "wall_seconds": 120.5}, "tokens": {"input_tokens": 9800, "output_tokens": 2400, "total_tokens": 12200}, "attempts": {"total": 20, "max": 1}}},
     "detailed_report": {
         "task_001": {
             "actual": "...",
@@ -184,7 +184,14 @@ Results are saved as JSONL. Each line is a complete evaluation run:
             "is_skipped": false,
             "skip_reason": null,
             "reasoning": "...",
-            "elapsed_time": 1.2
+            "operational": {
+                "reasoning_status": "none",
+                "attempts": 1,
+                "timing": {"total_seconds": 1.1, "wall_seconds": 1.2},
+                "throughput": {"prefill_cps": 410.5, "generation_cps": 55.2, "content_cps": 55.2, "total_cps": 74.1},
+                "tokens": {"input_tokens": 850, "output_tokens": 120, "reasoning_tokens": 0},
+                "chunks": {"output_chunks": 118, "reasoning_chunks": 0, "total_chunks": 122}
+            }
         }
     }
 }
@@ -324,6 +331,16 @@ Skipped tasks appear in the JSONL output with `is_skipped: true` and `is_correct
 - Connection failures trigger retry with exponential backoff
 - Rate limiting (429) triggers automatic retry with backoff
 - After all retries exhausted, the task is skipped with `agent_error`
+- Vivarium stages (seed, task-file upload, swap, teardown) retry transient
+  infrastructure failures (network errors, 429/5xx, disk-pressure 422) with a
+  short fixed-interval budget; seed re-runs are safe because they reset the
+  repository to its baseline state first
+- A 404 while polling a run's status is treated as transient: the vivarium
+  orchestrator can report 404 for an existing run when the worker broadcast
+  fails, so polling retries within the same bounded budget before aborting
+- Transient errors during verification are recorded as `verify_infra_error`
+  (excluded from scores); the verify-file injection stage applies the same
+  retry budget before that classification is reached
 
 ### Parsing Errors
 

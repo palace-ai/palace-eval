@@ -194,7 +194,7 @@ class TestReportEntryShape:
         assert "ttfc_seconds" in op["timing"]
         assert "ttfc_seconds" not in entry
         assert "ttfc_seconds" not in op["throughput"]  # single location
-        assert set(op.keys()) == {"reasoning_status", "timing", "throughput", "tokens", "chunks"}
+        assert set(op.keys()) == {"reasoning_status", "timing", "throughput", "tokens", "chunks", "attempts"}
         assert op["timing"]["wall_seconds"] == 0.0  # wall time inside timing
 
     def test_vivarium_style_metrics_still_passed_through(self):
@@ -671,6 +671,62 @@ class TestThroughputMetrics:
         assert op["timing"]["ttfc_seconds"] == 0.2  # client-measured, reasoning absent
         assert set(op["throughput"].keys()) == {"prefill_cps", "generation_cps", "content_cps", "total_cps"}
         assert op["chunks"]["output_chunks"] == 5
+        assert op["attempts"] is None  # attempts only present when the model reports them
+
+    def test_total_chunks_in_chunks_bucket(self):
+        """total_chunks (all stream frames) rides alongside output/reasoning
+        chunks — the gateway-buffering diagnostic."""
+        from palace.evaluation.pipeline import build_report
+        from palace.evaluation.types import AgentResult, TaskVerificationResult
+
+        task = _make_task()
+        vr = TaskVerificationResult(is_correct=True)
+        result = AgentResult(
+            answer="a",
+            metrics={"compute_seconds": 1.0, "ttfc_seconds": 0.2, "output_chunks": 5, "total_chunks": 12},
+        )
+        chunks = build_report(task, result, vr, {}, "none")["operational"]["chunks"]
+        assert chunks["total_chunks"] == 12
+        assert chunks["output_chunks"] == 5
+        assert "total_chunks" not in build_report(task, result, vr, {}, "none")  # not at entry level
+
+    def test_total_chunks_null_when_not_reported(self):
+        """Vivarium agents don't produce chunk stats — key exists with None."""
+        from palace.evaluation.pipeline import build_report
+        from palace.evaluation.types import AgentResult, TaskVerificationResult
+
+        task = _make_task()
+        vr = TaskVerificationResult(is_correct=True)
+        result = AgentResult(answer="a", metrics={"compute_seconds": 1.0, "steps": 3})
+        entry = build_report(task, result, vr, {}, "none")
+        assert entry["operational"]["chunks"]["total_chunks"] is None
+        assert entry["steps"] == 3  # passthrough unaffected
+
+    def test_attempts_in_operational_root(self):
+        """attempts (from the retry layer) lands at the operational root."""
+        from palace.evaluation.pipeline import build_report
+        from palace.evaluation.types import AgentResult, TaskVerificationResult
+
+        task = _make_task()
+        vr = TaskVerificationResult(is_correct=True)
+        result = AgentResult(
+            answer="a",
+            metrics={"compute_seconds": 1.0, "ttfc_seconds": 0.2, "attempts": 4},
+        )
+        op = build_report(task, result, vr, {}, "none")["operational"]
+        assert op["attempts"] == 4
+        assert "attempts" not in op["timing"]
+
+    def test_attempts_absent_is_null(self):
+        """Agents without retry reporting (vivarium) get attempts=None."""
+        from palace.evaluation.pipeline import build_report
+        from palace.evaluation.types import AgentResult, TaskVerificationResult
+
+        task = _make_task()
+        vr = TaskVerificationResult(is_correct=True)
+        result = AgentResult(answer="a", metrics={"compute_seconds": 1.0, "steps": 2})
+        op = build_report(task, result, vr, {}, "none")["operational"]
+        assert op["attempts"] is None
 
     def test_per_task_zero_tokens_none(self):
         """Endpoints without usage data must not produce division artefacts."""
@@ -770,3 +826,96 @@ class TestThroughputMetrics:
         assert round(sum(ttft_vals) / 3, 4) == 0.7
         # Authoritative tok/s from mean TBT: 1 / mean_tbt_seconds
         assert round(1 / (sum(tbt_vals) / 3), 1) == 33.3
+
+
+class TestStatsSuffixes:
+    """_stats_suffixes: mean/min/p50/p95/max with nearest-rank percentiles."""
+
+    def test_basic_stats(self):
+        from palace.evaluation.orchestrator import _stats_suffixes
+
+        s = _stats_suffixes([1.0, 2.0, 3.0, 4.0, 5.0], 2)
+        assert s["_mean"] == 3.0
+        assert s["_min"] == 1.0
+        assert s["_max"] == 5.0
+        assert s["_p50"] == 3.0  # median of 5 sorted values
+        assert s["_p95"] == 5.0  # ceil(0.95*5)=5 -> last value
+
+    def test_p95_nearest_rank(self):
+        from palace.evaluation.orchestrator import _stats_suffixes
+
+        # 100 values 1..100: p95 = ceil(0.95*100) = 95th value
+        s = _stats_suffixes([float(i) for i in range(1, 101)], 2)
+        assert s["_p95"] == 95.0
+        assert s["_p50"] == 50.0
+
+    def test_p95_catches_tail_outlier(self):
+        from palace.evaluation.orchestrator import _stats_suffixes
+
+        # 4 fast tasks + 1 slow outlier: mean hides it, p95 catches it
+        # n=5: p95 rank = ceil(0.95*5) = ceil(4.75) = 5 -> the outlier itself
+        values = [0.5, 0.5, 0.5, 0.5, 8.0]
+        s = _stats_suffixes(values, 2)
+        assert s["_mean"] == 2.0
+        assert s["_p95"] == 8.0
+        assert s["_p50"] == 0.5  # rank ceil(2.5)=3 -> 0.5
+
+    def test_p95_needs_enough_samples_to_see_outlier(self):
+        """With 100 fast + 1 slow, nearest-rank p95 lands on a fast value —
+        p95 is a tail estimator, not an outlier detector at small n."""
+        from palace.evaluation.orchestrator import _stats_suffixes
+
+        values = [0.5] * 100 + [8.0]
+        s = _stats_suffixes(values, 2)
+        assert s["_mean"] == 0.57  # (0.5*100 + 8) / 101
+        assert s["_p95"] == 0.5  # rank 96 of 101 sorted -> still 0.5
+        assert s["_max"] == 8.0  # max always catches the outlier
+
+    def test_empty_values_all_none(self):
+        from palace.evaluation.orchestrator import _stats_suffixes
+
+        s = _stats_suffixes([], 2)
+        assert s == {"_mean": None, "_min": None, "_p50": None, "_p95": None, "_max": None}
+
+    def test_single_value(self):
+        from palace.evaluation.orchestrator import _stats_suffixes
+
+        s = _stats_suffixes([2.5], 2)
+        assert s == {"_mean": 2.5, "_min": 2.5, "_p50": 2.5, "_p95": 2.5, "_max": 2.5}
+
+
+class TestRunLevelAttempts:
+    """Run-level attempts aggregation: total/max across tasks."""
+
+    def _build_report(self, attempts_list):
+        from palace.evaluation.pipeline import build_report
+        from palace.evaluation.types import AgentResult
+        from palace.task_types.base import TaskVerificationResult
+        from palace.task_types.qa import QATask
+
+        vr = TaskVerificationResult(is_correct=True)
+        report = {}
+        for i, attempts in enumerate(attempts_list):
+            task = QATask.from_dict({"id": f"t{i}", "objective": "q", "expected": "a", "task_type": "QA"})
+            metrics = {"compute_seconds": 1.0, "ttfc_seconds": 0.2, "output_chunks": 10, "reasoning_tokens": 0}
+            if attempts is not None:
+                metrics["attempts"] = attempts
+            report[f"t{i}"] = build_report(task, AgentResult(answer="a", metrics=metrics), vr, {}, "none")
+        return report
+
+    def test_attempts_aggregated(self):
+        # 3 tasks: 1, 4, 1 attempts -> total 6, max 4
+        report = self._build_report([1, 4, 1])
+        # Simulate the orchestrator collection (same contract as the real loop)
+        attempt_values = [
+            e["operational"]["attempts"] for e in report.values() if e["operational"].get("attempts") is not None
+        ]
+        assert sum(attempt_values) == 6
+        assert max(attempt_values) == 4
+
+    def test_attempts_absent_all_tasks(self):
+        report = self._build_report([None, None])
+        attempt_values = [
+            e["operational"]["attempts"] for e in report.values() if e["operational"].get("attempts") is not None
+        ]
+        assert attempt_values == []  # orchestrator yields attempts: {"total": None, "max": None}
