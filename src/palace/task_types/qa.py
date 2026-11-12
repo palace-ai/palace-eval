@@ -128,6 +128,14 @@ Either Correct or Incorrect. No other text can be here.
         return self.expected
 
     async def verify(self, answer: str, env: ExecutionEnvironment | None = None, **kwargs) -> TaskVerificationResult:
+        # An answerless run cannot satisfy any QA criterion — short-circuit
+        # without spending a judge call (mirrors criteria_evaluation).
+        if not answer or not answer.strip():
+            return TaskVerificationResult(
+                is_correct=False,
+                reasoning="Agent did not provide a response.",
+            )
+
         criterion, references = self._get_config()
 
         correct_fields = references.get("correct", ["expected"])

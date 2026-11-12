@@ -58,7 +58,9 @@ class AgentResult:
     """Result from an agent run.
 
     Outcomes:
-        - "success": agent produced an answer (default when answer is set)
+        - "success": agent run completed (answer may be None — e.g. an agent
+          that finished its work without emitting final text; the answer is
+          verification input, not verification eligibility)
         - "error": infrastructure/transient failure
         - "unsupported": model capability limitation (e.g., context too long)
     """

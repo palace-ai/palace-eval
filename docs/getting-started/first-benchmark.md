@@ -213,7 +213,7 @@ If a task is marked incorrect, check the `reasoning` field:
 
 The reasoning explains why the judge marked it incorrect—helpful for debugging model behavior.
 
-If a task was skipped due to an infrastructure issue (e.g., API timeout), it appears with `is_skipped: true` and a `skip_reason` such as `"agent_error"` or `"no_response"`. Skipped tasks are excluded from the accuracy calculation.
+If a task was skipped due to an infrastructure issue (e.g., API timeout), it appears with `is_skipped: true` and a `skip_reason` such as `"agent_error"`. Skipped tasks are excluded from the accuracy calculation. (A completed run with an empty final answer is *not* skipped — it is graded on the empty answer; agentic benchmarks may still pass it based on the work done in the environment.)
 
 ## Step 8: Iterate and Improve
 

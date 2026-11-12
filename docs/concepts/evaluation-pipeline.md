@@ -313,16 +313,17 @@ The judge uses the same API endpoint configured for evaluation.
 
 ### Task Failure Handling
 
-When a task fails due to infrastructure issues (API errors, timeouts, empty responses), it is **skipped** rather than marked incorrect. Skipped tasks are excluded from accuracy calculations, ensuring that infrastructure failures don't penalise model scores.
+When a task fails due to infrastructure issues (API errors, timeouts), it is **skipped** rather than marked incorrect. Skipped tasks are excluded from accuracy calculations, ensuring that infrastructure failures don't penalise model scores.
 
 Each skipped task records a machine-readable `skip_reason`:
 
 | Reason | Trigger |
 |--------|---------|
-| `no_response` | Agent returned empty or whitespace-only response |
 | `agent_error` | Agent raised an exception (API error, timeout, etc.) |
 | `unsupported_attachment` | Task has an attachment type the model can't process |
 | `verification_error` | Judge/verification failed on a valid response |
+
+An agent run that **completes without emitting final text** (`answer` is `None`) is *not* an error: the run is verified with an empty answer. Answer-based task types handle this natively — Criteria Evaluation, QA, and Instruction Following short-circuit to incorrect without spending a judge call; Classification fails on the missing tags through its normal path. Environment-based (Agentic) task types verify the work performed in the execution environment (DB state, files, conversation log), so the task may still be correct. Such tasks carry `operational.final_answer: false` in their report entry for diagnostics.
 
 Skipped tasks appear in the JSONL output with `is_skipped: true` and `is_correct: false`. The run-level metrics report both `evaluated_count` (tasks with real answers) and `skipped_count` separately. Accuracy is computed as `correct_count / evaluated_count`.
 

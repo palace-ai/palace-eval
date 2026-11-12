@@ -403,6 +403,13 @@ def build_report(
         # No agent metrics — no request operation to describe; wall time only.
         entry["operational"] = {"timing": {"wall_seconds": round(agent_result.elapsed, 2)}}
 
+    # Diagnostic: the agent run completed but produced no final text. Recorded
+    # as an operational fact (not a verification reason) — answer-based task
+    # types will naturally judge the empty answer incorrect; env-based types
+    # grade the work in the environment regardless.
+    if agent_result.answer is None and agent_result.outcome == "success":
+        entry.setdefault("operational", {})["final_answer"] = False
+
     return entry
 
 
@@ -444,15 +451,19 @@ async def execute_task(
         renderer.on_agent_finished(i, agent_result)
 
         # Verify
-        if agent_result.answer is not None and not agent_result.is_skipped:
+        # Gated on outcome, not on the answer: a completed agent run is always
+        # verified. An empty answer (agent finished without final text) is a
+        # valid verification input — answer-based task types judge it incorrect
+        # through their normal path, env-based (agentic) types grade the work
+        # in the environment and may still pass. Only error/unsupported runs
+        # skip verification.
+        if agent_result.outcome == "success":
             renderer.on_verify_started(i)
             verify_env = agent.get_verify_env(task) or env
-            vr = await verify_answer(task, agent_result.answer, verify_env, adapter, judge_config)
+            vr = await verify_answer(task, agent_result.answer or "", verify_env, adapter, judge_config)
             renderer.on_verify_finished(i, vr)
         else:
-            vr = TaskVerificationResult(
-                is_correct=False, outcome=agent_result.outcome, reason=agent_result.reason or "no_response"
-            )
+            vr = TaskVerificationResult(is_correct=False, outcome=agent_result.outcome, reason=agent_result.reason)
 
         # Analyze
         analyzer_metrics: dict[str, Any] = {}

@@ -34,6 +34,15 @@ class InstructionFollowingTask(Task):
         if not constraints:
             return TaskVerificationResult(is_correct=False, reasoning="No constraints defined")
 
+        # Many checkers are vacuously true on an empty answer (no comma in "",
+        # zero bullet lists, etc.) — an answerless run must not pass.
+        if not answer.strip():
+            return TaskVerificationResult(
+                is_correct=False,
+                reasoning="Agent did not provide a response.",
+                metrics={"score": 0.0, "satisfied": 0, "total": len(constraints)},
+            )
+
         results = []
         for c in constraints:
             passed = _check_constraint(c["type"], answer, c.get("params", {}), self.objective)

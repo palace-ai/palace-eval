@@ -453,8 +453,11 @@ class VivariumAgent(Agent):
             )
 
         # Untrusted mode: swap to fresh env before returning so verify runs clean.
+        # Gated on outcome, not on the answer — verification runs for every
+        # completed run (even without final text), so the swap must too, or an
+        # answerless agent could grade itself against its own tampered env.
         # A failed swap is this task's error outcome, never a job abort.
-        if self._untrusted_agent and agent_result.answer is not None:
+        if self._untrusted_agent and agent_result.outcome == "success":
             try:
                 await self._swap_to_fresh_env(task_id)
             except UntrustedSwapError as e:
@@ -462,7 +465,13 @@ class VivariumAgent(Agent):
                 return AgentResult(
                     outcome="error",
                     reason=f"untrusted_swap_failed: {e}",
+                    # Preserve run evidence for post-mortem (never verified —
+                    # outcome is error): metrics for cost accounting, answer
+                    # and harness stderr as diagnostics, elapsed for wall time.
+                    answer=agent_result.answer,
                     metrics=agent_result.metrics,
+                    elapsed=agent_result.elapsed,
+                    debug_logs=agent_result.debug_logs,
                 )
 
         return agent_result

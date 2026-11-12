@@ -5,6 +5,45 @@ All notable changes to PALACE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-11-12
+
+### Changed
+
+- **Verification gates on run outcome, not on the answer**: a completed agent
+  run (`outcome == "success"`) is now always verified — the answer is
+  verification *input*, not verification *eligibility*. Previously the gate
+  was `answer is not None`, so an agent that finished its work without
+  emitting final text was never verified, yet the fabricated result inherited
+  `outcome="success"` with `is_correct=false` — the task counted in the
+  accuracy denominator and was auto-failed without being graded. Observed on
+  Tau2-bench-Airline (job 1432): 49/50 tasks ran the full agent loop
+  (25–47 steps, DB mutations, ~200K input tokens each) and were then silently
+  discarded as accuracy 0.00.
+  - **Agentic** tasklists (env-based verification) benefit most: the task is
+    graded on the environment state (DB, files, conversation log) and may
+    still pass. The Tau2 verifier needs the final text only for
+    `communicate_info`, which is file-backed anyway.
+  - **Answer-based** task types handle empty answers natively: Criteria
+    Evaluation, QA, and Instruction Following short-circuit to incorrect
+    without spending a judge call (Instruction Following additionally guards
+    against vacuously-true constraints — 16 of 25 checkers return true on an
+    empty string); Classification fails on the missing tags through its
+    normal path.
+  - Answerless completed runs carry `operational.final_answer: false` in the
+    report entry as a diagnostic marker.
+- **Untrusted-agent swap gate aligned with the verification gate**:
+  `--untrusted-agent` now swaps to a fresh environment for *every* completed
+  run, not only answered ones. Since answerless runs are now verified, the
+  swap must run too — otherwise an answerless agent could grade itself
+  against its own (potentially tampered) environment.
+
+### Fixed
+
+- **Swap-failure results preserve run evidence**: an `UntrustedSwapError`
+  result now carries the answer, harness stderr, and elapsed time alongside
+  the existing metrics preservation, instead of dropping all diagnostics at
+  the moment they are most needed for post-mortem.
+
 ## [1.4.2] - 2026-11-09
 
 ### Fixed

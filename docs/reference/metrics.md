@@ -305,7 +305,7 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
 
 | Value | Description |
 |-------|-------------|
-| `no_response` | The agent did not produce a response. This includes convergence failures (max steps reached without a final answer), API timeouts after all retries, and connection errors. |
+| `no_response` | The agent did not produce a response. This covers convergence failures and API timeouts after all retries. Note: an agent run that *completes* without emitting final text is not skipped — it is verified with an empty answer (see "Empty answers" below). |
 | `agent_error` | The agent raised an unexpected exception during execution. |
 | `verification_error` | The verification pipeline failed — for example, the judge could not parse its own output after multiple retries, or returned an invalid judgement value. |
 | `unsupported_attachment` | The task has an attachment that is neither text nor a recognized image format. |
@@ -516,13 +516,21 @@ When `is_skipped` is `true`, `skip_reason` contains one of these values:
             "actual": null,
             "is_correct": false,
             "is_skipped": true,
-            "skip_reason": "no_response",
+            "skip_reason": "agent_error",
             "reasoning": null,
             "operational": {"timing": {"wall_seconds": 45.0}}
         }
     }
 }
 ```
+
+### Empty Answers
+
+A completed agent run without final text (`actual: null`) is a valid verification
+input, not an error. The task is graded on the empty answer: answer-based task
+types judge it incorrect through their normal path; agentic task types verify
+the environment state and may still pass. The report entry carries
+`"operational": {"final_answer": false}` as a diagnostic marker.
 
 ## Code Examples
 
