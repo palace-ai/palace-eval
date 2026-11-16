@@ -171,6 +171,53 @@ class TestUntrustedSwapErrorClassification:
         assert result.metrics["output_tokens"] == 50
 
 
+class TestSwapProvisioningOrder:
+    """Swap must provision trusted artefacts in the same order as initial
+    setup (on_task_start): task_files → seed → agent deliverables.
+
+    Seeds that consume task_files (e.g. SWE-bench-Pro reading
+    /task_files/run_script.sh) silently no-op under a seed-first order
+    because their missing-file guard exits 0. Deliverables must still come
+    after seed so a seed-side workspace reset cannot wipe them.
+    """
+
+    @pytest.mark.asyncio
+    async def test_task_files_before_seed_before_deliverables(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("palace.agents.vivarium_agent.asyncio.sleep", _nosleep)
+        env = _FakeEnv([b"archive-bytes"])
+        agent = _make_agent(env, tmp_path)
+        agent._tasks = {"t1": _make_task()}
+
+        # Real task_files dir so _package_task_files produces an upload:
+        # task_files_path glob "*/task_files" style — here a single dir with
+        # the task's subdirectory containing one file.
+        tf_dir = tmp_path / "task_files" / "t1"
+        tf_dir.mkdir(parents=True)
+        (tf_dir / "run_script.sh").write_text("#!/bin/bash\n")
+        agent._task_files_dirs = [tmp_path / "task_files"]
+
+        order: list[str] = []
+
+        async def recording_upload(archive: bytes, dest: str = "/", **kw):
+            # fresh_env uploads: task_files go to /task_files/, the deliverable
+            # overlay lands at the parent of its VERIFY_PATH ("/" for /app).
+            order.append("task_files" if dest == "/task_files/" else "deliverable")
+
+        fresh_env = agent._client.fresh_env
+        fresh_env.upload_files = recording_upload
+
+        async def seed_fn(seed_args, container):
+            order.append("seed")
+
+        # _make_agent sets _env_paths = {repo_env: tmp_path/"environments"/"repo_env"}
+        # → env_path_str as computed by _swap_to_fresh_env is "environments/repo_env"
+        agent._seed_fns = {"environments/repo_env": seed_fn}
+
+        result = await agent.run(prompt="p", task_id="t1")
+        assert result.outcome == "success"
+        assert order == ["task_files", "seed", "deliverable"]
+
+
 class _FakeRun:
     id = "run-1"
     status = "completed"

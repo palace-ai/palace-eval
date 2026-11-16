@@ -595,27 +595,20 @@ class VivariumAgent(Agent):
         _logger.info(f"untrusted-agent: created fresh env {fresh_env.id} for {task_id}")
 
         # Re-provision trusted harness artifacts from local tasklist sources:
-        # seed (baseline repo state, test patch, env setup) and task_files
-        # (verify scripts). Never copied from the agent env — those are
+        # task_files (verify scripts, harness assets) and seed (baseline repo
+        # state, env setup). Never copied from the agent env — those are
         # untrusted by definition.
-        # Order matters: seed FIRST (it resets the repo to the base commit,
-        # which would wipe uploaded deliverables), THEN overlay agent work.
+        # Order matters: task_files FIRST so seed scripts can consume them
+        # (seeds read from /task_files/, e.g. SWE-bench-Pro's seed.py loading
+        # run_script.sh — under the old seed-first order those reads silently
+        # no-op'd via the seed's missing-file guard); seed SECOND (it may
+        # reset the workspace to the base commit, which would wipe uploaded
+        # deliverables); agent deliverables LAST so no seed-side reset can
+        # wipe them. This matches the initial setup order in on_task_start
+        # (task_files → seed).
         task = self._tasks.get(task_id)
         seed_fn = self._seed_fns.get(env_path_str) if env_path and self._tasklist_path else None
         try:
-            if task and seed_fn:
-                _logger.info(f"untrusted-agent: re-seeding fresh env for {task_id}")
-                seed_args = task.custom_fields.get("seed_args")
-
-                async def _seed_once():
-                    result = seed_fn(seed_args, fresh_env)
-                    if inspect.isawaitable(result):
-                        await result
-
-                # Transient retry: seed starts by resetting the repo to the
-                # base commit, so re-running it after a mid-seed transient
-                # failure is safe (it converges to the same baseline state).
-                await _retry_transient(_seed_once, what=f"re-seeding of fresh env for {task_id}")
             if task:
                 task_files = self._package_task_files(task)
                 if task_files:
@@ -626,6 +619,20 @@ class VivariumAgent(Agent):
                         )
                     except Exception as e:
                         raise UntrustedSwapError(f"could not upload task_files to fresh env for {task_id}: {e}") from e
+            if task and seed_fn:
+                _logger.info(f"untrusted-agent: re-seeding fresh env for {task_id}")
+                seed_args = task.custom_fields.get("seed_args")
+
+                async def _seed_once():
+                    result = seed_fn(seed_args, fresh_env)
+                    if inspect.isawaitable(result):
+                        await result
+
+                # Transient retry: seed is expected to be idempotent (the
+                # initial setup flow already relies on this via on_task_start
+                # retries), so re-running it after a mid-seed transient
+                # failure converges to the same baseline state.
+                await _retry_transient(_seed_once, what=f"re-seeding of fresh env for {task_id}")
 
             # Re-upload saved paths (agent deliverables) on top of the seeded baseline
             for path, archive in saved.items():
