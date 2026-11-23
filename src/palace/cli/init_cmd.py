@@ -177,7 +177,7 @@ def _create_scaffold(
 
         # Create spec.json (vivarium runtime spec, declarative format)
         spec = {
-            "machines": {"agent": {"image": env_image or "vivarium-env", "networks": ["internal"], "idle": True}},
+            "machines": {"agent": {"image": env_image or "vivarium-env", "networks": ["internal"]}},
             "networks": {"internal": {"internet": False}},
             "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
         }

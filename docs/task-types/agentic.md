@@ -107,10 +107,6 @@ Machine-level keys:
 | `security` | object | Optional security options |
 | `gpu` | object | Optional GPU configuration |
 
-!!! note
-    A per-machine `idle` key is accepted but ignored: machine lifecycle is
-    role-based, not idleness-based.
-
 For custom images, place a `Dockerfile` in the environment directory and set `"image": "./Dockerfile"`.
 
 ### Multi-Environment Tasklists

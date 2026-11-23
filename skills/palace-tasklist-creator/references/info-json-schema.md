@@ -205,9 +205,6 @@ When multiple environments exist, each task MUST have `"env": "env-name"` pointi
 | `security` | object | Security options |
 | `gpu` | object | GPU configuration |
 
-!!! note
-    A per-machine `idle` key is accepted but ignored — machine lifecycle is role-based.
-
 ## Complete Examples
 
 ### Minimal QA
