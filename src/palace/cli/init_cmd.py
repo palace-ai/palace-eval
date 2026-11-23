@@ -23,7 +23,7 @@ from palace.utils.paths import TASKLISTS_PATH
 from palace.utils.printing import print
 
 # Task type templates
-TASK_TYPES = ["QA", "Classification", "CriteriaEvaluation", "InstructionFollowing", "Agentic"]
+TASK_TYPES = ["QA", "Classification", "Criteria Evaluation", "Instruction Following", "Agentic"]
 CATEGORIES = ["Knowledge", "Reasoning", "Coding", "Safety", "Instruction Following", "Agentic", "Multimodal", "Other"]
 
 
