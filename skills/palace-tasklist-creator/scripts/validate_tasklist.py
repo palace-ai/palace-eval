@@ -64,7 +64,10 @@ def validate(tasklist_path: Path) -> bool:
     else:
         ok(f"task_type: {task_type}")
 
-    # Agentic must have an environment spec (matches palace's spec.json discovery)
+    # Agentic environment structure (mirrors palace's spec.json discovery):
+    # both layouts at once is an error; NO spec.json is a warning because the
+    # runtime deliberately falls back to vivarium's default spec in that case
+    # (see orchestrator.py and vivarium_agent.py discovery).
     if task_type == "Agentic":
         env_dir = tasklist_path / "environment"
         has_single_spec = env_dir.is_dir() and (env_dir / "spec.json").exists()
@@ -72,7 +75,10 @@ def validate(tasklist_path: Path) -> bool:
         if has_single_spec and has_multi_spec:
             passed = error("Ambiguous environment structure: both environment/spec.json and environment/*/spec.json exist") and passed
         elif not (has_single_spec or has_multi_spec):
-            passed = error("Agentic tasklist must have environment/spec.json (or environment/*/spec.json for multi-env)") and passed
+            warn(
+                "No environment/spec.json found — evaluation will use vivarium's default spec "
+                "(add environment/spec.json, or environment/<name>/spec.json for multi-env)"
+            )
 
     # Agentic: check images are self-contained
     if task_type == "Agentic":
@@ -105,6 +111,7 @@ def validate(tasklist_path: Path) -> bool:
 
         def _load_spec(spec_path: Path) -> dict | None:
             """Load a spec.json, reporting problems instead of crashing."""
+            nonlocal passed
             try:
                 spec = json.loads(spec_path.read_text())
             except json.JSONDecodeError as e:

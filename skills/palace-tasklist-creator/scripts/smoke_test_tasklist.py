@@ -50,26 +50,41 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
         print(f"⚠ Skipping — task_type is '{info.get('task_type')}', not Agentic")
         return True
 
+    env_dir = tasklist_path / "environment"
+
+    # Discover environments the same way palace's orchestrator does:
+    # environment/*/spec.json (multi-env), environment/spec.json (single),
+    # or vivarium's default spec when neither exists. Parsed BEFORE the
+    # vivarium import so a broken tasklist fails with a spec diagnostic
+    # instead of an SDK/connection error.
+    env_specs: dict[str, dict] = {}
+    spec_parse_failed = False
+    if env_dir.is_dir():
+        for d in sorted(env_dir.iterdir()):
+            if d.is_dir() and (d / "spec.json").exists():
+                try:
+                    env_specs[d.name] = json.loads((d / "spec.json").read_text())
+                except json.JSONDecodeError as e:
+                    print(f"  ✗ environment/{d.name}/spec.json is invalid JSON: {e}")
+                    spec_parse_failed = True
+        if not env_specs and not spec_parse_failed and (env_dir / "spec.json").exists():
+            try:
+                env_specs["default"] = json.loads((env_dir / "spec.json").read_text())
+            except json.JSONDecodeError as e:
+                print(f"  ✗ environment/spec.json is invalid JSON: {e}")
+                spec_parse_failed = True
+    if not env_specs:
+        env_specs = {"default": {}}  # Empty spec = vivarium defaults
+    if spec_parse_failed:
+        print("\n✗ SMOKE TEST FAILED — fix spec.json errors above")
+        return False
+
     from vivarium import Client
 
     with open(tasklist_path / "tasks.json") as f:
         tasks = json.load(f)
 
     tasks = tasks[:task_limit]
-    env_dir = tasklist_path / "environment"
-
-    # Discover environments the same way palace's orchestrator does:
-    # environment/*/spec.json (multi-env), environment/spec.json (single),
-    # or vivarium's default spec when neither exists.
-    env_specs: dict[str, dict] = {}
-    if env_dir.is_dir():
-        for d in sorted(env_dir.iterdir()):
-            if d.is_dir() and (d / "spec.json").exists():
-                env_specs[d.name] = json.loads((d / "spec.json").read_text())
-        if not env_specs and (env_dir / "spec.json").exists():
-            env_specs["default"] = json.loads((env_dir / "spec.json").read_text())
-    if not env_specs:
-        env_specs = {"default": {}}  # Empty spec = vivarium defaults
 
     # Load seed and verify functions — per-env first, fall back to shared
     # environment/ files, mirroring VivariumAgent.on_tasklist_start. Resolved
