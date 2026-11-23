@@ -120,73 +120,93 @@ This is used for HuggingFace-sourced datasets (e.g., IFEval) where constraints c
 
 ### Agentic
 
-Agentic tasklists have NO `task_type_fields` in info.json. Instead, they use the `env` field:
+Agentic tasklists have NO `task_type_fields` in info.json. Runtime configuration
+lives in `environment/spec.json` instead; info.json carries evaluation metadata only.
 
-```json
-{
-  "env": {
-    "environment_name": {
-      "image": "docker-image:tag",
-      "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-      "resources": {"memory": "4g", "cpus": 2.0, "network": true},
-      "custom_tools": ["tools/my_tool.py"],
-      "agent_instructions": "System prompt for the agent (optional)"
-    }
-  }
-}
-```
+## Environment Configuration (Agentic Only)
 
-## env Configuration (Agentic Only)
+Environments are declared with `spec.json` files, discovered by palace the same
+way vivarium parses them:
 
-The `env` key maps named environments to their specifications:
+- `environment/spec.json` — single environment (most common)
+- `environment/<name>/spec.json` — one environment per directory; tasks select
+  one via the `"env": "<name>"` field in tasks.json
 
 ### Single Environment (most common)
 
+`environment/spec.json`:
+
 ```json
 {
-  "env": {
-    "default": {
-      "image": "my-benchmark-image",
-      "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-      "resources": {"memory": "4g", "cpus": 2.0, "network": true}
+  "machines": {
+    "agent": {
+      "image": "python:3.11-slim",
+      "networks": ["external"],
+      "resources": {"memory": "4g", "cpus": 2}
     }
-  }
+  },
+  "networks": {
+    "external": {"internet": true}
+  },
+  "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
+  "custom_tools": ["tools/my_tool.py"],
+  "agent_instructions": "System prompt for the agent (optional)"
 }
 ```
 
 ### Multiple Environments (e.g., per-task Docker images)
 
+```
+environment/
+├── env-python-repo/
+│   └── spec.json
+└── env-js-repo/
+    └── spec.json
+```
+
+`environment/env-python-repo/spec.json`:
+
 ```json
 {
-  "env": {
-    "env-python-repo": {
+  "machines": {
+    "agent": {
       "image": "registry/image:python-tag",
-      "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-      "resources": {"memory": "8g", "cpus": 2.0, "network": true}
-    },
-    "env-js-repo": {
-      "image": "registry/image:js-tag",
-      "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-      "resources": {"memory": "8g", "cpus": 2.0, "network": true}
+      "networks": ["external"],
+      "resources": {"memory": "8g", "cpus": 2}
     }
+  },
+  "networks": {
+    "external": {"internet": true}
   }
 }
 ```
 
-When multiple envs exist, each task MUST have `"env": "env-name"` pointing to its environment.
+When multiple environments exist, each task MUST have `"env": "env-name"` pointing to its environment directory.
 
-### env Fields
+### spec.json Keys
 
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `image` | Yes | string | Docker image name (or tag). Pulled/built by vivarium. |
-| `tools` | Yes | string[] | Built-in vivarium tools to enable. Options: `bash`, `read`, `write`, `edit`, `grep`, `glob`, `ls`, `web_fetch`, `web_search` |
-| `resources` | No | object | Container resource limits |
-| `resources.memory` | No | string | Memory limit (e.g., `"4g"`, `"512m"`) |
-| `resources.cpus` | No | number | CPU limit (e.g., `2.0`) |
-| `resources.network` | No | boolean | Whether container has network access |
+| Key | Required | Type | Description |
+|-----|----------|------|-------------|
+| `machines` | No (by default) | object | Maps machine names to their configuration. Omitted → single default `agent` machine on vivarium's `vivarium-env` image. |
+| `networks` | No | object | Network definitions. Default: single `internal` network without internet. |
+| `tools` | No | string[] | Built-in vivarium tools to enable. Default set: `bash`, `read`, `write`, `edit`, `grep`, `glob`, `ls`, `web_search`, `web_fetch`, `notify`, `delegate` |
 | `custom_tools` | No | string[] | Paths to custom tool files relative to `environment/` |
 | `agent_instructions` | No | string | System prompt prepended to agent's context |
+| `agent_machine` | No | string | Machine the agent runs on (defaults to the first machine) |
+| `vscode` | No | object | VS Code server configuration |
+
+### Machine-Level Keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `image` | string | Docker image name or `./Dockerfile` to build from the environment directory |
+| `networks` | string[] | Networks the machine attaches to |
+| `resources` | object | Resource limits: `memory` (e.g., `"4g"`), `cpus` (e.g., `2`), `pids` |
+| `security` | object | Security options |
+| `gpu` | object | GPU configuration |
+
+!!! note
+    A per-machine `idle` key is accepted but ignored — machine lifecycle is role-based.
 
 ## Complete Examples
 
@@ -239,10 +259,18 @@ info.json (evaluation metadata only):
 environment/spec.json (runtime configuration):
 ```json
 {
-  "image": "python:3.11-slim",
+  "machines": {
+    "agent": {
+      "image": "python:3.11-slim",
+      "networks": ["external"],
+      "resources": {"memory": "4g", "cpus": 2}
+    }
+  },
+  "networks": {
+    "external": {"internet": true}
+  },
   "tools": ["bash", "read", "write", "edit"],
-  "custom_tools": ["tools/query_db.py", "tools/send_email.py"],
-  "resources": {"memory": "4g", "cpus": 2}
+  "custom_tools": ["tools/query_db.py", "tools/send_email.py"]
 }
 ```
 

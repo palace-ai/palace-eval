@@ -50,10 +50,6 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
         print(f"⚠ Skipping — task_type is '{info.get('task_type')}', not Agentic")
         return True
 
-    if "env" not in info:
-        print("✗ info.json missing 'env' key")
-        return False
-
     from vivarium import Client
 
     with open(tasklist_path / "tasks.json") as f:
@@ -61,6 +57,19 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
 
     tasks = tasks[:task_limit]
     env_dir = tasklist_path / "environment"
+
+    # Discover environments the same way palace's orchestrator does:
+    # environment/*/spec.json (multi-env), environment/spec.json (single),
+    # or vivarium's default spec when neither exists.
+    env_specs: dict[str, dict] = {}
+    if env_dir.is_dir():
+        for d in sorted(env_dir.iterdir()):
+            if d.is_dir() and (d / "spec.json").exists():
+                env_specs[d.name] = json.loads((d / "spec.json").read_text())
+        if not env_specs and (env_dir / "spec.json").exists():
+            env_specs["default"] = json.loads((env_dir / "spec.json").read_text())
+    if not env_specs:
+        env_specs = {"default": {}}  # Empty spec = vivarium defaults
 
     # Load seed and verify functions
     seed_fn = None

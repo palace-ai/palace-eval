@@ -113,7 +113,7 @@ Fix any reported errors, then your tasklist is ready for evaluation with ``palac
 
 - **task_type strings are case-sensitive**: Use exactly `"QA"`, `"Classification"`, `"Criteria Evaluation"`, `"Instruction Following"`, `"Agentic"`.
 - **id must be unique** across all tasks in the tasklist.
-- **Agentic info.json MUST have `"env"` key**: VivariumAgent raises ValueError without it.
+- **Agentic tasklists need `environment/spec.json`** (or `environment/<name>/spec.json` for multi-env): the runtime discovers environments via spec.json files, not via an `env` key in info.json.
 - **seed.py and verify.py must be async**: `async def seed(seed_args, container)` — NOT `def seed(...)`.
 - **Custom tool execute() must be async**: `async def execute(args, context)` — container accessed via `context["container"]` with methods `await container.read(...)`, `await container.write(...)`, `await container.exec(...)`.
 - **container methods are async**: `await container.read()` returns str, `await container.write()` takes bytes, `await container.exec()` returns `(code, output)`.

@@ -236,7 +236,11 @@ def validate(tasklist_path: Path) -> bool:
                         ok(f"{env_path}/tools/{tool_file.name} has correct async signature")
 
         # Multi-env: check tasks have env field
-        if "env" in info and len(info["env"]) > 1:
+        env_root = tasklist_path / "environment"
+        multi_env_names = sorted(
+            d.name for d in env_root.iterdir() if d.is_dir() and (d / "spec.json").exists()
+        ) if env_root.is_dir() else []
+        if len(multi_env_names) > 1:
             missing_env = [t.get("id", f"idx-{i}") for i, t in enumerate(tasks) if "env" not in t]
             if missing_env:
                 passed = error(f"Multi-env tasklist but {len(missing_env)} task(s) missing 'env' field") and passed
@@ -244,8 +248,7 @@ def validate(tasklist_path: Path) -> bool:
                 ok("All tasks specify their environment")
 
             # Check env references are valid
-            valid_envs = set(info["env"].keys())
-            invalid_refs = [t.get("id") for t in tasks if "env" in t and t["env"] not in valid_envs]
+            invalid_refs = [t.get("id") for t in tasks if "env" in t and t["env"] not in multi_env_names]
             if invalid_refs:
                 passed = error(f"Tasks reference unknown environments: {invalid_refs[:5]}") and passed
 
