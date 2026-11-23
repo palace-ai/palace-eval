@@ -71,13 +71,23 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
     if not env_specs:
         env_specs = {"default": {}}  # Empty spec = vivarium defaults
 
-    # Load seed and verify functions
-    seed_fn = None
-    verify_fn = None
-    if (env_dir / "seed.py").exists():
-        seed_fn = _load_fn(env_dir / "seed.py", "seed")
-    if (env_dir / "verify.py").exists():
-        verify_fn = _load_fn(env_dir / "verify.py", "verify")
+    # Load seed and verify functions — per-env first, fall back to shared
+    # environment/ files, mirroring VivariumAgent.on_tasklist_start. Resolved
+    # per env_name so multi-env tasklists get the right override.
+    def _resolve_fn(env_name: str, filename: str):
+        per_env = env_dir / env_name / filename
+        if per_env.exists():
+            return _load_fn(per_env, filename.removesuffix(".py"))
+        shared = env_dir / filename
+        if shared.exists():
+            return _load_fn(shared, filename.removesuffix(".py"))
+        return None
+
+    seed_fns: dict[str, object] = {}
+    verify_fns: dict[str, object] = {}
+    for env_name in env_specs:
+        seed_fns[env_name] = _resolve_fn(env_name, "seed.py")
+        verify_fns[env_name] = _resolve_fn(env_name, "verify.py")
 
     # Tar the environment directory
     archive_bytes = _tar_gz(env_dir) if env_dir.is_dir() else None
@@ -142,6 +152,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
                 continue
 
             # Run seed
+            seed_fn = seed_fns[env_name]
             if seed_fn:
                 try:
                     print("    Running seed...", end=" ", flush=True)
@@ -154,6 +165,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
                     continue
 
             # Attempt verify (expected to partially fail — no agent acted)
+            verify_fn = verify_fns[env_name]
             if verify_fn:
                 try:
                     print("    Running verify (dry)...", end=" ", flush=True)

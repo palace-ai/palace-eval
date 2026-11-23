@@ -406,4 +406,3 @@ async def seed(seed_args, container):
 ```
 
 The agent can then reach machines by hostname (e.g., `curl http://webserver:8080`).
-erver:8080`).

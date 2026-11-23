@@ -48,9 +48,12 @@ palace config
 | `url` | `OPENAI_LIKE_API_BASE_URL` | API endpoint URL |
 | `key` | `OPENAI_LIKE_API_KEY` | API key |
 | `judge_model` | `JUDGE_MODEL` | Model for answer verification |
+| `judge_url` | `JUDGE_API_URL` | Separate API endpoint for the judge model |
+| `judge_key` | `JUDGE_API_KEY` | API key for the judge endpoint |
 | `concurrency` | `PALACE_CONCURRENCY` | Parallel tasks (default: 25) |
 | `huggingface_token` | `HUGGINGFACE_TOKEN` | For gated datasets |
 | `github_token` | `GITHUB_TOKEN` | For higher rate limits |
+| `gitlab_token` | `GITLAB_TOKEN` | For publishing to GitLab package registries |
 | `vivarium_url` | `VIVARIUM_URL` | Remote Vivarium URL |
 
 Priority: CLI flags > environment variables > config file
