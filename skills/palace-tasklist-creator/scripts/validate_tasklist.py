@@ -64,12 +64,18 @@ def validate(tasklist_path: Path) -> bool:
     else:
         ok(f"task_type: {task_type}")
 
-    # Agentic must have env
-    if task_type == "Agentic" and "env" not in info:
-        passed = error("Agentic tasklist must have 'env' key in info.json") and passed
+    # Agentic must have an environment spec (matches palace's spec.json discovery)
+    if task_type == "Agentic":
+        env_dir = tasklist_path / "environment"
+        has_single_spec = env_dir.is_dir() and (env_dir / "spec.json").exists()
+        has_multi_spec = env_dir.is_dir() and any((d / "spec.json").exists() for d in env_dir.iterdir() if d.is_dir())
+        if has_single_spec and has_multi_spec:
+            passed = error("Ambiguous environment structure: both environment/spec.json and environment/*/spec.json exist") and passed
+        elif not (has_single_spec or has_multi_spec):
+            passed = error("Agentic tasklist must have environment/spec.json (or environment/*/spec.json for multi-env)") and passed
 
-    # Agentic: check image is self-contained
-    if task_type == "Agentic" and "env" in info:
+    # Agentic: check images are self-contained
+    if task_type == "Agentic":
         public_prefixes = (
             "python:",
             "ubuntu:",
@@ -81,20 +87,32 @@ def validate(tasklist_path: Path) -> bool:
             "fedora:",
             "centos:",
         )
-        for env_name, env_spec in info["env"].items():
-            img = env_spec.get("image", "")
+
+        def _check_image(env_name: str, img: str) -> None:
             if not img:
-                continue  # No image = uses vivarium default
+                return  # No image = uses vivarium default
+            if img == "./Dockerfile":
+                return  # Built from environment/, self-contained by definition
             is_public = any(img.startswith(p) for p in public_prefixes) or "/" in img
             if is_public:
-                continue
-            env_path = env_spec.get("path", "environment")
-            env_dir = tasklist_path / env_path
+                return
+            env_path = tasklist_path / "environment"
             has_dockerfile = env_dir.is_dir() and (env_dir / "Dockerfile").exists()
             if not has_dockerfile:
                 warn(
-                    f"env '{env_name}' uses custom image '{img}' but no Dockerfile in {env_path}/ — tasklist may not be self-contained"
+                    f"env '{env_name}' uses custom image '{img}' but no Dockerfile in environment/ — tasklist may not be self-contained"
                 )
+
+        if env_dir.is_dir():
+            for d in sorted(env_dir.iterdir()):
+                if d.is_dir() and (d / "spec.json").exists():
+                    spec = json.loads((d / "spec.json").read_text())
+                    for m_name, machine in (spec.get("machines") or {}).items():
+                        _check_image(f"{d.name}/{m_name}", machine.get("image", ""))
+            if (env_dir / "spec.json").exists():
+                spec = json.loads((env_dir / "spec.json").read_text())
+                for m_name, machine in (spec.get("machines") or {}).items():
+                    _check_image(m_name, machine.get("image", ""))
 
     # Classification should have task_type_fields.labels
     if task_type == "Classification":
@@ -161,13 +179,16 @@ def validate(tasklist_path: Path) -> bool:
 
     # 3. Agentic-specific checks
     if task_type == "Agentic":
-        # Collect all unique env paths to validate
+        # Collect all unique env directories to validate, mirroring palace's
+        # spec.json discovery: environment/*/spec.json or environment/spec.json.
         env_paths = {}
-        if "env" in info:
-            for env_name, env_spec in info["env"].items():
-                env_paths[env_name] = env_spec.get("path", "environment")
-        else:
-            env_paths["default"] = "environment"
+        env_root = tasklist_path / "environment"
+        if env_root.is_dir():
+            for d in sorted(env_root.iterdir()):
+                if d.is_dir() and (d / "spec.json").exists():
+                    env_paths[d.name] = str(d.relative_to(tasklist_path))
+            if not env_paths and (env_root / "spec.json").exists():
+                env_paths["default"] = "environment"
 
         for env_name, env_path in env_paths.items():
             env_dir = tasklist_path / env_path

@@ -86,18 +86,22 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
             task_id = task.get("id", f"task_{i}")
             env_name = task.get("env")
             if env_name is None:
-                if len(info["env"]) == 1:
-                    env_name = next(iter(info["env"]))
+                if len(env_specs) == 1:
+                    env_name = next(iter(env_specs))
                 else:
                     print(f"  ✗ [{task_id}] No 'env' field and multiple environments defined")
                     all_passed = False
                     continue
+            if env_name not in env_specs:
+                print(f"  ✗ [{task_id}] Unknown env '{env_name}' (defined: {list(env_specs)})")
+                all_passed = False
+                continue
 
             print(f"  [{task_id}] env={env_name}")
 
             # Register spec (lazy, once per env_name)
             if env_name not in registered_specs:
-                spec_json = info["env"][env_name]
+                spec_json = env_specs[env_name]
                 try:
                     print(f"    Registering spec '{env_name}'...", end=" ", flush=True)
                     spec_id = await client.register_spec(spec_json, archive_bytes)

@@ -14,6 +14,7 @@ Complete reference for the PALACE command-line interface.
 | `palace init NAME` | Create new benchmark |
 | `palace validate NAME` | Validate a benchmark |
 | `palace publish NAME` | Publish to HuggingFace |
+| `palace version` | Show the installed palace version |
 
 ## Configuration
 
