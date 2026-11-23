@@ -64,12 +64,24 @@ def validate(tasklist_path: Path) -> bool:
     else:
         ok(f"task_type: {task_type}")
 
-    # Agentic must have env
-    if task_type == "Agentic" and "env" not in info:
-        passed = error("Agentic tasklist must have 'env' key in info.json") and passed
+    # Agentic environment structure (mirrors palace's spec.json discovery):
+    # both layouts at once is an error; NO spec.json is a warning because the
+    # runtime deliberately falls back to vivarium's default spec in that case
+    # (see orchestrator.py and vivarium_agent.py discovery).
+    if task_type == "Agentic":
+        env_dir = tasklist_path / "environment"
+        has_single_spec = env_dir.is_dir() and (env_dir / "spec.json").exists()
+        has_multi_spec = env_dir.is_dir() and any((d / "spec.json").exists() for d in env_dir.iterdir() if d.is_dir())
+        if has_single_spec and has_multi_spec:
+            passed = error("Ambiguous environment structure: both environment/spec.json and environment/*/spec.json exist") and passed
+        elif not (has_single_spec or has_multi_spec):
+            warn(
+                "No environment/spec.json found — evaluation will use vivarium's default spec "
+                "(add environment/spec.json, or environment/<name>/spec.json for multi-env)"
+            )
 
-    # Agentic: check image is self-contained
-    if task_type == "Agentic" and "env" in info:
+    # Agentic: check images are self-contained
+    if task_type == "Agentic":
         public_prefixes = (
             "python:",
             "ubuntu:",
@@ -81,20 +93,57 @@ def validate(tasklist_path: Path) -> bool:
             "fedora:",
             "centos:",
         )
-        for env_name, env_spec in info["env"].items():
-            img = env_spec.get("image", "")
+
+        def _check_image(env_name: str, img: str) -> None:
             if not img:
-                continue  # No image = uses vivarium default
+                return  # No image = uses vivarium default
+            if img == "./Dockerfile":
+                return  # Built from environment/, self-contained by definition
             is_public = any(img.startswith(p) for p in public_prefixes) or "/" in img
             if is_public:
-                continue
-            env_path = env_spec.get("path", "environment")
-            env_dir = tasklist_path / env_path
+                return
+            env_path = tasklist_path / "environment"
             has_dockerfile = env_dir.is_dir() and (env_dir / "Dockerfile").exists()
             if not has_dockerfile:
                 warn(
-                    f"env '{env_name}' uses custom image '{img}' but no Dockerfile in {env_path}/ — tasklist may not be self-contained"
+                    f"env '{env_name}' uses custom image '{img}' but no Dockerfile in environment/ — tasklist may not be self-contained"
                 )
+
+        def _load_spec(spec_path: Path) -> dict | None:
+            """Load a spec.json, reporting problems instead of crashing."""
+            nonlocal passed
+            try:
+                spec = json.loads(spec_path.read_text())
+            except json.JSONDecodeError as e:
+                passed = error(f"{spec_path.relative_to(tasklist_path)} is invalid JSON: {e}") and passed
+                return None
+            if not isinstance(spec, dict):
+                passed = error(f"{spec_path.relative_to(tasklist_path)} must be a JSON object") and passed
+                return None
+            return spec
+
+        def _check_spec_images(env_label: str, spec: dict) -> None:
+            machines = spec.get("machines")
+            if not isinstance(machines, dict):
+                if machines is not None:
+                    warn(f"env '{env_label}': 'machines' is not an object — skipping image checks")
+                return
+            for m_name, machine in machines.items():
+                if not isinstance(machine, dict):
+                    continue
+                full = f"{env_label}/{m_name}" if env_label else m_name
+                _check_image(full, machine.get("image", ""))
+
+        if env_dir.is_dir():
+            for d in sorted(env_dir.iterdir()):
+                if d.is_dir() and (d / "spec.json").exists():
+                    spec = _load_spec(d / "spec.json")
+                    if spec is not None:
+                        _check_spec_images(d.name, spec)
+            if (env_dir / "spec.json").exists():
+                spec = _load_spec(env_dir / "spec.json")
+                if spec is not None:
+                    _check_spec_images("", spec)
 
     # Classification should have task_type_fields.labels
     if task_type == "Classification":
@@ -161,13 +210,16 @@ def validate(tasklist_path: Path) -> bool:
 
     # 3. Agentic-specific checks
     if task_type == "Agentic":
-        # Collect all unique env paths to validate
+        # Collect all unique env directories to validate, mirroring palace's
+        # spec.json discovery: environment/*/spec.json or environment/spec.json.
         env_paths = {}
-        if "env" in info:
-            for env_name, env_spec in info["env"].items():
-                env_paths[env_name] = env_spec.get("path", "environment")
-        else:
-            env_paths["default"] = "environment"
+        env_root = tasklist_path / "environment"
+        if env_root.is_dir():
+            for d in sorted(env_root.iterdir()):
+                if d.is_dir() and (d / "spec.json").exists():
+                    env_paths[d.name] = str(d.relative_to(tasklist_path))
+            if not env_paths and (env_root / "spec.json").exists():
+                env_paths["default"] = "environment"
 
         for env_name, env_path in env_paths.items():
             env_dir = tasklist_path / env_path
@@ -177,30 +229,36 @@ def validate(tasklist_path: Path) -> bool:
 
             ok(f"{env_path}/ directory exists")
 
-            # seed.py
+            # seed.py — per-env first, fall back to shared environment/seed.py
+            # (same resolution as VivariumAgent.on_tasklist_start)
             seed_path = env_dir / "seed.py"
+            if not seed_path.exists() and (tasklist_path / "environment" / "seed.py").exists():
+                seed_path = tasklist_path / "environment" / "seed.py"
             if not seed_path.exists():
                 warn(f"{env_path}/seed.py not found (optional but common)")
             else:
                 if not _check_async_function(seed_path, "seed"):
-                    passed = error(f"{env_path}/seed.py must define 'async def seed(seed_args, container)'") and passed
+                    passed = error(f"{seed_path.relative_to(tasklist_path)} must define 'async def seed(seed_args, container)'") and passed
                 else:
-                    ok(f"{env_path}/seed.py has correct async signature")
+                    ok(f"{seed_path.relative_to(tasklist_path)} has correct async signature")
 
-            # verify.py
+            # verify.py — per-env first, fall back to shared environment/verify.py
+            # (same resolution as the evaluation orchestrator)
             verify_path = env_dir / "verify.py"
+            if not verify_path.exists() and (tasklist_path / "environment" / "verify.py").exists():
+                verify_path = tasklist_path / "environment" / "verify.py"
             if not verify_path.exists():
-                passed = error(f"Agentic env '{env_name}' missing {env_path}/verify.py") and passed
+                passed = error(f"Agentic env '{env_name}' missing {env_path}/verify.py (and no shared environment/verify.py)") and passed
             else:
                 if not _check_async_function(verify_path, "verify"):
                     passed = (
                         error(
-                            f"{env_path}/verify.py must define 'async def verify(expected_outcome, agent_answer, ctx)'"
+                            f"{verify_path.relative_to(tasklist_path)} must define 'async def verify(expected_outcome, agent_answer, ctx)'"
                         )
                         and passed
                     )
                 else:
-                    ok(f"{env_path}/verify.py has correct async signature")
+                    ok(f"{verify_path.relative_to(tasklist_path)} has correct async signature")
 
             # Custom tools
             tools_dir = env_dir / "tools"
@@ -215,7 +273,11 @@ def validate(tasklist_path: Path) -> bool:
                         ok(f"{env_path}/tools/{tool_file.name} has correct async signature")
 
         # Multi-env: check tasks have env field
-        if "env" in info and len(info["env"]) > 1:
+        env_root = tasklist_path / "environment"
+        multi_env_names = sorted(
+            d.name for d in env_root.iterdir() if d.is_dir() and (d / "spec.json").exists()
+        ) if env_root.is_dir() else []
+        if len(multi_env_names) > 1:
             missing_env = [t.get("id", f"idx-{i}") for i, t in enumerate(tasks) if "env" not in t]
             if missing_env:
                 passed = error(f"Multi-env tasklist but {len(missing_env)} task(s) missing 'env' field") and passed
@@ -223,8 +285,7 @@ def validate(tasklist_path: Path) -> bool:
                 ok("All tasks specify their environment")
 
             # Check env references are valid
-            valid_envs = set(info["env"].keys())
-            invalid_refs = [t.get("id") for t in tasks if "env" in t and t["env"] not in valid_envs]
+            invalid_refs = [t.get("id") for t in tasks if "env" in t and t["env"] not in multi_env_names]
             if invalid_refs:
                 passed = error(f"Tasks reference unknown environments: {invalid_refs[:5]}") and passed
 

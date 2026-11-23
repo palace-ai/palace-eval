@@ -68,24 +68,48 @@ MyAgenticBenchmark/
 
 ### spec.json
 
-The vivarium runtime specification defines the Docker image, available tools, and resource limits:
+The vivarium runtime specification declares the machines, networks, and tools
+available to the agent:
 
 ```json
 {
-    "image": "python:3.11-slim",
-    "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-    "resources": {
-        "memory": "4g",
-        "cpus": 2
-    }
+    "machines": {
+        "agent": {
+            "image": "python:3.11-slim",
+            "networks": ["external"],
+            "resources": {"memory": "4g", "cpus": 2}
+        }
+    },
+    "networks": {
+        "external": {"internet": true}
+    },
+    "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"]
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `image` | string | Docker image name or `./Dockerfile` for custom build |
-| `tools` | array | Vivarium tools to enable (bash, read, write, edit, grep, glob, ls, web_search, web_fetch) |
-| `resources` | object | Optional resource limits: `memory`, `cpus`, `network` (bool) |
+| `machines` | object | Required by default. Maps machine names to their configuration. Omitting it yields a single default `agent` machine on the `vivarium-env` image. |
+| `networks` | object | Network definitions. Defaults to a single `internal` network without internet access. |
+| `tools` | array | Vivarium tools to enable. Omitting it yields vivarium's default tool set: bash, read, write, edit, grep, glob, ls, web_search, web_fetch, notify, delegate. |
+| `custom_tools` | array | Optional paths to custom tool scripts. |
+| `agent_instructions` | string | Optional system instructions for the agent. |
+| `agent_machine` | string | Optional name of the machine the agent runs on (defaults to the first machine). |
+| `vscode` | object | Optional VS Code server configuration. |
+
+Machine-level keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `image` | string | Docker image name, or `./Dockerfile` for a custom build from the environment directory |
+| `networks` | array | Networks the machine attaches to |
+| `resources` | object | Optional resource limits: `memory`, `cpus`, `pids` |
+| `security` | object | Optional security options |
+| `gpu` | object | Optional GPU configuration |
+
+!!! note
+    A per-machine `idle` key is accepted but ignored: machine lifecycle is
+    role-based, not idleness-based.
 
 For custom images, place a `Dockerfile` in the environment directory and set `"image": "./Dockerfile"`.
 

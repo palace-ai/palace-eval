@@ -238,23 +238,14 @@ out_dir.mkdir(parents=True, exist_ok=True)
 (out_dir / "task_files").mkdir(exist_ok=True)
 
 tasks = []
-envs = {}
 for item in ds:
-    env_name = item["docker_tag"]
-    if env_name not in envs:
-        envs[env_name] = {
-            "image": f"registry/{env_name}",
-            "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-            "resources": {"memory": "8g", "cpus": 2.0, "network": True},
-        }
-
     task_id = item["instance_id"]
     tasks.append(
         {
             "id": task_id,
             "task_type": "Agentic",
             "objective": item["problem_statement"],
-            "env": env_name,
+            "env": item["docker_tag"],
             "seed_args": {"base_commit": item["base_commit"], "problem_statement": item["problem_statement"]},
             "expected_outcome": {"fail_to_pass": item["fail_to_pass"], "pass_to_pass": item["pass_to_pass"]},
         }
@@ -266,7 +257,6 @@ info = {
     "category": "Code Generation",
     "input_modalities": ["text"],
     "output_modalities": ["text"],
-    "env": envs,
 }
 
 json.dump(tasks, open(out_dir / "tasks.json", "w"), indent=2)
@@ -277,6 +267,27 @@ env_dir = out_dir / "environment"
 env_dir.mkdir(exist_ok=True)
 shutil.copy("seed.py", env_dir / "seed.py")
 shutil.copy("verify.py", env_dir / "verify.py")
+
+# One spec.json per environment, next to the matching seed/verify files.
+# The directory name is the env name tasks refer to via "env".
+for docker_tag in sorted({item["docker_tag"] for item in ds}):
+    env_sub = env_dir / docker_tag
+    env_sub.mkdir(exist_ok=True)
+    (env_sub / "spec.json").write_text(
+        json.dumps(
+            {
+                "machines": {
+                    "agent": {
+                        "image": f"registry/{docker_tag}",
+                        "networks": ["external"],
+                        "resources": {"memory": "8g", "cpus": 2},
+                    }
+                },
+                "networks": {"external": {"internet": True}},
+            },
+            indent=2,
+        )
+    )
 ```
 
 ---
