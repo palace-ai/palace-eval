@@ -192,7 +192,7 @@ When multiple environments exist, each task MUST have `"env": "env-name"` pointi
 | `tools` | No | string[] | Built-in vivarium tools to enable. Default set: `bash`, `read`, `write`, `edit`, `grep`, `glob`, `ls`, `web_search`, `web_fetch`, `notify`, `delegate` |
 | `custom_tools` | No | string[] | Paths to custom tool files relative to `environment/` |
 | `agent_instructions` | No | string | System prompt prepended to agent's context |
-| `agent_machine` | No | string | Machine the agent runs on (defaults to the first machine) |
+| `agent_machine` | No | string | Machine the agent runs on (defaults to the machine named `agent`; if you rename or omit it, set `agent_machine` explicitly) |
 | `vscode` | No | object | VS Code server configuration |
 
 ### Machine-Level Keys
