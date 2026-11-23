@@ -1,9 +1,13 @@
 {
-  "image": "python:3.11-slim",
-  "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"],
-  "resources": {
-    "memory": "4g",
-    "cpus": 2.0,
-    "network": false
-  }
+  "machines": {
+    "agent": {
+      "image": "python:3.11-slim",
+      "networks": ["internal"],
+      "resources": {"memory": "4g", "cpus": 2}
+    }
+  },
+  "networks": {
+    "internal": {"internet": false}
+  },
+  "tools": ["bash", "read", "write", "edit", "grep", "glob", "ls"]
 }

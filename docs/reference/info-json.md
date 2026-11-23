@@ -26,6 +26,7 @@ Every PALACE tasklist requires an `info.json` file that defines metadata and eva
 | `input_modalities` | array | `["text"]` | Input data types in tasks: `"text"`, `"image"`, `"video"`, `"audio"`. Auto-detected by `palace download` from task attachments. |
 | `output_modalities` | array | `["text"]` | Expected output data types: `"text"`, `"image"`, `"video"`, `"audio"`. Defaults to `["text"]`. |
 | `objective_template` | string | `"{{objective}}"` | Template for wrapping task objectives. Uses `{{placeholder}}` syntax. |
+| `tasks_path` | string | `"tasks.json"` | Glob pattern (relative to the tasklist root) for locating task files, e.g. `tasks/*.json`. Allows splitting tasks across multiple JSON files; files are processed in sorted order. |
 
 ## Minimal Example
 

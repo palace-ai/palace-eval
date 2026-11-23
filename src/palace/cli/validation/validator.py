@@ -50,12 +50,12 @@ class ValidationIssue:
 # Required fields in info.json
 REQUIRED_INFO_FIELDS = ["name", "category", "task_type"]
 
-# Valid task types
+# Valid task types (must match the runtime dispatcher in palace.task_types.base.Task.from_dict)
 VALID_TASK_TYPES = [
     "QA",
     "Classification",
-    "CriteriaEvaluation",
-    "InstructionFollowing",
+    "Criteria Evaluation",
+    "Instruction Following",
     "Agentic",
 ]
 

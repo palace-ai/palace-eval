@@ -6,9 +6,10 @@ Complete guide for creating Agentic tasklists — benchmarks where an LLM agent 
 
 ```
 MyAgenticBench/
-├── info.json                  # Must have "env" key
+├── info.json                  # Evaluation metadata (no env config)
 ├── tasks.json                 # Tasks with seed_args + expected_outcome
 ├── environment/               # Required for Agentic type
+│   ├── spec.json             # Vivarium runtime spec (machines, networks, tools)
 │   ├── seed.py               # Prepares container state before agent runs
 │   ├── verify.py             # Verifies agent's work after it finishes
 │   ├── tools/                # Custom tools (one file per tool)
@@ -286,18 +287,20 @@ Set `"tools": []` (empty) if you ONLY want custom tools. Otherwise combine built
 
 ## Multi-Environment Tasklists
 
-When different tasks need different Docker images (e.g., SWE-bench Pro with per-repo images):
+When different tasks need different Docker images (e.g., SWE-bench Pro with per-repo images), declare one spec per environment directory:
 
-### info.json
+### environment/ layout
 
-```json
-{
-  "env": {
-    "python-django": {"image": "swe-images:django", "tools": ["bash", "read", "write", "edit"]},
-    "python-flask": {"image": "swe-images:flask", "tools": ["bash", "read", "write", "edit"]},
-    "js-express": {"image": "swe-images:express", "tools": ["bash", "read", "write", "edit"]}
-  }
-}
+```
+environment/
+├── python-django/
+│   └── spec.json      # {"machines": {"agent": {"image": "swe-images:django", "networks": ["external"]}}, ...}
+├── python-flask/
+│   └── spec.json      # {"machines": {"agent": {"image": "swe-images:flask", "networks": ["external"]}}, ...}
+├── js-express/
+│   └── spec.json      # {"machines": {"agent": {"image": "swe-images:express", "networks": ["external"]}}, ...}
+├── seed.py            # Shared across environments
+└── verify.py          # Shared across environments
 ```
 
 ### tasks.json (each task specifies its env)

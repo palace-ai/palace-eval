@@ -50,8 +50,33 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
         print(f"⚠ Skipping — task_type is '{info.get('task_type')}', not Agentic")
         return True
 
-    if "env" not in info:
-        print("✗ info.json missing 'env' key")
+    env_dir = tasklist_path / "environment"
+
+    # Discover environments the same way palace's orchestrator does:
+    # environment/*/spec.json (multi-env), environment/spec.json (single),
+    # or vivarium's default spec when neither exists. Parsed BEFORE the
+    # vivarium import so a broken tasklist fails with a spec diagnostic
+    # instead of an SDK/connection error.
+    env_specs: dict[str, dict] = {}
+    spec_parse_failed = False
+    if env_dir.is_dir():
+        for d in sorted(env_dir.iterdir()):
+            if d.is_dir() and (d / "spec.json").exists():
+                try:
+                    env_specs[d.name] = json.loads((d / "spec.json").read_text())
+                except json.JSONDecodeError as e:
+                    print(f"  ✗ environment/{d.name}/spec.json is invalid JSON: {e}")
+                    spec_parse_failed = True
+        if not env_specs and not spec_parse_failed and (env_dir / "spec.json").exists():
+            try:
+                env_specs["default"] = json.loads((env_dir / "spec.json").read_text())
+            except json.JSONDecodeError as e:
+                print(f"  ✗ environment/spec.json is invalid JSON: {e}")
+                spec_parse_failed = True
+    if not env_specs:
+        env_specs = {"default": {}}  # Empty spec = vivarium defaults
+    if spec_parse_failed:
+        print("\n✗ SMOKE TEST FAILED — fix spec.json errors above")
         return False
 
     from vivarium import Client
@@ -60,15 +85,24 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
         tasks = json.load(f)
 
     tasks = tasks[:task_limit]
-    env_dir = tasklist_path / "environment"
 
-    # Load seed and verify functions
-    seed_fn = None
-    verify_fn = None
-    if (env_dir / "seed.py").exists():
-        seed_fn = _load_fn(env_dir / "seed.py", "seed")
-    if (env_dir / "verify.py").exists():
-        verify_fn = _load_fn(env_dir / "verify.py", "verify")
+    # Load seed and verify functions — per-env first, fall back to shared
+    # environment/ files, mirroring VivariumAgent.on_tasklist_start. Resolved
+    # per env_name so multi-env tasklists get the right override.
+    def _resolve_fn(env_name: str, filename: str):
+        per_env = env_dir / env_name / filename
+        if per_env.exists():
+            return _load_fn(per_env, filename.removesuffix(".py"))
+        shared = env_dir / filename
+        if shared.exists():
+            return _load_fn(shared, filename.removesuffix(".py"))
+        return None
+
+    seed_fns: dict[str, object] = {}
+    verify_fns: dict[str, object] = {}
+    for env_name in env_specs:
+        seed_fns[env_name] = _resolve_fn(env_name, "seed.py")
+        verify_fns[env_name] = _resolve_fn(env_name, "verify.py")
 
     # Tar the environment directory
     archive_bytes = _tar_gz(env_dir) if env_dir.is_dir() else None
@@ -86,18 +120,22 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
             task_id = task.get("id", f"task_{i}")
             env_name = task.get("env")
             if env_name is None:
-                if len(info["env"]) == 1:
-                    env_name = next(iter(info["env"]))
+                if len(env_specs) == 1:
+                    env_name = next(iter(env_specs))
                 else:
                     print(f"  ✗ [{task_id}] No 'env' field and multiple environments defined")
                     all_passed = False
                     continue
+            if env_name not in env_specs:
+                print(f"  ✗ [{task_id}] Unknown env '{env_name}' (defined: {list(env_specs)})")
+                all_passed = False
+                continue
 
             print(f"  [{task_id}] env={env_name}")
 
             # Register spec (lazy, once per env_name)
             if env_name not in registered_specs:
-                spec_json = info["env"][env_name]
+                spec_json = env_specs[env_name]
                 try:
                     print(f"    Registering spec '{env_name}'...", end=" ", flush=True)
                     spec_id = await client.register_spec(spec_json, archive_bytes)
@@ -129,6 +167,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
                 continue
 
             # Run seed
+            seed_fn = seed_fns[env_name]
             if seed_fn:
                 try:
                     print("    Running seed...", end=" ", flush=True)
@@ -141,6 +180,7 @@ async def smoke_test(tasklist_path: Path, task_limit: int) -> bool:
                     continue
 
             # Attempt verify (expected to partially fail — no agent acted)
+            verify_fn = verify_fns[env_name]
             if verify_fn:
                 try:
                     print("    Running verify (dry)...", end=" ", flush=True)
