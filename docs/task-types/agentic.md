@@ -94,7 +94,7 @@ available to the agent:
 | `tools` | array | Vivarium tools to enable. Omitting it yields vivarium's default tool set: bash, read, write, edit, grep, glob, ls, web_search, web_fetch, notify, delegate. |
 | `custom_tools` | array | Optional paths to custom tool scripts. |
 | `agent_instructions` | string | Optional system instructions for the agent. |
-| `agent_machine` | string | Optional name of the machine the agent runs on (defaults to the first machine). |
+| `agent_machine` | string | Optional name of the machine the agent runs on (defaults to the machine named `agent`; if you rename or omit it, set `agent_machine` explicitly). |
 | `vscode` | object | Optional VS Code server configuration. |
 
 Machine-level keys:
@@ -106,10 +106,6 @@ Machine-level keys:
 | `resources` | object | Optional resource limits: `memory`, `cpus`, `pids` |
 | `security` | object | Optional security options |
 | `gpu` | object | Optional GPU configuration |
-
-!!! note
-    A per-machine `idle` key is accepted but ignored: machine lifecycle is
-    role-based, not idleness-based.
 
 For custom images, place a `Dockerfile` in the environment directory and set `"image": "./Dockerfile"`.
 
